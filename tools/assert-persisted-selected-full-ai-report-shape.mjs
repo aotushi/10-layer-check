@@ -70,6 +70,7 @@ try {
   assert.ok(!markdown.includes("Current evidence highlights"), "Generated Markdown should not repeat generic fact-pack labels.");
   assertConcreteFacts(markdown);
   assertMarkdownPlacement(markdown);
+  assertSectionDensityShape(markdown);
   assertKnownRefs(markdown, brief);
 
   await assertPersistedJsonAndMarkdownShareAiResult(worker);
@@ -324,13 +325,49 @@ function assertMarkdownPlacement(markdown) {
   assert.ok(security.includes("set-cookie") || security.includes("cookie"));
 }
 
-function sectionText(markdown, heading) {
-  const pattern = new RegExp(`^## ${escapeRegExp(heading)}\\n\\n([\\s\\S]*?)(?=\\n\\n## |$)`, "m");
-  return markdown.match(pattern)?.[1] ?? "";
+function assertSectionDensityShape(markdown) {
+  const summary = sectionText(markdown, "Executive Summary");
+  const technology = sectionText(markdown, "Technology Stack");
+  const api = sectionText(markdown, "API and Protocol Surface");
+  const security = sectionText(markdown, "Security Posture");
+
+  assert.ok(!summary.includes("Key evidence:"), "Summary should not keep duplicated Key evidence labels.");
+  assert.ok(!technology.includes("Technology evidence:"), "Technology section should not keep duplicated evidence labels.");
+  assert.ok(!api.includes("API/protocol evidence:"), "API section should not keep duplicated evidence labels.");
+  assert.ok(!security.includes("Security evidence:"), "Security section should not keep duplicated evidence labels.");
+  if (summary.includes("Performance score") || summary.includes("Lighthouse performance score")) {
+    assert.ok(
+      summary.includes("\n\nPerformance score") || summary.includes("\n\nLighthouse performance score"),
+      "Summary should split performance facts into topical paragraphs.",
+    );
+  }
+  if (technology.includes("Public SPA asset metadata:")) {
+    assert.ok(
+      technology.includes("\n\nPublic SPA asset metadata:"),
+      "Technology section should split public SPA metadata into a topical paragraph.",
+    );
+  }
+  if (api.includes("Bounded public API endpoint inventory:")) {
+    assert.ok(
+      api.includes("\n\nBounded public API endpoint inventory:"),
+      "API section should split endpoint inventory into a topical paragraph.",
+    );
+  }
+  if (security.includes("Missing security headers:")) {
+    assert.ok(
+      security.includes("\n\nMissing security headers:"),
+      "Security section should split security header facts into a topical paragraph.",
+    );
+  }
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function sectionText(markdown, heading) {
+  const marker = `## ${heading}\n\n`;
+  const start = markdown.indexOf(marker);
+  if (start < 0) return "";
+  const rest = markdown.slice(start + marker.length);
+  const next = rest.indexOf("\n\n## ");
+  return next >= 0 ? rest.slice(0, next) : rest;
 }
 
 function assertConcreteFacts(markdown) {
@@ -345,7 +382,6 @@ function assertConcreteFacts(markdown) {
     "Cookie",
     "Subdomain/reachability matrix",
     "Gap groups:",
-    "Key evidence:",
     "requires_permission",
     "manual_review",
     "out_of_scope",

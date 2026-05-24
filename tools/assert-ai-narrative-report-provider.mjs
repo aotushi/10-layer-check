@@ -129,6 +129,47 @@ try {
     throw new Error("AI narrative report adapter should synthesize compact evidence blocks.");
   }
 
+  const shaped = await runWorkerAiNarrativeReportProvider(
+    contract,
+    {
+      AI_PROVIDER_API_KEY: "test-key",
+      AI_PROVIDER_MODEL: "test-model",
+      AI_PROVIDER_BASE_URL: "https://example.invalid/v1/chat/completions",
+    },
+    { modelClient: async () => createDenseModelOutput() },
+  );
+  if (!shaped.ok) {
+    throw new Error("AI narrative report adapter should accept dense but valid structured model output.");
+  }
+  const shapedSummary = shaped.result.sections.find((section) => section.id === "summary")?.content ?? "";
+  const shapedTechnology = shaped.result.sections.find((section) => section.id === "technology_stack")?.content ?? "";
+  const shapedApi = shaped.result.sections.find((section) => section.id === "api_protocol_surface")?.content ?? "";
+  const shapedSecurity = shaped.result.sections.find((section) => section.id === "security_posture")?.content ?? "";
+  if (shapedSummary.includes("Key evidence:")) {
+    throw new Error("Summary shaping should remove a duplicated Key evidence lead-in.");
+  }
+  if (!shapedSummary.includes("\n\nPerformance score")) {
+    throw new Error("Summary shaping should split performance evidence into a topical paragraph.");
+  }
+  if (shapedTechnology.includes("Technology evidence:")) {
+    throw new Error("Technology shaping should remove a duplicated Technology evidence lead-in.");
+  }
+  if (!shapedTechnology.includes("\n\nPublic SPA asset metadata:")) {
+    throw new Error("Technology shaping should split SPA metadata into a topical paragraph.");
+  }
+  if (shapedApi.includes("API/protocol evidence:")) {
+    throw new Error("API shaping should remove a duplicated API/protocol evidence lead-in.");
+  }
+  if (!shapedApi.includes("\n\nBounded public API endpoint inventory:")) {
+    throw new Error("API shaping should split endpoint inventory into a topical paragraph.");
+  }
+  if (shapedSecurity.includes("Security evidence:")) {
+    throw new Error("Security shaping should remove a duplicated Security evidence lead-in.");
+  }
+  if (!shapedSecurity.includes("\n\nMissing security headers:")) {
+    throw new Error("Security shaping should split security headers into a topical paragraph.");
+  }
+
   const invalid = await runWorkerAiNarrativeReportProvider(
     contract,
     { AI_PROVIDER_API_KEY: "test-key", AI_PROVIDER_MODEL: "test-model" },
@@ -421,6 +462,50 @@ function createValidModelOutput() {
     ],
     markdown:
       "# Site Analysis\n\nThe target returned observable HTTP evidence [E001]. Missing runtime data remains [M001].",
+  };
+}
+
+function createDenseModelOutput() {
+  return {
+    sections: [
+      {
+        id: "summary",
+        title: "Executive Summary",
+        content:
+          "HTTPS is reachable. Key evidence: HTTPS is reachable. Performance score 31; 5 metric(s) are poor. Lighthouse performance score 33; 4 metric(s) are poor.",
+        evidence_refs: ["E001"],
+        missing_data_refs: ["M001"],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+      {
+        id: "technology_stack",
+        title: "Technology Stack",
+        content:
+          "Found 1 deterministic frontend technology candidate(s). Technology evidence: Found 1 deterministic frontend technology candidate(s). Public SPA asset metadata: React; Vite-like asset pipeline. Bounded public metadata check: Observed CMS/forum metadata signal(s).",
+        evidence_refs: ["E001"],
+        missing_data_refs: [],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+      {
+        id: "api_protocol_surface",
+        title: "API and Protocol Surface",
+        content:
+          "Bounded public CORS check: Observed CORS response header signal(s). API/protocol evidence: Bounded public CORS check: Observed CORS response header signal(s). Bounded public API endpoint inventory: Preserved /health and /v1/models.",
+        evidence_refs: ["E001"],
+        missing_data_refs: [],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+      {
+        id: "security_posture",
+        title: "Security Posture",
+        content:
+          "Bounded public cookie check: Observed Set-Cookie header(s). Security evidence: Bounded public cookie check: Observed Set-Cookie header(s). Missing security headers: content-security-policy, strict-transport-security, permissions-policy.",
+        evidence_refs: ["E001"],
+        missing_data_refs: [],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+    ],
+    markdown: "",
   };
 }
 

@@ -413,6 +413,7 @@ function enrichSectionContentWithFacts(
 function createSectionFactLimit(sectionId: string): number {
   const limits: Record<string, number> = {
     summary: 4,
+    technology_stack: 10,
     organization_operations: 7,
     missing_data_next_steps: 8,
   };
@@ -611,8 +612,104 @@ function createSectionFactAppendLabel(sectionId: string): string {
 }
 
 function shapeSectionContent(sectionId: string, content: string): string {
-  if (sectionId !== "organization_operations") return content;
-  return shapeOrganizationOperationsContent(content);
+  if (sectionId === "organization_operations") return shapeOrganizationOperationsContent(content);
+  if (sectionId === "summary") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Key evidence:"],
+      paragraphMarkers: ["Performance score", "Lighthouse performance score", "Subdomain/reachability matrix:"],
+    });
+  }
+  if (sectionId === "technology_stack") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Technology evidence:"],
+      paragraphMarkers: [
+        "Public SPA asset metadata:",
+        "Found 2 application fingerprint",
+        "Bounded public app header metadata:",
+        "Bounded public metadata check:",
+        "Observed public app marker(s):",
+        "Missing data:",
+      ],
+    });
+  }
+  if (sectionId === "api_protocol_surface") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["API/protocol evidence:"],
+      paragraphMarkers: [
+        "Bounded public API endpoint inventory:",
+        "Bounded public API check:",
+        "No CORS headers",
+        "No obvious API",
+        "Found 2 protocol",
+        "Browser runtime observed",
+      ],
+    });
+  }
+  if (sectionId === "security_posture") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Security evidence:"],
+      paragraphMarkers: [
+        "No Set-Cookie",
+        "Bounded public CORS check:",
+        "Missing security headers:",
+        "No CORS headers",
+        "Frame embedding policy",
+        "Browser runtime observed",
+      ],
+    });
+  }
+  return content;
+}
+
+function shapeTopicalFactContent(
+  content: string,
+  options: { duplicateLabels: string[]; paragraphMarkers: string[] },
+): string {
+  const normalized = removeSectionLeadInLabels(
+    removeDuplicatedLeadInLabel(content, options.duplicateLabels),
+    options.duplicateLabels,
+  );
+  return collapseExcessParagraphs(insertParagraphBreaksBeforeMarkers(normalized, options.paragraphMarkers)).join("\n\n");
+}
+
+function removeDuplicatedLeadInLabel(content: string, labels: string[]): string {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  for (const label of labels) {
+    const marker = `${label} `;
+    const markerIndex = normalized.indexOf(marker);
+    if (markerIndex <= 0) continue;
+    const leadIn = normalized.slice(0, markerIndex).trim();
+    const afterLabel = normalized.slice(markerIndex + marker.length).trim();
+    if (!leadIn || !afterLabel) continue;
+    const normalizedLeadIn = normalizeComparableText(leadIn);
+    const normalizedAfterLabel = normalizeComparableText(afterLabel);
+    if (normalizedAfterLabel.startsWith(normalizedLeadIn)) {
+      return afterLabel;
+    }
+  }
+  return normalized;
+}
+
+function removeSectionLeadInLabels(content: string, labels: string[]): string {
+  return labels.reduce((value, label) => {
+    const pattern = new RegExp(`\\s*${escapeRegExp(label)}\\s*`, "g");
+    return value.replace(pattern, " ");
+  }, content).replace(/\s+/g, " ").trim();
+}
+
+function insertParagraphBreaksBeforeMarkers(content: string, markers: string[]): string {
+  return markers.reduce((value, marker) => {
+    const pattern = new RegExp(`\\s+(${escapeRegExp(marker)})`, "g");
+    return value.replace(pattern, "\n\n$1");
+  }, content);
+}
+
+function normalizeComparableText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function shapeOrganizationOperationsContent(content: string): string {
