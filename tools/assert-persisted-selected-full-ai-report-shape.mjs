@@ -70,6 +70,7 @@ try {
   assert.ok(!markdown.includes("Current evidence highlights"), "Generated Markdown should not repeat generic fact-pack labels.");
   assertConcreteFacts(markdown);
   assertMarkdownPlacement(markdown);
+  assertSectionFactOwnership(markdown);
   assertSectionDensityShape(markdown);
   assertSectionCitationShape(markdown);
   assertKnownRefs(markdown, brief);
@@ -306,6 +307,18 @@ function assertSectionGuidancePlacement(contract) {
     probes("security_posture").includes("bounded_cookie_attribute_observation_probe"),
     "Security section should receive bounded cookie evidence.",
   );
+  assert.ok(
+    !probes("security_posture").includes("bounded_cors_header_validation_probe"),
+    "Security section should not receive primary bounded CORS evidence.",
+  );
+  assert.ok(
+    !probes("organization_operations").includes("public_content_surface_probe"),
+    "Organization section should not receive primary content surface map evidence.",
+  );
+  assert.ok(
+    !probes("organization_operations").includes("public_content_detail_probe"),
+    "Organization section should not receive primary content detail map evidence.",
+  );
   assert.ok(facts("api_protocol_surface").includes("/v1/models"), "API facts should include concrete endpoint paths.");
   assert.ok(facts("technology_stack").includes("wordpress_name"), "Technology facts should include parsed WordPress metadata.");
   assert.ok(facts("security_posture").includes("set-cookie"), "Security facts should include cookie observations.");
@@ -324,6 +337,43 @@ function assertMarkdownPlacement(markdown) {
   assert.ok(api.includes("/v1/models") || api.includes("/health"), "API section should carry bounded API endpoint paths.");
   assert.ok(technology.includes("wordpress") || technology.includes("discourse") || technology.includes("mintlify"));
   assert.ok(security.includes("set-cookie") || security.includes("cookie"));
+}
+
+function assertSectionFactOwnership(markdown) {
+  const headings = [
+    "Executive Summary",
+    "Public Information Architecture",
+    "Technology Stack",
+    "Deployment and Network Surface",
+    "Request and Rendering Chain",
+    "API and Protocol Surface",
+    "Subdomains and Attack Surface",
+    "Organization and Operations Signals",
+    "Security Posture",
+  ];
+  for (const heading of headings) {
+    const section = sectionText(markdown, heading);
+    assert.ok(
+      !/Missing data:|Remaining gaps:/i.test(section),
+      `${heading} should not carry generic missing-data prose.`,
+    );
+  }
+
+  const organization = sectionText(markdown, "Organization and Operations Signals").toLowerCase();
+  const security = sectionText(markdown, "Security Posture").toLowerCase();
+
+  assert.ok(
+    !organization.includes("public content detail map:") && !organization.includes("public content surface map:"),
+    "Organization section should not duplicate content map facts owned by Public IA.",
+  );
+  assert.ok(
+    countOccurrences(organization, "public product/business detail:") <= 1,
+    "Organization section should not repeat public product/business detail paragraphs.",
+  );
+  assert.ok(
+    !security.includes("bounded public cors check:") && !security.includes("observed cors response header"),
+    "Security section should not duplicate CORS facts owned by API.",
+  );
 }
 
 function assertSectionDensityShape(markdown) {
@@ -441,6 +491,10 @@ function assertSectionCitationShape(markdown) {
 
 function extractRefs(value, prefix) {
   return Array.from(new Set(Array.from(value.matchAll(new RegExp(`\\[(${prefix}\\d{3})\\]`, "g"))).map((match) => match[1])));
+}
+
+function countOccurrences(value, needle) {
+  return value.split(needle).length - 1;
 }
 
 function sectionText(markdown, heading) {

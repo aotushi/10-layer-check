@@ -270,10 +270,12 @@ function selectFactHints(brief: ReportBrief, sectionId: string, evidenceRefs: st
     .map((ref) => brief.evidence_index.find((item) => item.id === ref))
     .filter((item): item is ReportBrief["evidence_index"][number] => Boolean(item))
     .map(createEvidenceFactHint);
-  const missingFacts = missingDataRefs
-    .map((ref) => brief.missing_data.find((item) => item.id === ref))
-    .filter((item): item is ReportBrief["missing_data"][number] => Boolean(item))
-    .map((item) => `Missing data: ${item.description} (${item.classification}).`);
+  const missingFacts = sectionId === "missing_data_next_steps"
+    ? missingDataRefs
+      .map((ref) => brief.missing_data.find((item) => item.id === ref))
+      .filter((item): item is ReportBrief["missing_data"][number] => Boolean(item))
+      .map((item) => `Missing data: ${item.description} (${item.classification}).`)
+    : [];
 
   return prioritizeFactHints(sectionId, uniqueStrings([...evidenceFacts, ...missingFacts]))
     .slice(0, factHintLimitForSection(sectionId));
@@ -989,10 +991,12 @@ function scoreEvidenceForSection(
   spec: {
     layers?: number[];
     probes?: string[];
+    exclude_probes?: string[];
     items?: string[];
     sources?: string[];
   },
 ): number {
+  if (spec.exclude_probes?.includes(item.probe)) return 0;
   let score = 0;
   if (spec.layers?.includes(item.layer)) score += 4;
   if (spec.probes?.includes(item.probe)) score += 8;
@@ -1007,6 +1011,7 @@ const SECTION_EVIDENCE_SELECTION: Record<
   {
     layers?: number[];
     probes?: string[];
+    exclude_probes?: string[];
     items?: string[];
     sources?: string[];
   }
@@ -1101,7 +1106,8 @@ const SECTION_EVIDENCE_SELECTION: Record<
       "public_business_content_probe",
       "public_product_business_detail_probe",
     ],
-    items: ["rdap", "whois", "mx", "txt", "wayback", "related", "organization", "business", "public_content", "product_business"],
+    exclude_probes: ["public_content_surface_probe", "public_content_detail_probe"],
+    items: ["rdap", "whois", "mx", "txt", "wayback", "related", "organization", "business", "product_business"],
   },
   security_posture: {
     layers: [10],
@@ -1112,11 +1118,10 @@ const SECTION_EVIDENCE_SELECTION: Record<
       "leakage_signal_probe",
       "runtime_security_events_probe",
       "cookie_security_probe",
-      "cors_policy_probe",
-      "bounded_cors_header_validation_probe",
       "bounded_cookie_attribute_observation_probe",
     ],
-    items: ["security", "headers", "iframe", "mixed_content", "leakage", "cookie", "cors"],
+    exclude_probes: ["cors_policy_probe", "bounded_cors_header_validation_probe"],
+    items: ["security", "headers", "iframe", "mixed_content", "leakage", "cookie"],
   },
 };
 

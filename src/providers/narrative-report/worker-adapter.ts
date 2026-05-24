@@ -212,7 +212,7 @@ function createMessages(contract: AiNarrativeReportContract): WorkersAiChatInput
     {
       role: "system",
       content:
-        "Return only valid compact JSON matching site-10-layer-ai-narrative-report-result/v0.1. Do not wrap in markdown fences. Use only section ids from output_contract.section_ids, include every id from output_contract.required_section_ids, and follow output_contract.section_guidance. Do not write one section per raw layer; merge evidence into poixe-style topical sections. Prefer complete 8-10 section coverage when the brief has evidence or missing-data refs for those topics: summary, public_information_architecture, technology_stack, deployment_network_surface, request_rendering_chain, api_protocol_surface, subdomain_attack_surface, organization_operations, security_posture, missing_data_next_steps. Use each section_guidance fact_hints as concrete section material before generic layer-count prose. Use each section_guidance evidence_ref_hints and missing_data_ref_hints as primary refs for that section so generic CDN/header refs do not dominate unrelated sections. Do not put CORS, Access-Control, Set-Cookie, API error-surface, WordPress, Discourse, Mintlify, or wp-json details in public_information_architecture; place them in api_protocol_surface, technology_stack, subdomain_attack_surface, or security_posture as guided. Each section content must be under 1000 characters. Keep markdown short or set it to an empty string; the service will synthesize final Markdown from sections. Cite only evidence_refs and missing_data_refs present in the input. Use E### only in evidence_refs and M### only in missing_data_refs. Do not invent ownership, business, vulnerability, or related-domain claims.",
+        "Return only valid compact JSON matching site-10-layer-ai-narrative-report-result/v0.1. Do not wrap in markdown fences. Use only section ids from output_contract.section_ids, include every id from output_contract.required_section_ids, and follow output_contract.section_guidance. Do not write one section per raw layer; merge evidence into poixe-style topical sections. Prefer complete 8-10 section coverage when the brief has evidence or missing-data refs for those topics: summary, public_information_architecture, technology_stack, deployment_network_surface, request_rendering_chain, api_protocol_surface, subdomain_attack_surface, organization_operations, security_posture, missing_data_next_steps. Use each section_guidance fact_hints as concrete section material before generic layer-count prose. Use each section_guidance evidence_ref_hints and missing_data_ref_hints as primary refs for that section so generic CDN/header refs do not dominate unrelated sections. Put content maps primarily in public_information_architecture, public business-operation interpretation primarily in organization_operations, CORS/Access-Control/API endpoint facts primarily in api_protocol_surface, and cookie/security-header/runtime security facts primarily in security_posture. Do not add generic Missing data or Remaining gaps prose to topical sections; reserve those gaps for missing_data_next_steps unless a section-specific absence is directly relevant. Do not put CORS, Access-Control, Set-Cookie, API error-surface, WordPress, Discourse, Mintlify, or wp-json details in public_information_architecture. Each section content must be under 1000 characters. Keep markdown short or set it to an empty string; the service will synthesize final Markdown from sections. Cite only evidence_refs and missing_data_refs present in the input. Use E### only in evidence_refs and M### only in missing_data_refs. Do not invent ownership, business, vulnerability, or related-domain claims.",
     },
     {
       role: "user",
@@ -504,9 +504,7 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
     organization_operations: ["public_business_content_probe", "public_product_business_detail_probe"],
     security_posture: [
       "cookie_security_probe",
-      "cors_policy_probe",
       "security_headers_probe",
-      "bounded_cors_header_validation_probe",
       "bounded_cookie_attribute_observation_probe",
     ],
   };
@@ -603,7 +601,7 @@ function createFallbackContent(
   contract: AiNarrativeReportContract,
   guidance: AiNarrativeReportContract["output_contract"]["section_guidance"][number],
   evidenceRefs: string[],
-  missingRefs: string[],
+  _missingRefs: string[],
 ): string {
   const brief = contract.input.brief;
 
@@ -628,27 +626,16 @@ function createFallbackContent(
     .map((ref) => brief.evidence_index.find((item) => item.id === ref)?.summary)
     .filter((value): value is string => Boolean(value))
     .slice(0, 3);
-  const missingSummaries = missingRefs
-    .map((ref) => brief.missing_data.find((item) => item.id === ref))
-    .filter((value): value is NonNullable<typeof value> => Boolean(value))
-    .slice(0, 3)
-    .map((item) => `${item.description} (${item.classification})`);
   const factHints = guidance.fact_hints.slice(0, 5);
 
   if (factHints.length > 0) {
-    const missing = missingSummaries.length > 0
-      ? ` Remaining gaps: ${missingSummaries.join(" ")}`
-      : "";
-    return `${createSectionFactAppendLabel(guidance.id)} ${factHints.join(" ")}${missing}`;
+    return `${createSectionFactAppendLabel(guidance.id)} ${factHints.join(" ")}`;
   }
 
   const collected = evidenceSummaries.length > 0
     ? `Current evidence includes ${evidenceSummaries.join(" ")}`
     : "No strong collected evidence was selected for this topic.";
-  const missing = missingSummaries.length > 0
-    ? ` Remaining gaps: ${missingSummaries.join(" ")}`
-    : "";
-  return `${collected}${missing}`;
+  return collected;
 }
 
 function createSectionFactAppendLabel(sectionId: string): string {
@@ -668,9 +655,10 @@ function createSectionFactAppendLabel(sectionId: string): string {
 }
 
 function shapeSectionContent(sectionId: string, content: string): string {
-  if (sectionId === "organization_operations") return shapeOrganizationOperationsContent(content);
+  const contentWithoutGenericMissing = removeGenericMissingDataProse(sectionId, content);
+  if (sectionId === "organization_operations") return shapeOrganizationOperationsContent(contentWithoutGenericMissing);
   if (sectionId === "public_information_architecture") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["Public map evidence:"],
       paragraphMarkers: [
         "Subdomain/reachability matrix:",
@@ -683,13 +671,13 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "summary") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["Key evidence:"],
       paragraphMarkers: ["Performance score", "Lighthouse performance score", "Subdomain/reachability matrix:"],
     });
   }
   if (sectionId === "deployment_network_surface") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["Network evidence:"],
       paragraphMarkers: [
         "Performance score",
@@ -701,7 +689,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "request_rendering_chain") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["Rendering-chain evidence:"],
       paragraphMarkers: [
         "Browser runtime loaded",
@@ -713,7 +701,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "technology_stack") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["Technology evidence:"],
       paragraphMarkers: [
         "Public SPA asset metadata:",
@@ -726,7 +714,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "api_protocol_surface") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["API/protocol evidence:"],
       paragraphMarkers: [
         "Bounded public API endpoint inventory:",
@@ -739,7 +727,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "subdomain_attack_surface") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["Subdomain evidence:"],
       paragraphMarkers: [
         "Collected 2 bounded HTTP",
@@ -750,13 +738,11 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "security_posture") {
-    return shapeTopicalFactContent(content, {
+    return shapeTopicalFactContent(contentWithoutGenericMissing, {
       duplicateLabels: ["Security evidence:"],
       paragraphMarkers: [
         "No Set-Cookie",
-        "Bounded public CORS check:",
         "Missing security headers:",
-        "No CORS headers",
         "Frame embedding policy",
         "Browser runtime observed",
       ],
@@ -768,7 +754,16 @@ function shapeSectionContent(sectionId: string, content: string): string {
       paragraphMarkers: ["Gap groups:", "Missing data:"],
     });
   }
-  return content;
+  return contentWithoutGenericMissing;
+}
+
+function removeGenericMissingDataProse(sectionId: string, content: string): string {
+  if (sectionId === "missing_data_next_steps") return content;
+  return content
+    .replace(/\s+Missing data:\s+[^.]+?\((?:add_provider|requires_permission|manual_review|requires_user_input|out_of_scope)\)\./g, "")
+    .replace(/\s+Remaining gaps:\s+[^.]+(?:\.)?/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function shapeTopicalFactContent(
@@ -869,6 +864,7 @@ function shapeOrganizationOperationsContent(content: string): string {
   return collapseExcessParagraphs(normalized)
     .map(trimOrganizationParagraph)
     .filter(Boolean)
+    .filter(uniqueOrganizationParagraph)
     .sort((left, right) => scoreOrganizationParagraph(left) - scoreOrganizationParagraph(right))
     .join("\n\n");
 }
@@ -888,6 +884,24 @@ function trimOrganizationParagraph(value: string): string {
     return `Public operations evidence: ${trimmed}`;
   }
   return value;
+}
+
+function uniqueOrganizationParagraph(value: string, index: number, values: string[]): boolean {
+  const key = organizationParagraphKey(value);
+  if (!key) return true;
+  return values.findIndex((candidate) => organizationParagraphKey(candidate) === key) === index;
+}
+
+function organizationParagraphKey(value: string): string | null {
+  for (const label of [
+    "Public product/business detail:",
+    "Public business/product content:",
+    "Public content detail map:",
+    "Public content surface map:",
+  ]) {
+    if (value.startsWith(label)) return label;
+  }
+  return null;
 }
 
 function scoreOrganizationParagraph(value: string): number {

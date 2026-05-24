@@ -142,14 +142,15 @@ Latest remote verification:
 - Cross-section density cleanup verification: Worker version `d3800e63-316a-4192-9a9c-5c6a958d763f` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-943b691b-35eb-4d69-b060-365fd9435be2`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, and `Executive Summary`, `Technology Stack`, `API and Protocol Surface`, and `Security Posture` are split into topical paragraphs without duplicated `Key evidence`, `Technology evidence`, `API/protocol evidence`, or `Security evidence` labels. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T11-05-32-339Z.json` and `.md`.
 - Remaining-section density cleanup verification: Worker version `cc5844ae-a087-4dc2-ad74-c9c56ed29ed8` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-2fe36322-9799-4fdd-a4bf-3dd917b0175d`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, split remaining dense sections, and sanitized `Boundaries` text without fact-like evidence or placeholder limitations. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T12-21-47-194Z.json` and `.md`.
 - Evidence ref prioritization verification: Worker version `f294e9bc-6728-4005-b978-e6f487252d45` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-f437606f-7a46-48a8-9b61-59d09ead1e8c`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, section-level citation caps, fewer distinct Markdown refs, and no raw JSON-like forced fact append in topical prose. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T13-48-53-237Z.json` and `.md`.
+- Section fact ownership verification: Worker version `910e5b2b-3b22-456a-be1b-391e5c19e0a8` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-51276303-f25d-4f6f-9bf7-30e5b5d68ad5`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, content maps owned by Public Information Architecture, CORS/API endpoint facts owned by API and Protocol Surface, cookie/security-header/runtime facts owned by Security Posture, generic gap prose limited to Missing Data, and duplicate public product/business detail paragraphs removed. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T14-12-44-425Z.json` and `.md`.
 
 Current parity progress:
 
 - Overall target: close the poixe target-report parity gap without using the reference report as evidence.
-- Current gap ledger item: `G2 evidence_selection`.
-- Current subtask: `G2.2 Section Fact Ownership and Missing-Data Placement`.
-- Last completed subtask: `G2.1 Evidence Ref Prioritization and Citation Trim`.
-- Next engineering focus: reduce duplicated cross-section facts and move generic missing-data prose out of topical sections while keeping the canonical 10-section report and validated refs.
+- Current gap ledger item: `G1 report_synthesis`.
+- Current subtask: `G1.6 Evidence Prose Compression and Target-Style Summaries`.
+- Last completed subtask: `G2.2 Section Fact Ownership and Missing-Data Placement`.
+- Next engineering focus: reduce raw `Evidence: key=value` density and shape current evidence into clearer target-style summaries while preserving G2.2 section ownership and validated refs.
 
 ## Current Features
 
