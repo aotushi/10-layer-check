@@ -177,6 +177,14 @@ try {
 
   assert.ok(publicIa?.fact_hints.some((hint) => hint.includes("Public content detail map")));
   assert.ok(orgOps?.fact_hints.some((hint) => hint.includes("Public product/business detail")));
+  assert.ok(
+    orgOps?.fact_hints.some((hint) => hint.includes("Observed operation topics: supplier/vendor onboarding")),
+    "Organization operations facts should summarize product/business detail pages as readable operation topics.",
+  );
+  assert.ok(
+    orgOps?.fact_hints.some((hint) => hint.includes("Evidence pages:")),
+    "Organization operations facts should preserve readable public detail page evidence.",
+  );
 
   console.log("public content detail probe module check passed.");
 } finally {

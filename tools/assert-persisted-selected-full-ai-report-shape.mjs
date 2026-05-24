@@ -67,6 +67,7 @@ try {
 
   assertExpectedSectionHeadings(markdown);
   assert.ok(!markdown.includes("undefined"), "Generated Markdown must not contain undefined text.");
+  assert.ok(!markdown.includes("Current evidence highlights"), "Generated Markdown should not repeat generic fact-pack labels.");
   assertConcreteFacts(markdown);
   assertMarkdownPlacement(markdown);
   assertKnownRefs(markdown, brief);
@@ -344,6 +345,7 @@ function assertConcreteFacts(markdown) {
     "Cookie",
     "Subdomain/reachability matrix",
     "Gap groups:",
+    "Key evidence:",
     "requires_permission",
     "manual_review",
     "out_of_scope",

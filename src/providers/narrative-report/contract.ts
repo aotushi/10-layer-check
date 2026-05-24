@@ -279,6 +279,10 @@ function selectFactHints(brief: ReportBrief, sectionId: string, evidenceRefs: st
 }
 
 function createEvidenceFactHint(item: ReportBrief["evidence_index"][number]): string {
+  if (item.probe === "public_product_business_detail_probe") {
+    return createPublicProductBusinessDetailFactHint(item);
+  }
+
   const evidenceItems = item.evidence_items
     .slice(0, 4)
     .map(formatEvidenceItemFact)
@@ -286,6 +290,80 @@ function createEvidenceFactHint(item: ReportBrief["evidence_index"][number]): st
   const evidenceSuffix = evidenceItems.length > 0 ? ` Evidence: ${evidenceItems.join("; ")}.` : "";
   const prefix = createEvidenceFactPrefix(item);
   return truncateFactHint(`${prefix}${normalizeFactText(item.summary)}${evidenceSuffix}`);
+}
+
+function createPublicProductBusinessDetailFactHint(item: ReportBrief["evidence_index"][number]): string {
+  const pages = uniqueStrings([
+    ...extractStructuredEvidencePages(item.evidence_items)
+      .map(formatPublicDetailPageEvidenceLabel)
+      .filter(Boolean),
+    ...extractDetailPageLabelsFromSummary(item.summary),
+  ]);
+  const operations = extractBusinessOperationLabels([...pages, item.summary]);
+  const operationText = operations.length > 0
+    ? ` Observed operation topics: ${operations.join(", ")}.`
+    : "";
+  const pageText = pages.length > 0
+    ? ` Evidence pages: ${pages.slice(0, 6).join("; ")}${pages.length > 6 ? `; +${pages.length - 6} more` : ""}.`
+    : "";
+  return truncateFactHint(`Public product/business detail: ${normalizeFactText(item.summary)}${operationText}${pageText}`);
+}
+
+function extractDetailPageLabelsFromSummary(value: string): string[] {
+  const match = value.match(/page\(s\):\s*([\s\S]+)$/i);
+  if (!match?.[1]) return [];
+  return match[1]
+    .replace(/\.$/, "")
+    .split(";")
+    .map((item) => item.trim())
+    .map((item) => item.split(/\s+\/\s+/).pop() ?? item)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function extractStructuredEvidencePages(
+  evidenceItems: ReportBrief["evidence_index"][number]["evidence_items"],
+): Record<string, unknown>[] {
+  const pages: Record<string, unknown>[] = [];
+
+  for (const evidence of evidenceItems) {
+    const parsed = parseJsonValue(evidence.value.trim());
+    if (!parsed.ok || !Array.isArray(parsed.value)) continue;
+    for (const item of parsed.value) {
+      if (!isRecord(item)) continue;
+      if (!("detail_kind" in item) && !("evidence_snippets" in item) && !("snippets" in item)) continue;
+      pages.push(item);
+    }
+  }
+
+  return pages;
+}
+
+function formatPublicDetailPageEvidenceLabel(value: Record<string, unknown>): string {
+  const title = stringField(value, "title") ?? stringField(value, "label") ?? stringField(value, "path");
+  const path = stringField(value, "path");
+  const hint = stringField(value, "controlled_hint");
+  const detailKind = stringField(value, "detail_kind");
+  const snippets = formatSnippetList(value.evidence_snippets ?? value.snippets)
+    .replace(/^snippets=/, "")
+    .replace(/\s+\+\d+ more$/, "");
+  const prefix = [detailKind, hint].filter(Boolean).join("/");
+  const location = path && title !== path ? `(${path})` : "";
+  const snippetText = snippets ? ` - ${truncateFactValue(snippets)}` : "";
+  return [prefix, title, location].filter(Boolean).join(" ").trim() + snippetText;
+}
+
+function extractBusinessOperationLabels(values: string[]): string[] {
+  const text = values.join(" ").toLowerCase();
+  const labels: string[] = [];
+  if (/supplier|vendor|onboarding|入驻/.test(text)) labels.push("supplier/vendor onboarding");
+  if (/payout|withdraw|withdrawal|提现|settlement/.test(text)) labels.push("payouts/withdrawals");
+  if (/routing|provider|厂商|路由/.test(text)) labels.push("provider routing");
+  if (/about|platform|关于|平台/.test(text)) labels.push("platform overview");
+  if (/cost|成本|降/.test(text)) labels.push("cost reduction content");
+  if (/product|products|商品|产品/.test(text)) labels.push("vendor/product pages");
+  return uniqueStrings(labels).slice(0, 6);
 }
 
 function createEvidenceFactPrefix(item: ReportBrief["evidence_index"][number]): string {
@@ -385,6 +463,15 @@ function formatStructuredEvidenceValue(value: unknown): string {
 function formatEvidenceArray(value: unknown[]): string {
   if (value.length === 0) return "none";
 
+  const detailLabels = value
+    .slice(0, 5)
+    .map(formatPublicDetailPageEvidenceLabelIfPresent)
+    .filter(Boolean);
+  if (detailLabels.length > 0) {
+    const suffix = value.length > detailLabels.length ? ` (+${value.length - detailLabels.length} more)` : "";
+    return `${value.length} detail page(s): ${detailLabels.join("; ")}${suffix}`;
+  }
+
   const metadataLabels = value
     .slice(0, 3)
     .map(formatPublicMetadataArrayItemLabel)
@@ -402,6 +489,12 @@ function formatEvidenceArray(value: unknown[]): string {
 
   if (labels.length === 0) return `${value.length} item(s)`;
   return `${value.length} item(s): ${labels.join(", ")}${suffix}`;
+}
+
+function formatPublicDetailPageEvidenceLabelIfPresent(value: unknown): string {
+  if (!isRecord(value)) return "";
+  if (!("detail_kind" in value) && !("evidence_snippets" in value) && !("snippets" in value)) return "";
+  return formatPublicDetailPageEvidenceLabel(value);
 }
 
 function formatPublicMetadataArrayItemLabel(value: unknown): string {

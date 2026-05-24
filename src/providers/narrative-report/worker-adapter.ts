@@ -397,7 +397,9 @@ function enrichSectionContentWithFacts(
   }
 
   const grouped = groupSummary ? ` Gap groups: ${groupSummary}` : "";
-  const highlights = missingFactHints.length > 0 ? ` Current evidence highlights: ${missingFactHints.join(" ")}` : "";
+  const highlights = missingFactHints.length > 0
+    ? ` ${createSectionFactAppendLabel(section.id)} ${missingFactHints.join(" ")}`
+    : "";
   const content = `${section.content.trim()}${grouped}${highlights}`;
   return {
     ...section,
@@ -434,12 +436,88 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
 }
 
 function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  if (item.probe === "public_product_business_detail_probe") {
+    return createBusinessOperationEvidenceFact(item);
+  }
+
   const evidence = item.evidence_items
     .slice(0, 3)
     .map((value) => [value.name ?? value.type, value.value].filter(Boolean).join("="))
     .join("; ");
   const suffix = evidence ? ` Evidence: ${evidence}.` : "";
   return truncate(`${item.summary}${suffix}`, 500);
+}
+
+function createBusinessOperationEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const pages = uniqueStrings([
+    ...item.evidence_items
+      .flatMap((evidence) => parseEvidenceArray(evidence.value))
+      .filter((value) => isRecord(value) && ("detail_kind" in value || "evidence_snippets" in value || "snippets" in value))
+      .map((value) => formatBusinessOperationPage(value as Record<string, unknown>))
+      .filter(Boolean),
+    ...extractDetailPageLabelsFromSummary(item.summary),
+  ]);
+  const operations = extractBusinessOperationTopics([...pages, item.summary]);
+  const operationText = operations.length > 0
+    ? ` Observed operation topics: ${operations.join(", ")}.`
+    : "";
+  const pageText = pages.length > 0
+    ? ` Evidence pages: ${pages.slice(0, 5).join("; ")}${pages.length > 5 ? `; +${pages.length - 5} more` : ""}.`
+    : "";
+  return truncate(`Public product/business detail: ${item.summary}.${operationText}${pageText}`, 800);
+}
+
+function extractDetailPageLabelsFromSummary(value: string): string[] {
+  const match = value.match(/page\(s\):\s*([\s\S]+)$/i);
+  if (!match?.[1]) return [];
+  return match[1]
+    .replace(/\.$/, "")
+    .split(";")
+    .map((item) => item.trim())
+    .map((item) => item.split(/\s+\/\s+/).pop() ?? item)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function parseEvidenceArray(value: string): unknown[] {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[")) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function formatBusinessOperationPage(value: Record<string, unknown>): string {
+  const title = stringField(value, "title") ?? stringField(value, "label") ?? stringField(value, "path");
+  const path = stringField(value, "path");
+  const snippets = asStringArray(value.evidence_snippets ?? value.snippets)
+    .map((snippet) => snippet.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 1);
+  const location = path && title !== path ? ` (${path})` : "";
+  const evidence = snippets.length > 0 ? ` - ${truncate(snippets[0], 160)}` : "";
+  return title ? `${title}${location}${evidence}` : "";
+}
+
+function extractBusinessOperationTopics(values: string[]): string[] {
+  const text = values.join(" ").toLowerCase();
+  const labels: string[] = [];
+  if (/supplier|vendor|onboarding|入驻/.test(text)) labels.push("supplier/vendor onboarding");
+  if (/payout|withdraw|withdrawal|提现|settlement/.test(text)) labels.push("payouts/withdrawals");
+  if (/routing|provider|厂商|路由/.test(text)) labels.push("provider routing");
+  if (/about|platform|关于|平台/.test(text)) labels.push("platform overview");
+  if (/cost|成本|降/.test(text)) labels.push("cost-reduction content");
+  if (/product|products|商品|产品/.test(text)) labels.push("vendor/product pages");
+  return uniqueStrings(labels).slice(0, 6);
+}
+
+function stringField(value: Record<string, unknown>, key: string): string | null {
+  const field = value[key];
+  return typeof field === "string" && field.length > 0 ? field : null;
 }
 
 function createFallbackContent(
@@ -463,7 +541,7 @@ function createFallbackContent(
   if (guidance.id === "missing_data_next_steps") {
     const groupSummary = createMissingDataGroupSummary(brief);
     const factHints = guidance.fact_hints.slice(0, 6);
-    const highlights = factHints.length > 0 ? ` Current evidence highlights: ${factHints.join(" ")}` : "";
+    const highlights = factHints.length > 0 ? ` Gap examples: ${factHints.join(" ")}` : "";
     return `Gap groups: ${groupSummary || "No missing-data groups were emitted by the deterministic brief."}${highlights}`;
   }
 
@@ -482,7 +560,7 @@ function createFallbackContent(
     const missing = missingSummaries.length > 0
       ? ` Remaining gaps: ${missingSummaries.join(" ")}`
       : "";
-    return `Current evidence highlights: ${factHints.join(" ")}${missing}`;
+    return `${createSectionFactAppendLabel(guidance.id)} ${factHints.join(" ")}${missing}`;
   }
 
   const collected = evidenceSummaries.length > 0
@@ -492,6 +570,22 @@ function createFallbackContent(
     ? ` Remaining gaps: ${missingSummaries.join(" ")}`
     : "";
   return `${collected}${missing}`;
+}
+
+function createSectionFactAppendLabel(sectionId: string): string {
+  const labels: Record<string, string> = {
+    summary: "Key evidence:",
+    public_information_architecture: "Public map evidence:",
+    technology_stack: "Technology evidence:",
+    deployment_network_surface: "Network evidence:",
+    request_rendering_chain: "Rendering-chain evidence:",
+    api_protocol_surface: "API/protocol evidence:",
+    subdomain_attack_surface: "Subdomain evidence:",
+    organization_operations: "Public operations evidence:",
+    security_posture: "Security evidence:",
+    missing_data_next_steps: "Gap examples:",
+  };
+  return labels[sectionId] ?? "Evidence highlights:";
 }
 
 function createMissingDataGroupSummary(brief: ReportBrief): string {
@@ -547,7 +641,10 @@ function sanitizeSectionContent(value: string): string {
     cleaned.push(line);
   }
 
-  return cleaned.join("\n").trim();
+  return cleaned
+    .join("\n")
+    .replace(/\bCurrent evidence highlights:\s*/gi, "")
+    .trim();
 }
 
 function hasSubstantiveSectionContent(value: string): boolean {
