@@ -1,0 +1,52 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "status": "passed",
+  "http_status": 200,
+  "schema_version": "site-10-layer-related-domain-confirmation-worker-response/v0.1",
+  "provider": "worker_related_domain_confirmation",
+  "result_schema_version": "site-10-layer-related-domain-confirmation-result/v0.1",
+  "invokes_provider": true,
+  "target": "https://example.com/",
+  "normalized_target": "example.com",
+  "candidate_hosts": [
+    "docs.example.net",
+    "assets.example-cdn.net"
+  ],
+  "allowed_evidence_refs": [
+    "RDC001"
+  ],
+  "cited_evidence_refs": [
+    "RDC001"
+  ],
+  "unknown_evidence_refs": [],
+  "result_count": 2,
+  "results": [
+    {
+      "candidate_host": "docs.example.net",
+      "relationship": "possible",
+      "evidence_refs": [
+        "RDC001"
+      ],
+      "reasoning": "The candidate appears in homepage links, but no shared identifier or external confirmation is present.",
+      "limitations": [
+        "Homepage-visible links can point to vendors, docs, CDN, or unrelated third-party services."
+      ]
+    },
+    {
+      "candidate_host": "assets.example-cdn.net",
+      "relationship": "possible",
+      "evidence_refs": [
+        "RDC001"
+      ],
+      "reasoning": "The candidate appears in homepage links, but no shared identifier or external confirmation is present.",
+      "limitations": [
+        "Homepage-visible links can point to vendors, docs, CDN, or unrelated third-party services."
+      ]
+    }
+  ],
+  "boundary": {
+    "not_in_default_full_scan": true,
+    "relationship_evidence_only": true,
+    "no_ownership_claim": true
+  }
+}

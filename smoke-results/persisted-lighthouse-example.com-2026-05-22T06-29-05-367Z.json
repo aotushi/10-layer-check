@@ -1,0 +1,127 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "performance_basic"
+  ],
+  "async_providers": [
+    "lighthouse"
+  ],
+  "strategy": "mobile",
+  "status": "passed",
+  "elapsed_ms": 71069,
+  "job_id": "scan-example.com-e50e11be-6898-43ff-bc75-4cf9f518c7c4",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "async_pending",
+    "record_count": 2,
+    "async_jobs": [
+      {
+        "capability": "lighthouse",
+        "provider": "github_actions_lighthouse",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      }
+    ]
+  },
+  "polls": [
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 2,
+      "async_jobs": [
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        }
+      ],
+      "poll": [
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "result_collected": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 2,
+      "async_jobs": [
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        }
+      ],
+      "poll": [
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "result_collected": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "completed",
+      "record_count": 2,
+      "async_jobs": [
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "poll": [
+        {
+          "capability": "lighthouse",
+          "status": "completed",
+          "result_collected": true
+        }
+      ]
+    }
+  ],
+  "read": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-persisted-scan-job/v0.1",
+    "meta_status": "completed",
+    "provider_jobs": [
+      {
+        "capability": "lighthouse",
+        "provider": "github_actions_lighthouse",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 1
+      }
+    ],
+    "raw_ref": "scan-jobs/raw/scan-example.com-e50e11be-6898-43ff-bc75-4cf9f518c7c4.json"
+  },
+  "artifact": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-export-artifact/v0.1",
+    "storage_persisted": true,
+    "record_count": 2,
+    "lighthouse_record_count": 1,
+    "layers": [
+      5
+    ],
+    "probes": [
+      "basic_performance_probe",
+      "performance_probe"
+    ],
+    "has_analysis": true,
+    "has_brief": true,
+    "has_markdown": true
+  }
+}

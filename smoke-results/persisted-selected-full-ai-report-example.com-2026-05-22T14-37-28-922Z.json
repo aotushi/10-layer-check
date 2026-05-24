@@ -1,0 +1,391 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "dns_infrastructure",
+    "tls_certificate",
+    "subdomain_attack_surface",
+    "organization_intelligence",
+    "remote_fetch",
+    "performance_basic",
+    "api_reachability",
+    "service_fingerprint"
+  ],
+  "async_providers": [
+    "pagespeed",
+    "lighthouse",
+    "browser_runtime",
+    "live_tls"
+  ],
+  "strategy": "mobile",
+  "status": "passed",
+  "elapsed_ms": 97065,
+  "job_id": "scan-example.com-4f0ea2e1-ad8a-400f-94f9-b06091d62323",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "async_pending",
+    "record_count": 33,
+    "provider_jobs": [
+      {
+        "capability": "pagespeed",
+        "provider": "pagespeed",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 1
+      },
+      {
+        "capability": "lighthouse",
+        "provider": "github_actions_lighthouse",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      },
+      {
+        "capability": "browser_runtime",
+        "provider": "github_actions_browser_runtime",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      },
+      {
+        "capability": "live_tls",
+        "provider": "github_actions_live_tls",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      }
+    ]
+  },
+  "polls": [
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 33,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 33,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "completed",
+      "record_count": 43,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 11
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    }
+  ],
+  "report_http_status": 200,
+  "report_schema_version": "site-10-layer-persisted-scan-ai-report/v0.1",
+  "report_ok": true,
+  "artifact_schema_version": "site-10-layer-scan-export-artifact/v0.1",
+  "artifact_storage_persisted": true,
+  "artifact_record_count": 43,
+  "artifact_records": {
+    "layers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "probes": [
+      "access_barrier_probe",
+      "ai_frontend_evidence_pack",
+      "api_endpoint_probe",
+      "api_error_surface_probe",
+      "api_protocol_probe",
+      "api_reachability_probe",
+      "app_fingerprint_probe",
+      "basic_performance_probe",
+      "browser_page_probe",
+      "browser_runtime_page_probe",
+      "cache_policy_probe",
+      "cdn_header_evidence_probe",
+      "cookie_security_probe",
+      "cors_policy_probe",
+      "frontend_assets_probe",
+      "frontend_technology_probe",
+      "http_headers_probe",
+      "iframe_embedding_probe",
+      "leakage_signal_probe",
+      "mixed_content_probe",
+      "network_infrastructure_probe",
+      "organization_intelligence_probe",
+      "performance_probe",
+      "rdap_whois_lite_probe",
+      "resource_weight_probe",
+      "robots_sitemap_probe",
+      "runtime_api_requests_probe",
+      "runtime_asset_cache_policy_probe",
+      "runtime_resource_bytes_probe",
+      "runtime_resource_summary_probe",
+      "runtime_resource_waterfall_probe",
+      "runtime_screenshot_evidence_probe",
+      "runtime_security_events_probe",
+      "runtime_third_party_resources_probe",
+      "security_headers_probe",
+      "service_fingerprint_probe",
+      "subdomain_attack_surface_probe",
+      "third_party_scripts_probe",
+      "tls_certificate_probe",
+      "tls_live_certificate_probe",
+      "wayback_history_probe"
+    ],
+    "sources": [
+      "cloudflare_worker_api_reachability",
+      "cloudflare_worker_dns",
+      "cloudflare_worker_fetch",
+      "cloudflare_worker_fetch + ai_ready_evidence_pack",
+      "cloudflare_worker_fetch + app_fingerprint_rules",
+      "cloudflare_worker_fetch + cache_header_rules",
+      "cloudflare_worker_fetch + cdn_header_rules",
+      "cloudflare_worker_fetch + crawl_metadata_fetch",
+      "cloudflare_worker_fetch + deterministic_frontend_rules",
+      "cloudflare_worker_fetch + domain_classifier",
+      "cloudflare_worker_fetch + header_html_rules",
+      "cloudflare_worker_fetch + html_asset_extractor",
+      "cloudflare_worker_fetch + static_resource_counter",
+      "cloudflare_worker_l7_service_fingerprint",
+      "cloudflare_worker_org_intel",
+      "cloudflare_worker_subdomains",
+      "cloudflare_worker_tls",
+      "github-actions-browser",
+      "github-actions-browser + browser_runtime_import_adapter",
+      "github-actions-browser + browser_runtime_import_adapter + cdn_header_rules",
+      "github_actions_lighthouse",
+      "github_actions_node_tls_socket",
+      "pagespeed_api"
+    ]
+  },
+  "evidence_checks": {
+    "layers_1_to_10": true,
+    "l5_performance_count": 2,
+    "l5_lighthouse_count": 1,
+    "l5_pagespeed_count": 1,
+    "l2_live_tls_count": 1,
+    "l4_runtime_record_count": 6,
+    "l6_runtime_api_count": 1,
+    "l10_runtime_security_count": 1
+  },
+  "ai_report_schema_version": "site-10-layer-ai-narrative-report-result/v0.1",
+  "ai_report_section_count": 5,
+  "markdown_length": 94,
+  "markdown_preview": "## Summary [E004] [E039] [E003] [E015] [E029] [E030] [E035] [M001] [M002] [M003] [M004] [M005]",
+  "direct_markdown_http_status": 200,
+  "direct_markdown_content_type": "text/markdown; charset=utf-8",
+  "direct_markdown_length": 3137,
+  "direct_markdown_preview": "## Public Information Architecture\n\nThe site has 10 layers of evidence, with 3 layers containing warning or error records. 2 high/medium risk items should be reviewed first. [E004] [E039] [E003] [E015] [E029] [E030] [E035] [M001] [M002] [M003] [M004] [M005]\n\nLimitations: HTTPS is reachable, but HSTS was not found on the probed response.; Missing security headers: content-security-policy, strict-transport-security, x-frame-options, x-content-type-options, referrer-policy, permissions-policy; DNS and protocol checks completed; no CDN signal was found from DNS records.; No robots.txt or default sitemap.xml was found by the remote fetch provider.; Collected 2 bounded HTTP(S) service fingerprint hint(s) from 1 host(s).; Found 1 CT-discovered subdomain candidate(s).; No X-Frame-Options or CSP fr...",
+  "direct_markdown_evidence_refs": [
+    "E001",
+    "E002",
+    "E003",
+    "E004",
+    "E015",
+    "E023",
+    "E024",
+    "E025",
+    "E029",
+    "E030",
+    "E035",
+    "E036",
+    "E037",
+    "E038",
+    "E039"
+  ],
+  "direct_markdown_missing_data_refs": [
+    "M001",
+    "M002",
+    "M003",
+    "M004",
+    "M005"
+  ],
+  "unknown_direct_markdown_evidence_refs": [],
+  "unknown_direct_markdown_missing_data_refs": [],
+  "direct_markdown_matches_json": false,
+  "markdown_evidence_refs": [
+    "E003",
+    "E004",
+    "E015",
+    "E029",
+    "E030",
+    "E035",
+    "E039"
+  ],
+  "markdown_missing_data_refs": [
+    "M001",
+    "M002",
+    "M003",
+    "M004",
+    "M005"
+  ],
+  "unknown_evidence_refs": [],
+  "unknown_missing_data_refs": [],
+  "boundaries": {
+    "invokes_ai_provider": true,
+    "deterministic_artifact_preserved": true,
+    "storage_persisted": true,
+    "frontend_state_mutated": false
+  }
+}

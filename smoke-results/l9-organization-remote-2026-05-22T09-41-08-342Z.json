@@ -1,0 +1,200 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "status": "passed",
+  "cases": [
+    {
+      "target": "https://poixe.com",
+      "kind": "baseline",
+      "status": "passed",
+      "http_status": 200,
+      "host": "poixe.com",
+      "rdap_status": "rdap_collected",
+      "rdap_provider": "rdap.verisign.com/com/v1",
+      "wayback_status": "wayback_collected",
+      "wayback_provider": "archive.org_wayback_available",
+      "candidate_count": 0,
+      "analytics_candidate_count": 0,
+      "analytics_candidates": [],
+      "checks": [
+        {
+          "name": "http_200",
+          "ok": true
+        },
+        {
+          "name": "rdap_collected",
+          "ok": true
+        },
+        {
+          "name": "wayback_collected",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "target": "https://www.poixe.com",
+      "kind": "baseline",
+      "status": "passed",
+      "http_status": 200,
+      "host": "www.poixe.com",
+      "rdap_status": "rdap_collected",
+      "rdap_provider": "rdap.verisign.com/com/v1",
+      "wayback_status": "wayback_collected",
+      "wayback_provider": "archive.org_wayback_available",
+      "candidate_count": 0,
+      "analytics_candidate_count": 0,
+      "analytics_candidates": [],
+      "checks": [
+        {
+          "name": "http_200",
+          "ok": true
+        },
+        {
+          "name": "rdap_collected",
+          "ok": true
+        },
+        {
+          "name": "wayback_collected",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "target": "https://matomo.org",
+      "kind": "false_positive",
+      "status": "passed",
+      "http_status": 200,
+      "host": "matomo.org",
+      "rdap_status": "error",
+      "rdap_provider": "rdap.org",
+      "wayback_status": "wayback_collected",
+      "wayback_provider": "archive.org_wayback_available",
+      "candidate_count": 5,
+      "analytics_candidate_count": 0,
+      "analytics_candidates": [],
+      "checks": [
+        {
+          "name": "http_200",
+          "ok": true
+        },
+        {
+          "name": "analytics_false_positive_guard",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "target": "https://plausible.io",
+      "kind": "false_positive",
+      "status": "passed",
+      "http_status": 200,
+      "host": "plausible.io",
+      "rdap_status": "error",
+      "rdap_provider": "rdap.org",
+      "wayback_status": "wayback_collected",
+      "wayback_provider": "archive.org_wayback_available",
+      "candidate_count": 3,
+      "analytics_candidate_count": 0,
+      "analytics_candidates": [],
+      "checks": [
+        {
+          "name": "http_200",
+          "ok": true
+        },
+        {
+          "name": "analytics_false_positive_guard",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "target": "https://web.dev",
+      "kind": "false_positive",
+      "status": "passed",
+      "http_status": 200,
+      "host": "web.dev",
+      "rdap_status": "error",
+      "rdap_provider": "rdap.org",
+      "wayback_status": "wayback_collected",
+      "wayback_provider": "archive.org_wayback_available",
+      "candidate_count": 10,
+      "analytics_candidate_count": 0,
+      "analytics_candidates": [],
+      "checks": [
+        {
+          "name": "http_200",
+          "ok": true
+        },
+        {
+          "name": "analytics_false_positive_guard",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "target": "https://wordpress.org",
+      "kind": "positive",
+      "status": "passed",
+      "http_status": 200,
+      "host": "wordpress.org",
+      "rdap_status": "error",
+      "rdap_provider": "rdap.org",
+      "wayback_status": "wayback_collected",
+      "wayback_provider": "archive.org_wayback_available",
+      "candidate_count": 25,
+      "analytics_candidate_count": 1,
+      "analytics_candidates": [
+        {
+          "host": "www.googletagmanager.com",
+          "signal": "analytics_script_host",
+          "url": "https://www.googletagmanager.com/gtm.js?id=",
+          "hints": [
+            "google_tag_manager"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "http_200",
+          "ok": true
+        },
+        {
+          "name": "expected_analytics_endpoint",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "target": "https://www.mozilla.org",
+      "kind": "positive",
+      "status": "passed",
+      "http_status": 200,
+      "host": "www.mozilla.org",
+      "rdap_status": "error",
+      "rdap_provider": "rdap.org",
+      "wayback_status": "wayback_collected",
+      "wayback_provider": "archive.org_wayback_available",
+      "candidate_count": 22,
+      "analytics_candidate_count": 1,
+      "analytics_candidates": [
+        {
+          "host": "o1069899.ingest.sentry.io",
+          "signal": "analytics_script_host",
+          "url": "https://c3ab8514873549d5b3785ebc7fb83c80@o1069899.ingest.sentry.io/6260331",
+          "hints": [
+            "sentry"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "http_200",
+          "ok": true
+        },
+        {
+          "name": "expected_analytics_endpoint",
+          "ok": true
+        }
+      ]
+    }
+  ]
+}

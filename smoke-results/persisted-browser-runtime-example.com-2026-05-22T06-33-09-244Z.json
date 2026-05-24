@@ -1,0 +1,118 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [],
+  "async_providers": [
+    "browser_runtime"
+  ],
+  "status": "passed",
+  "elapsed_ms": 55934,
+  "job_id": "scan-example.com-9896a17e-41d4-44e7-890b-beb61e52daf3",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "async_pending",
+    "record_count": 1,
+    "async_jobs": [
+      {
+        "capability": "browser_runtime",
+        "provider": "github_actions_browser_runtime",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      }
+    ]
+  },
+  "polls": [
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 1,
+      "async_jobs": [
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        }
+      ],
+      "poll": [
+        {
+          "capability": "browser_runtime",
+          "status": "running",
+          "result_collected": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "completed",
+      "record_count": 11,
+      "async_jobs": [
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 11
+        }
+      ],
+      "poll": [
+        {
+          "capability": "browser_runtime",
+          "status": "completed",
+          "result_collected": true
+        }
+      ]
+    }
+  ],
+  "read": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-persisted-scan-job/v0.1",
+    "meta_status": "completed",
+    "provider_jobs": [
+      {
+        "capability": "browser_runtime",
+        "provider": "github_actions_browser_runtime",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 11
+      }
+    ],
+    "raw_ref": "scan-jobs/raw/scan-example.com-9896a17e-41d4-44e7-890b-beb61e52daf3.json"
+  },
+  "artifact": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-export-artifact/v0.1",
+    "storage_persisted": true,
+    "record_count": 11,
+    "runtime_record_count": 8,
+    "runtime_security_record_count": 1,
+    "runtime_api_record_count": 1,
+    "runtime_bytes_record_count": 1,
+    "layers": [
+      1,
+      4,
+      6,
+      10
+    ],
+    "probes": [
+      "browser_page_probe",
+      "browser_runtime_page_probe",
+      "cdn_header_evidence_probe",
+      "runtime_api_requests_probe",
+      "runtime_asset_cache_policy_probe",
+      "runtime_resource_bytes_probe",
+      "runtime_resource_summary_probe",
+      "runtime_resource_waterfall_probe",
+      "runtime_screenshot_evidence_probe",
+      "runtime_security_events_probe",
+      "runtime_third_party_resources_probe"
+    ],
+    "has_analysis": true,
+    "has_brief": true,
+    "has_markdown": true
+  }
+}

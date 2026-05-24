@@ -1,0 +1,81 @@
+# Site Analysis: example.com
+
+## Executive Summary
+
+This report is based on 45 normalized record(s) across 10/10 collected layer(s). 3 layer(s) contain warning or error signals. 2 high/medium risk item(s) should be reviewed first. Current evidence highlights: HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=2 certificate(s): Sectigo for example.com (+1 more). Missing security headers: content-security-policy, strict-transport-security, x-frame-options, x-content-type-options, referrer-policy, permissions-policy. DNS and protocol checks completed; no CDN signal was found from DNS records. Evidence: A=2 item(s): 104.20.23.154, 172.66.147.243; AAAA=2 item(s): 2606:4700:10::ac42:93f3, 2606:4700:10::6814:179a; CNAME=none; HTTPS=1 item(s): \# 58 00 01 00 00 01 00 03 02 68 32 00 04 00 08 68 14 17 9a ac 42 93 f3 00 06 00 20 26 06 47 00 00 10 00 00 00 00 00 00 68 14 17 9a... No robots.txt or default sitemap.xml was found by the remote fetch provider. Evidence: https://example.com/robots.txt=404; https://example.com/sitemap.xml=404. Collected 2 bounded HTTP(S) service fingerprint hint(s) from 1 host(s). Evidence: checked_hosts=1 host(s): example.com; service_fingerprint_limits=max_hosts=1, checked_hosts=1, max_requests_per_host=1, max_concurrency=3. Subdomain/reachability matrix: Found 1 CT-discovered subdomain candidate(s). Evidence: provider_status=provider=certspotter, status=ok, certificate_count=7; provider_attempts=1 item(s); subdomains=1 item(s): www.example.com; https_reachability=1 item(s): www.example.com. No X-Frame-Options or CSP frame-ancestors policy was found. Evidence: x-frame-options=null; content-security-policy=null; iframe_sources=none.
+
+Evidence: [E004] [E043] [E003] [E015] [E031] [E032] [E039] [E001] [E006] [E009] [M001] [M002] [M003] [M004]
+
+Boundaries: HTTPS is reachable, but HSTS was not found on the probed response.; Missing security headers: content-security-policy, strict-transport-security, x-frame-options, x-content-type-options, referrer-policy, permissions-policy.; DNS and protocol checks completed; no CDN signal was found from DNS records.; No robots.txt or default sitemap.xml was found by the remote fetch provider.; Collected 2 bounded HTTP(S) service fingerprint hint(s) from 1 host(s).; Subdomain/reachability matrix: Found 1 CT-discovered subdomain candidate(s).; No X-Frame-Options or CSP frame-ancestors policy was found.; CDN header signal(s) found: cloudflare.
+
+## Public Information Architecture
+
+Current evidence highlights: Checked 6 bounded public host candidate(s); observed role hint(s): root, api, blog, community, docs, status. Evidence: public_host_roles=6 item(s): example.com status 200, api.example.com status 530, blog.example.com status 530 (+3 more); public_hosts=1 host(s): example.com status 200; reachable_public_hosts=1 host(s): example.com status 200; public_host_... Subdomain/reachability matrix: Found 1 CT-discovered subdomain candidate(s). Evidence: provider_status=provider=certspotter, status=ok, certificate_count=7; provider_attempts=1 item(s); subdomains=1 item(s): www.example.com; https_reachability=1 item(s): www.example.com. Browser runtime loaded the page without common access barrier signals. Evidence: final_url=https://example.com/; status_code=200; html_title=Example Domain; screenshot=/home/runner/work/02-browser-runtime-remote-git/02-browser-runtime-remote-git/screenshots/example.com-2026-05-23.png. Browser runtime loaded the page and captured rendered-page evidence. Evidence: final_url=https://example.com/; status_code=200; html_title=Example Domain. No robots.txt or default sitemap.xml was found by the remote fetch provider. Evidence: https://example.com/robots.txt=404; https://example.com/sitemap.xml=404. Remaining gaps: l7_permissioned_authenticated_surface_check (requires_permission) l7_permissioned_deep_port_service_inventory (requires_permission) l7_permissioned_external_service_intelligence (requires_permission)
+
+Evidence: [E015] [E012] [E030] [E032] [E010] [E018] [E016] [E009] [E011] [E013] [E014] [E017] [M001] [M002] [M003] [M004] [M005] [M006]
+
+Boundaries: Single URL and bounded runtime evidence may miss authenticated routes and deep crawl paths.
+
+## Technology Stack
+
+Current evidence highlights: Observed public app marker(s): api, blog, community, docs, status. Evidence: public_app_marker_names=5 item(s): api on api.example.com low, blog on blog.example.com low, community on community.example.com low (+2 more); public_app_markers=3 host(s): api.example.com, blog.example.com, community.example.com; public_marker_checks=2 item(s): wp-json on exampl... Extracted 0 scripts, 0 stylesheets, and 0 images from static HTML. Evidence: html_bytes=528; scripts=0; stylesheets=0; images=0. No high-confidence static frontend technology candidate was found. Browser runtime observed 0 third-party scripts and 0 third-party resources. No third-party script was found in static HTML.
+
+Evidence: [E012] [E013] [E021] [E022] [E033] [E034] [E010] [E009] [E016] [E015] [E011] [E014]
+
+Boundaries: Static and heuristic technology evidence is candidate evidence unless directly corroborated.
+
+## Deployment and Network Surface
+
+Current evidence highlights: HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=2 certificate(s): Sectigo for example.com (+1 more). CDN header signal(s) found: cloudflare. Evidence: cf-cache-status=url=https://example.com/, provider=cloudflare; cf-ray=url=https://example.com/, provider=cloudflare; server=url=https://example.com/, provider=cloudflare. CDN header signal(s) found: cloudflare. Evidence: cf-ray=url=https://example.com/, provider=cloudflare; cf-cache-status=url=https://example.com/, provider=cloudflare; server=url=https://example.com/, provider=cloudflare. Live certificate expires in 39 day(s). Evidence: tls_protocol=TLSv1.3; tls_cipher=name=TLS_AES_256_GCM_SHA384, standardName=TLS_AES_256_GCM_SHA384, version=TLSv1.3; leaf=valid_to=Jul 1 21:24:46 2026 GMT; tls_certificate_chain=structured 5 item(s). Response cache policy is explicit and does not show an obvious issue for the main response. Evidence: http_status=200; last-modified=Fri, 22 May 2026 08:19:40 GMT; age=7023; cf-cache-status=HIT.
+
+Evidence: [E004] [E001] [E002] [E005] [E007] [E008] [E023] [E024] [E025] [E003] [E016] [E043]
+
+Boundaries: Do not claim full origin topology or CDN coverage from headers alone.
+
+## Request and Rendering Chain
+
+Current evidence highlights: Browser runtime loaded the page and captured rendered-page evidence. Evidence: final_url=https://example.com/; status_code=200; html_title=Example Domain. Browser runtime observed 0.00 MiB of known transfer size with 0 unknown resource size(s). Evidence: runtime_transfer_size_total=598; runtime_transfer_size_known_count=1; runtime_transfer_size_unknown_count=0. Browser runtime observed 1 resources. Evidence: runtime_resource_count=1; runtime_resource_counts=document=1, script=0, stylesheet=0, image=0. Browser runtime resource waterfall was imported without failed resources. Evidence: failed_resource_count=0; api_like_resource_count=0. Browser runtime did not observe XHR/fetch/API-like requests during this page load. Evidence: runtime_api_request_count=0; runtime_api_failed_count=0; runtime_api_third_party_count=0.
+
+Evidence: [E011] [E017] [E018] [E019] [E029] [E010] [E008] [E016] [E020] [E021] [E014] [E026]
+
+Boundaries: Worker fetch and one browser run do not represent every user route or session state.
+
+## API and Protocol Surface
+
+Current evidence highlights: No obvious API or server error surface was detected in the main response. Evidence: error_surface=status_code=200, content_type=text/html. Found 2 protocol or platform clue(s) from response headers. Evidence: protocol_clues=server=cloudflare. Browser runtime did not observe XHR/fetch/API-like requests during this page load. Evidence: runtime_api_request_count=0; runtime_api_failed_count=0; runtime_api_third_party_count=0. No CORS headers were found on the main response. Evidence: cors=5 field(s). HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=2 certificate(s): Sectigo for example.com (+1 more).
+
+Evidence: [E026] [E027] [E029] [E028] [E004] [E015] [E039] [E043]
+
+Boundaries: Do not infer authenticated API behavior, billing, or backend business logic.
+
+## Subdomains and Attack Surface
+
+Current evidence highlights: Checked 6 bounded public host candidate(s); observed role hint(s): root, api, blog, community, docs, status. Evidence: public_host_roles=6 item(s): example.com status 200, api.example.com status 530, blog.example.com status 530 (+3 more); public_hosts=1 host(s): example.com status 200; reachable_public_hosts=1 host(s): example.com status 200; public_host_... Subdomain/reachability matrix: Found 1 CT-discovered subdomain candidate(s). Evidence: provider_status=provider=certspotter, status=ok, certificate_count=7; provider_attempts=1 item(s); subdomains=1 item(s): www.example.com; https_reachability=1 item(s): www.example.com. Collected 2 bounded HTTP(S) service fingerprint hint(s) from 1 host(s). Evidence: checked_hosts=1 host(s): example.com; service_fingerprint_limits=max_hosts=1, checked_hosts=1, max_requests_per_host=1, max_concurrency=3. HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=2 certificate(s): Sectigo for example.com (+1 more). Found 1 application fingerprint candidate(s): Cloudflare. Evidence: Cloudflare=category=hosting, confidence=high, evidence=server: cloudflare; Cloudflare=category=hosting, confidence=high, evidence=cf-ray: a0044edc8f44092d-LAX. Remaining gaps: l7_permissioned_authenticated_surface_check (requires_permission) l7_permissioned_deep_port_service_inventory (requires_permission) l7_permissioned_external_service_intelligence (requires_permission)
+
+Evidence: [E030] [E031] [E032] [E033] [E004] [E015] [E039] [E043] [M001] [M002] [M003] [M004] [M005] [M006]
+
+Boundaries: This is not a port scan, brute-force enumeration, vulnerability scan, or authenticated inventory.
+
+## Organization and Operations Signals
+
+Current evidence highlights: Collected organization-facing DNS, homepage, registration, or archive evidence. Evidence: mx=1 item(s): 0 .; txt=2 item(s): "v=spf1 -all", "_k2n1y4vw3qtb4skdx9e7dxt97qrmmq9"; social_links=none; related_domain_candidates=1 item(s): iana.org. No robots.txt or default sitemap.xml was found by the remote fetch provider. Evidence: https://example.com/robots.txt=404; https://example.com/sitemap.xml=404. Collected RDAP / WHOIS-lite registration evidence. Evidence: rdap_registrar=RESERVED-Internet Assigned Numbers Authority; rdap_events=4 item(s): 1995-08-14T04:00:00Z, 2026-08-13T04:00:00Z, 2026-01-16T18:26:50Z (+1 more); rdap_nameservers=2 item(s): ELLIOTT.NS.CLOUDFLARE.COM, HERA.NS.CLOUDFLARE.COM. Collected Wayback historical archive evidence. Evidence: wayback_snapshot_count_estimate=null; wayback_first_snapshot=status_code=200; wayback_last_snapshot=status_code=200. HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=2 certificate(s): Sectigo for example.com (+1 more). Remaining gaps: icp (out_of_scope) related_domain_confirmation (manual_review)
+
+Evidence: [E035] [E036] [E037] [E004] [E015] [E039] [E043] [M007] [M008]
+
+Boundaries: Registration and historical evidence do not prove current operator or legal ownership.
+
+## Security Posture
+
+Current evidence highlights: No Set-Cookie header was observed on the main response. Evidence: set-cookie=null. No CORS headers were found on the main response. Evidence: cors=5 field(s). No X-Frame-Options or CSP frame-ancestors policy was found. Evidence: x-frame-options=null; content-security-policy=null; iframe_sources=none. Missing security headers: content-security-policy, strict-transport-security, x-frame-options, x-content-type-options, referrer-policy, permissions-policy. HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=2 certificate(s): Sectigo for example.com (+1 more).
+
+Evidence: [E039] [E043] [E038] [E040] [E041] [E042] [E028] [E008] [E004] [E015]
+
+Boundaries: Report missing controls as risk signals, not confirmed exploitability without authorized testing.
+
+## Missing Data and Next Steps
+
+Gap groups: requires_permission: 6 (l7_permissioned_authenticated_surface_check; l7_permissioned_deep_port_service_inventory; l7_permissioned_external_service_intelligence; +3 more) | manual_review: 1 (related_domain_confirmation) | out_of_scope: 1 (icp) Current evidence highlights: Missing data: l7_permissioned_authenticated_surface_check (requires_permission). Missing data: l7_permissioned_deep_port_service_inventory (requires_permission). Missing data: l7_permissioned_external_service_intelligence (requires_permission). Missing data: permissioned_authenticated_surface_check (requires_permission). Missing data: permissioned_deep_port_service_inventory (requires_permission). Missing data: permissioned_security_validation (requires_permission).
+
+Evidence: [E004] [E015] [E039] [E043] [M001] [M002] [M003] [M004] [M005] [M006] [M007] [M008]
+
+Boundaries: Do not present missing data as collected evidence.

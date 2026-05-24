@@ -1,0 +1,90 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://poixe.com",
+  "sync_probes": [
+    "dns_infrastructure",
+    "tls_certificate",
+    "subdomain_attack_surface",
+    "organization_intelligence",
+    "remote_fetch",
+    "performance_basic",
+    "api_reachability",
+    "service_fingerprint",
+    "public_host_fingerprint",
+    "public_security_details"
+  ],
+  "async_providers": [
+    "pagespeed",
+    "lighthouse",
+    "browser_runtime",
+    "live_tls"
+  ],
+  "strategy": "mobile",
+  "status": "failed",
+  "elapsed_ms": 10793,
+  "job_id": null,
+  "created": {
+    "http_status": 0,
+    "error_code": "request_failed"
+  },
+  "polls": [],
+  "report_http_status": null,
+  "artifact_scan_policy": {},
+  "artifact_records": {
+    "layers": [],
+    "probes": [],
+    "sources": []
+  },
+  "evidence_checks": {
+    "layers_1_to_10": false,
+    "l5_performance_count": 0,
+    "l5_lighthouse_count": 0,
+    "l5_pagespeed_count": 0,
+    "l2_live_tls_count": 0,
+    "l4_runtime_record_count": 0,
+    "l6_runtime_api_count": 0,
+    "l10_runtime_security_count": 0
+  },
+  "ai_report_section_count": 0,
+  "markdown_length": 0,
+  "direct_markdown_http_status": null,
+  "direct_markdown_content_type": null,
+  "direct_markdown_length": 0,
+  "direct_markdown_evidence_refs": [],
+  "direct_markdown_missing_data_refs": [],
+  "unknown_direct_markdown_evidence_refs": [],
+  "unknown_direct_markdown_missing_data_refs": [],
+  "direct_markdown_section_headings": [],
+  "missing_direct_markdown_section_headings": [
+    "Executive Summary",
+    "Public Information Architecture",
+    "Technology Stack",
+    "Deployment and Network Surface",
+    "Request and Rendering Chain",
+    "API and Protocol Surface",
+    "Subdomains and Attack Surface",
+    "Organization and Operations Signals",
+    "Security Posture",
+    "Missing Data and Next Steps"
+  ],
+  "duplicate_direct_markdown_section_headings": [],
+  "direct_markdown_matches_json": false,
+  "markdown_evidence_refs": [],
+  "markdown_missing_data_refs": [],
+  "unknown_evidence_refs": [],
+  "unknown_missing_data_refs": [],
+  "markdown_section_headings": [],
+  "missing_markdown_section_headings": [
+    "Executive Summary",
+    "Public Information Architecture",
+    "Technology Stack",
+    "Deployment and Network Surface",
+    "Request and Rendering Chain",
+    "API and Protocol Surface",
+    "Subdomains and Attack Surface",
+    "Organization and Operations Signals",
+    "Security Posture",
+    "Missing Data and Next Steps"
+  ],
+  "duplicate_markdown_section_headings": []
+}

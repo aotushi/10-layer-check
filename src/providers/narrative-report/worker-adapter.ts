@@ -1,0 +1,665 @@
+import type { ReportBrief } from "../../reporters/brief";
+import {
+  type AiNarrativeReportContract,
+  type AiNarrativeReportResult,
+  type AiNarrativeReportSection,
+  AI_NARRATIVE_REPORT_SECTION_IDS,
+  validateAiNarrativeReportResult,
+} from "./contract";
+
+export type NarrativeWorkersAiBinding = {
+  run: (model: string, input: WorkersAiChatInput) => Promise<unknown>;
+};
+
+type WorkersAiChatInput = {
+  messages: Array<{
+    role: "system" | "user";
+    content: string;
+  }>;
+  response_format?: {
+    type: "json_schema";
+    json_schema: Record<string, unknown>;
+  };
+  temperature?: number;
+  max_tokens?: number;
+};
+
+export type AiNarrativeReportWorkerEnv = {
+  AI?: NarrativeWorkersAiBinding;
+  AI_PROVIDER_API_KEY?: string;
+  AI_PROVIDER_MODEL?: string;
+  AI_PROVIDER_BASE_URL?: string;
+};
+
+export type AiNarrativeReportWorkerRequest = {
+  contract?: unknown;
+};
+
+export type AiNarrativeReportWorkerSuccess = {
+  ok: true;
+  schema_version: "site-10-layer-ai-narrative-report-worker-response/v0.1";
+  provider: "worker_ai_narrative_report";
+  result: AiNarrativeReportResult;
+};
+
+export type AiNarrativeReportWorkerFailure = {
+  ok: false;
+  schema_version: "site-10-layer-ai-narrative-report-worker-response/v0.1";
+  provider: "worker_ai_narrative_report";
+  error_code:
+    | "missing_ai_narrative_report_provider_config"
+    | "invalid_contract"
+    | "invalid_model_output"
+    | "model_call_failed";
+  error: string;
+  status: number;
+  missing_config?: string[];
+  validation_errors?: string[];
+};
+
+export type AiNarrativeReportWorkerResponse =
+  | AiNarrativeReportWorkerSuccess
+  | AiNarrativeReportWorkerFailure;
+
+type OpenAiCompatibleConfig = {
+  AI_PROVIDER_API_KEY: string;
+  AI_PROVIDER_MODEL: string;
+  AI_PROVIDER_BASE_URL: string;
+};
+
+export type AiNarrativeReportModelClient = (
+  contract: AiNarrativeReportContract,
+  config: OpenAiCompatibleConfig,
+) => Promise<unknown>;
+
+export async function runWorkerAiNarrativeReportProvider(
+  contract: AiNarrativeReportContract,
+  env: AiNarrativeReportWorkerEnv,
+  options: { modelClient?: AiNarrativeReportModelClient } = {},
+): Promise<AiNarrativeReportWorkerResponse> {
+  if (!isAiNarrativeReportContract(contract)) {
+    return failure("invalid_contract", "Request body must include a valid AI narrative report contract.", 400);
+  }
+
+  const missing = missingProviderConfig(env);
+  if (missing.length > 0) {
+    return failure(
+      "missing_ai_narrative_report_provider_config",
+      "AI narrative report provider is not configured. Set AI_PROVIDER_MODEL plus either Workers AI binding or AI_PROVIDER_API_KEY.",
+      503,
+      { missing_config: missing },
+    );
+  }
+
+  try {
+    const raw = await callModelWithRetry(contract, env, options);
+    const result = normalizeModelResult(contract, raw);
+    const validation = validateAiNarrativeReportResult(contract, result);
+
+    if (!validation.ok) {
+      return failure("invalid_model_output", "AI narrative report provider returned invalid output.", 502, {
+        validation_errors: validation.validation_errors,
+      });
+    }
+
+    return {
+      ok: true,
+      schema_version: "site-10-layer-ai-narrative-report-worker-response/v0.1",
+      provider: "worker_ai_narrative_report",
+      result: validation.result,
+    };
+  } catch (error) {
+    return failure("model_call_failed", error instanceof Error ? error.message : String(error), 502);
+  }
+}
+
+async function callModelWithRetry(
+  contract: AiNarrativeReportContract,
+  env: AiNarrativeReportWorkerEnv,
+  options: { modelClient?: AiNarrativeReportModelClient },
+): Promise<unknown> {
+  const maxAttempts = options.modelClient ? 1 : 2;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return options.modelClient && env.AI_PROVIDER_API_KEY
+        ? await options.modelClient(contract, createOpenAiCompatibleConfig(env))
+        : await callConfiguredProvider(contract, env);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+export function parseAiNarrativeReportWorkerRequest(
+  body: AiNarrativeReportWorkerRequest,
+): AiNarrativeReportContract | null {
+  return isAiNarrativeReportContract(body.contract) ? body.contract : null;
+}
+
+function missingProviderConfig(env: AiNarrativeReportWorkerEnv): string[] {
+  const missing: string[] = [];
+  if (!hasText(env.AI_PROVIDER_MODEL)) missing.push("AI_PROVIDER_MODEL");
+  if (!env.AI && !hasText(env.AI_PROVIDER_API_KEY)) missing.push("AI_PROVIDER_API_KEY");
+  return missing;
+}
+
+async function callConfiguredProvider(
+  contract: AiNarrativeReportContract,
+  env: AiNarrativeReportWorkerEnv,
+): Promise<unknown> {
+  if (env.AI) return callCloudflareWorkersAi(contract, env.AI, env.AI_PROVIDER_MODEL ?? "");
+  return callOpenAiCompatible(contract, createOpenAiCompatibleConfig(env));
+}
+
+function createOpenAiCompatibleConfig(env: AiNarrativeReportWorkerEnv): OpenAiCompatibleConfig {
+  return {
+    AI_PROVIDER_API_KEY: env.AI_PROVIDER_API_KEY ?? "",
+    AI_PROVIDER_MODEL: env.AI_PROVIDER_MODEL ?? "",
+    AI_PROVIDER_BASE_URL: env.AI_PROVIDER_BASE_URL ?? "https://api.openai.com/v1/chat/completions",
+  };
+}
+
+async function callOpenAiCompatible(
+  contract: AiNarrativeReportContract,
+  config: OpenAiCompatibleConfig,
+): Promise<unknown> {
+  const response = await fetch(config.AI_PROVIDER_BASE_URL, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${config.AI_PROVIDER_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: config.AI_PROVIDER_MODEL,
+      response_format: { type: "json_object" },
+      messages: createMessages(contract),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`AI narrative report provider request failed: ${response.status} ${await response.text()}`);
+  }
+
+  const body = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = body.choices?.[0]?.message?.content;
+  if (!content) throw new Error("AI narrative report provider response did not include message content.");
+  return JSON.parse(content);
+}
+
+async function callCloudflareWorkersAi(
+  contract: AiNarrativeReportContract,
+  ai: NarrativeWorkersAiBinding,
+  model: string,
+): Promise<unknown> {
+  const body = await ai.run(model, {
+    messages: createMessages(contract),
+    response_format: {
+      type: "json_schema",
+      json_schema: createJsonSchema(),
+    },
+    temperature: 0,
+    max_tokens: 9000,
+  });
+  return parseModelJsonContent(extractModelContent(body));
+}
+
+function createMessages(contract: AiNarrativeReportContract): WorkersAiChatInput["messages"] {
+  return [
+    {
+      role: "system",
+      content:
+        "Return only valid compact JSON matching site-10-layer-ai-narrative-report-result/v0.1. Do not wrap in markdown fences. Use only section ids from output_contract.section_ids, include every id from output_contract.required_section_ids, and follow output_contract.section_guidance. Do not write one section per raw layer; merge evidence into poixe-style topical sections. Prefer complete 8-10 section coverage when the brief has evidence or missing-data refs for those topics: summary, public_information_architecture, technology_stack, deployment_network_surface, request_rendering_chain, api_protocol_surface, subdomain_attack_surface, organization_operations, security_posture, missing_data_next_steps. Use each section_guidance fact_hints as concrete section material before generic layer-count prose. Use each section_guidance evidence_ref_hints and missing_data_ref_hints as primary refs for that section so generic CDN/header refs do not dominate unrelated sections. Do not put CORS, Access-Control, Set-Cookie, API error-surface, WordPress, Discourse, Mintlify, or wp-json details in public_information_architecture; place them in api_protocol_surface, technology_stack, subdomain_attack_surface, or security_posture as guided. Each section content must be under 1000 characters. Keep markdown short or set it to an empty string; the service will synthesize final Markdown from sections. Cite only evidence_refs and missing_data_refs present in the input. Use E### only in evidence_refs and M### only in missing_data_refs. Do not invent ownership, business, vulnerability, or related-domain claims.",
+    },
+    {
+      role: "user",
+      content: JSON.stringify(contract),
+    },
+  ];
+}
+
+function createJsonSchema(): Record<string, unknown> {
+  const section = {
+    type: "object",
+    properties: {
+      id: { type: "string", enum: [...AI_NARRATIVE_REPORT_SECTION_IDS] },
+      title: { type: "string", maxLength: 120 },
+      content: { type: "string", maxLength: 1200 },
+      evidence_refs: { type: "array", maxItems: 12, items: { type: "string" } },
+      missing_data_refs: { type: "array", maxItems: 12, items: { type: "string" } },
+      limitations: { type: "array", maxItems: 8, items: { type: "string", maxLength: 240 } },
+    },
+    required: ["id", "title", "content", "evidence_refs", "missing_data_refs", "limitations"],
+  };
+
+  return {
+    type: "object",
+    properties: {
+      sections: { type: "array", minItems: 1, maxItems: 10, items: section },
+      markdown: { type: "string", maxLength: 1200 },
+    },
+    required: ["sections", "markdown"],
+  };
+}
+
+function normalizeModelResult(contract: AiNarrativeReportContract, value: unknown): AiNarrativeReportResult {
+  const result = asObject(value);
+  const sections = completeRequiredSections(
+    contract,
+    Array.isArray(result.sections) ? result.sections.map(normalizeSection) : [],
+  );
+  return {
+    ok: true,
+    schema_version: "site-10-layer-ai-narrative-report-result/v0.1",
+    provider: "worker_ai_narrative_report",
+    invokes_provider: true,
+    target: contract.target,
+    normalized_target: contract.normalized_target,
+    sections,
+    markdown: normalizeMarkdown(contract, asString(result.markdown), sections),
+  };
+}
+
+function normalizeMarkdown(contract: AiNarrativeReportContract, value: string, sections: AiNarrativeReportSection[]): string {
+  const markdown = truncate(value, 20000).trim();
+  if (sections.length === 0 && markdown.length >= 400 && markdown.startsWith("# ") && /\[(E|M)\d{3}\]/.test(markdown)) {
+    return markdown;
+  }
+  return renderMarkdownFromSections(contract, sections);
+}
+
+function renderMarkdownFromSections(contract: AiNarrativeReportContract, sections: AiNarrativeReportSection[]): string {
+  const body = orderSections(contract, sections)
+    .map((section) => {
+      const refs = [...section.evidence_refs, ...section.missing_data_refs].map((ref) => `[${ref}]`).join(" ");
+      const limitations = section.limitations.length > 0
+        ? `\n\nBoundaries: ${section.limitations.join("; ")}`
+        : "";
+      const evidence = refs ? `\n\nEvidence: ${refs}` : "";
+      return `## ${getCanonicalSectionTitle(contract, section)}\n\n${section.content}${evidence}${limitations}`;
+    })
+    .join("\n\n");
+  return `# Site Analysis: ${contract.normalized_target}\n\n${body}`;
+}
+
+function normalizeSection(value: unknown): AiNarrativeReportSection {
+  const item = asObject(value);
+  const refs = splitRefs(asStringArray(item.evidence_refs));
+  const missingRefs = splitRefs(asStringArray(item.missing_data_refs));
+  const id = normalizeSectionId(asString(item.id));
+  const title = truncate(asString(item.title), 200);
+  return {
+    id,
+    title,
+    content: truncate(sanitizeSectionContent(asString(item.content)), 3000),
+    evidence_refs: Array.from(new Set([...refs.evidenceRefs, ...missingRefs.evidenceRefs])).slice(0, 30),
+    missing_data_refs: Array.from(new Set([...refs.missingDataRefs, ...missingRefs.missingDataRefs])).slice(0, 30),
+    limitations: asStringArray(item.limitations).map((value) => truncate(value, 500)).slice(0, 20),
+  };
+}
+
+function completeRequiredSections(
+  contract: AiNarrativeReportContract,
+  sections: AiNarrativeReportSection[],
+): AiNarrativeReportSection[] {
+  const result = dedupeSections(sections)
+    .map((section) => completeWeakSectionContent(contract, section))
+    .filter((section) => hasSubstantiveSectionContent(section.content));
+  const present = new Set(result.map((section) => section.id));
+
+  for (const sectionId of contract.output_contract.required_section_ids ?? []) {
+    if (present.has(sectionId)) continue;
+    const fallback = createFallbackSection(contract, sectionId);
+    if (!fallback) continue;
+    result.push(fallback);
+    present.add(sectionId);
+  }
+
+  return orderSections(contract, result).map((section) => ({
+    ...section,
+    title: getCanonicalSectionTitle(contract, section),
+  }));
+}
+
+function completeWeakSectionContent(
+  contract: AiNarrativeReportContract,
+  section: AiNarrativeReportSection,
+): AiNarrativeReportSection {
+  if (hasSubstantiveSectionContent(section.content)) return enrichSectionContentWithFacts(contract, section);
+
+  const fallback = createFallbackSection(contract, section.id);
+  if (!fallback) return enrichSectionContentWithFacts(contract, section);
+
+  return enrichSectionContentWithFacts(contract, {
+    ...fallback,
+    evidence_refs: uniqueStrings([...section.evidence_refs, ...fallback.evidence_refs]).slice(0, 30),
+    missing_data_refs: uniqueStrings([...section.missing_data_refs, ...fallback.missing_data_refs]).slice(0, 30),
+    limitations: section.limitations.length > 0 ? section.limitations : fallback.limitations,
+  });
+}
+
+function dedupeSections(sections: AiNarrativeReportSection[]): AiNarrativeReportSection[] {
+  const seen = new Set<string>();
+  const result: AiNarrativeReportSection[] = [];
+
+  for (const section of sections) {
+    if (section.id && seen.has(section.id)) continue;
+    if (section.id) seen.add(section.id);
+    result.push(section);
+  }
+
+  return result;
+}
+
+function createFallbackSection(
+  contract: AiNarrativeReportContract,
+  sectionId: string,
+): AiNarrativeReportSection | null {
+  const guidance = contract.output_contract.section_guidance.find((item) => item.id === sectionId);
+  if (!guidance) return null;
+
+  const evidenceRefs = guidance.evidence_ref_hints.slice(0, 8);
+  const missingRefs = guidance.missing_data_ref_hints.slice(0, 8);
+  const factHints = guidance.fact_hints.slice(0, 8);
+  if (sectionId !== "summary" && evidenceRefs.length === 0 && missingRefs.length === 0 && factHints.length === 0) return null;
+
+  return {
+    id: guidance.id,
+    title: guidance.title,
+    content: createFallbackContent(contract, guidance, evidenceRefs, missingRefs),
+    evidence_refs: evidenceRefs,
+    missing_data_refs: missingRefs,
+    limitations: [guidance.boundary],
+  };
+}
+
+function getCanonicalSectionTitle(contract: AiNarrativeReportContract, section: Pick<AiNarrativeReportSection, "id" | "title">): string {
+  return contract.output_contract.section_guidance.find((item) => item.id === section.id)?.title ?? section.title;
+}
+
+function enrichSectionContentWithFacts(
+  contract: AiNarrativeReportContract,
+  section: AiNarrativeReportSection,
+): AiNarrativeReportSection {
+  const guidance = contract.output_contract.section_guidance.find((item) => item.id === section.id);
+  const factHints = uniqueStrings([
+    ...(guidance?.fact_hints ?? []),
+    ...createForcedSectionFactHints(contract, section.id),
+  ]).slice(0, section.id === "summary" ? 4 : section.id === "missing_data_next_steps" ? 8 : 7);
+  const groupSummary = section.id === "missing_data_next_steps" ? createMissingDataGroupSummary(contract.input.brief) : "";
+  if (factHints.length === 0 && !groupSummary) return section;
+  const missingFactHints = factHints.filter((hint) => !section.content.includes(hint));
+  if (missingFactHints.length === 0 && (!groupSummary || section.content.includes(groupSummary))) {
+    return section;
+  }
+
+  const grouped = groupSummary ? ` Gap groups: ${groupSummary}` : "";
+  const highlights = missingFactHints.length > 0 ? ` Current evidence highlights: ${missingFactHints.join(" ")}` : "";
+  const content = `${section.content.trim()}${grouped}${highlights}`;
+  return {
+    ...section,
+    content: truncate(content, 3000),
+  };
+}
+
+function createForcedSectionFactHints(contract: AiNarrativeReportContract, sectionId: string): string[] {
+  const probesBySection: Record<string, string[]> = {
+    api_protocol_surface: [
+      "cors_policy_probe",
+      "bounded_cors_header_validation_probe",
+      "bounded_public_api_error_surface_probe",
+      "bounded_public_api_endpoint_inventory_probe",
+    ],
+    technology_stack: ["bounded_public_metadata_probe", "bounded_public_app_header_metadata_probe", "public_spa_asset_metadata_probe"],
+    public_information_architecture: ["public_content_surface_probe", "public_content_detail_probe", "public_spa_route_metadata_probe"],
+    organization_operations: ["public_business_content_probe", "public_product_business_detail_probe"],
+    security_posture: [
+      "cookie_security_probe",
+      "cors_policy_probe",
+      "security_headers_probe",
+      "bounded_cors_header_validation_probe",
+      "bounded_cookie_attribute_observation_probe",
+    ],
+  };
+  const probes = probesBySection[sectionId] ?? [];
+  if (probes.length === 0) return [];
+
+  return contract.input.brief.evidence_index
+    .filter((item) => probes.includes(item.probe))
+    .map((item) => createBriefEvidenceFact(item))
+    .filter(Boolean);
+}
+
+function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const evidence = item.evidence_items
+    .slice(0, 3)
+    .map((value) => [value.name ?? value.type, value.value].filter(Boolean).join("="))
+    .join("; ");
+  const suffix = evidence ? ` Evidence: ${evidence}.` : "";
+  return truncate(`${item.summary}${suffix}`, 500);
+}
+
+function createFallbackContent(
+  contract: AiNarrativeReportContract,
+  guidance: AiNarrativeReportContract["output_contract"]["section_guidance"][number],
+  evidenceRefs: string[],
+  missingRefs: string[],
+): string {
+  const brief = contract.input.brief;
+
+  if (guidance.id === "summary") {
+    const warningCount = brief.layers.filter((layer) => layer.status === "warning" || layer.status === "error").length;
+    const riskCount = brief.risks.filter((risk) => risk.level === "high" || risk.level === "medium").length;
+    return [
+      `This report is based on ${brief.run.record_count} normalized record(s) across ${brief.coverage.collected_layers.length}/${brief.coverage.total_layers} collected layer(s).`,
+      warningCount > 0 ? `${warningCount} layer(s) contain warning or error signals.` : "No layer has warning or error status in the current evidence.",
+      riskCount > 0 ? `${riskCount} high/medium risk item(s) should be reviewed first.` : "No high/medium risk item is flagged by the deterministic analysis.",
+    ].join(" ");
+  }
+
+  if (guidance.id === "missing_data_next_steps") {
+    const groupSummary = createMissingDataGroupSummary(brief);
+    const factHints = guidance.fact_hints.slice(0, 6);
+    const highlights = factHints.length > 0 ? ` Current evidence highlights: ${factHints.join(" ")}` : "";
+    return `Gap groups: ${groupSummary || "No missing-data groups were emitted by the deterministic brief."}${highlights}`;
+  }
+
+  const evidenceSummaries = evidenceRefs
+    .map((ref) => brief.evidence_index.find((item) => item.id === ref)?.summary)
+    .filter((value): value is string => Boolean(value))
+    .slice(0, 3);
+  const missingSummaries = missingRefs
+    .map((ref) => brief.missing_data.find((item) => item.id === ref))
+    .filter((value): value is NonNullable<typeof value> => Boolean(value))
+    .slice(0, 3)
+    .map((item) => `${item.description} (${item.classification})`);
+  const factHints = guidance.fact_hints.slice(0, 5);
+
+  if (factHints.length > 0) {
+    const missing = missingSummaries.length > 0
+      ? ` Remaining gaps: ${missingSummaries.join(" ")}`
+      : "";
+    return `Current evidence highlights: ${factHints.join(" ")}${missing}`;
+  }
+
+  const collected = evidenceSummaries.length > 0
+    ? `Current evidence includes ${evidenceSummaries.join(" ")}`
+    : "No strong collected evidence was selected for this topic.";
+  const missing = missingSummaries.length > 0
+    ? ` Remaining gaps: ${missingSummaries.join(" ")}`
+    : "";
+  return `${collected}${missing}`;
+}
+
+function createMissingDataGroupSummary(brief: ReportBrief): string {
+  const order = ["add_provider", "requires_permission", "manual_review", "requires_user_input", "out_of_scope"];
+  const groups = new Map<string, string[]>();
+
+  for (const item of brief.missing_data) {
+    const values = groups.get(item.classification) ?? [];
+    values.push(item.description);
+    groups.set(item.classification, values);
+  }
+
+  return order
+    .map((classification) => {
+      const values = groups.get(classification) ?? [];
+      if (values.length === 0) return "";
+      const examples = values.slice(0, 3).join("; ");
+      const suffix = values.length > 3 ? `; +${values.length - 3} more` : "";
+      return `${classification}: ${values.length} (${examples}${suffix})`;
+    })
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function orderSections(
+  contract: AiNarrativeReportContract,
+  sections: AiNarrativeReportSection[],
+): AiNarrativeReportSection[] {
+  const order = new Map(contract.output_contract.section_ids.map((id, index) => [id, index]));
+  return [...sections].sort((left, right) => {
+    const leftOrder = order.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = order.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder;
+  });
+}
+
+function normalizeSectionId(value: string): string {
+  const id = truncate(value, 100);
+  return (AI_NARRATIVE_REPORT_SECTION_IDS as readonly string[]).includes(id) ? id : id;
+}
+
+function sanitizeSectionContent(value: string): string {
+  const lines = value.replace(/\r\n/g, "\n").split("\n");
+  const cleaned: string[] = [];
+  let seenContent = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!seenContent && trimmed.length === 0) continue;
+    if (!seenContent && /^#{1,6}\s+\S/.test(trimmed)) continue;
+    if (/^(Evidence|Boundaries|Limitations):/i.test(trimmed)) continue;
+    seenContent = true;
+    cleaned.push(line);
+  }
+
+  return cleaned.join("\n").trim();
+}
+
+function hasSubstantiveSectionContent(value: string): boolean {
+  return value.replace(/\[(?:E|M)\d{3}\]/g, "").trim().length > 20;
+}
+
+function splitRefs(values: string[]): { evidenceRefs: string[]; missingDataRefs: string[] } {
+  const evidenceRefs: string[] = [];
+  const missingDataRefs: string[] = [];
+
+  for (const value of values) {
+    if (/^E\d{3}$/.test(value)) evidenceRefs.push(value);
+    else if (/^M\d{3}$/.test(value)) missingDataRefs.push(value);
+    else evidenceRefs.push(value);
+  }
+
+  return { evidenceRefs, missingDataRefs };
+}
+
+function isAiNarrativeReportContract(value: unknown): value is AiNarrativeReportContract {
+  const contract = asObject(value);
+  const input = asObject(contract.input);
+  return (
+    contract.schema_version === "site-10-layer-ai-narrative-report-contract/v0.1" &&
+    contract.invokes_provider === false &&
+    typeof contract.target === "string" &&
+    typeof contract.normalized_target === "string" &&
+    isReportBrief(input.brief)
+  );
+}
+
+function isReportBrief(value: unknown): value is ReportBrief {
+  const brief = asObject(value);
+  return (
+    brief.schema_version === "site-10-layer-report-brief/v0.1" &&
+    typeof brief.target === "string" &&
+    typeof brief.normalized_target === "string" &&
+    Array.isArray(brief.layers) &&
+    Array.isArray(brief.evidence_index) &&
+    Array.isArray(brief.missing_data)
+  );
+}
+
+function failure(
+  error_code: AiNarrativeReportWorkerFailure["error_code"],
+  error: string,
+  status: number,
+  extra: Pick<AiNarrativeReportWorkerFailure, "missing_config" | "validation_errors"> = {},
+): AiNarrativeReportWorkerFailure {
+  return {
+    ok: false,
+    schema_version: "site-10-layer-ai-narrative-report-worker-response/v0.1",
+    provider: "worker_ai_narrative_report",
+    error_code,
+    error,
+    status,
+    ...extra,
+  };
+}
+
+function extractModelContent(value: unknown): string {
+  if (typeof value === "string") return value;
+  const body = asObject(value);
+  const response = body.response;
+  if (typeof response === "string") return response;
+  if (isRecord(response)) return JSON.stringify(response);
+  const result = body.result;
+  if (typeof result === "string") return result;
+  if (isRecord(result)) return JSON.stringify(result);
+  const content = body.content;
+  if (typeof content === "string") return content;
+  return JSON.stringify(value);
+}
+
+function parseModelJsonContent(content: string): unknown {
+  const trimmed = content.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) return JSON.parse(fenced[1].trim());
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+  }
+
+  return JSON.parse(trimmed);
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.length > 0) : [];
+}
+
+function truncate(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}

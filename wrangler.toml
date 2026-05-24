@@ -1,0 +1,36 @@
+name = "site-10-layer-check-remote-fetch"
+main = "worker/remote-fetch.ts"
+compatibility_date = "2026-05-19"
+
+workers_dev = true
+
+[[routes]]
+pattern = "probe.9shi.cc"
+custom_domain = true
+
+[observability]
+enabled = true
+
+[limits]
+subrequests = 1000
+
+[ai]
+binding = "AI"
+
+[[kv_namespaces]]
+binding = "SCAN_JOB_KV"
+id = "bb485af9804a448b91b5e09103dce877"
+
+[[d1_databases]]
+binding = "SCAN_JOB_DB"
+database_name = "db-for-site10layer"
+database_id = "bf7c75e1-5108-4088-951a-780824bf541a"
+
+[vars]
+GITHUB_OWNER = "aotushi"
+GITHUB_REPO = "02-browser-runtime-remote-git"
+GITHUB_LIVE_TLS_WORKFLOW = "site-10-layer-check-live-tls.yml"
+GITHUB_LIGHTHOUSE_WORKFLOW = "site-10-layer-check-lighthouse.yml"
+GITHUB_BROWSER_RUNTIME_WORKFLOW = "site-10-layer-check-browser.yml"
+GITHUB_REF = "main"
+AI_PROVIDER_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"

@@ -1,0 +1,111 @@
+{
+  "provider": "github_actions_browser_runtime",
+  "request_id": "79914d6f-d846-4ba4-a8f7-812716dc7f5d",
+  "run_id": 26209285049,
+  "status": "completed",
+  "conclusion": "success",
+  "html_url": "https://github.com/aotushi/02-browser-runtime-remote-git/actions/runs/26209285049",
+  "artifact": {
+    "id": 7128662705,
+    "name": "site-10-layer-check-browser-26209285049",
+    "expired": false
+  },
+  "records": [
+    {
+      "target": "https://example.com",
+      "normalized_target": "example.com",
+      "snapshot_at": "2026-05-21T06:24:34.562Z",
+      "probe": "browser_page_probe",
+      "layer": 4,
+      "item": "browser_page",
+      "probe_type": "active_request",
+      "source": "github-actions-browser",
+      "status": "ok",
+      "value": {
+        "final_url": "https://example.com/",
+        "status_code": 200,
+        "title": "Example Domain",
+        "html_bytes": 528,
+        "visible_text_bytes": 129,
+        "resource_counts": {
+          "document": 1,
+          "script": 0,
+          "stylesheet": 0,
+          "image": 0,
+          "font": 0,
+          "xhr": 0,
+          "fetch": 0,
+          "other": 0
+        },
+        "resources": [
+          {
+            "request_id": "req_1",
+            "url": "https://example.com/",
+            "method": "GET",
+            "resource_type": "document",
+            "status_code": 200,
+            "failure": null,
+            "domain": "example.com",
+            "same_origin": true,
+            "content_type": "text/html",
+            "cache_control": null,
+            "cdn_headers": {
+              "cf-ray": "9ff17fc5f9720a85-IAD",
+              "cf-cache-status": "HIT",
+              "server": "cloudflare"
+            },
+            "transfer_size": 598,
+            "encoded_body_size": 298,
+            "decoded_body_size": 528,
+            "duration_ms": 45,
+            "start_time_ms": 0,
+            "timing_source": "performance_navigation_timing"
+          }
+        ],
+        "console_messages": [],
+        "page_errors": [],
+        "runtime_security": {
+          "mixed_content_candidates": [],
+          "failed_request_count": 0,
+          "console_error_count": 0
+        },
+        "screenshot_path": "/home/runner/work/02-browser-runtime-remote-git/02-browser-runtime-remote-git/screenshots/example.com-2026-05-21.png",
+        "access_barrier": {
+          "detected": false,
+          "types": [],
+          "title": "Example Domain",
+          "visible_text_sample": "Example Domain This domain is for use in documentation examples without needing permission. Avoid use in operations. Learn more"
+        }
+      },
+      "risk": {
+        "level": "info",
+        "summary": "Browser runtime loaded the page without common access barrier signals."
+      },
+      "evidence": [
+        {
+          "type": "final_url",
+          "value": "https://example.com/"
+        },
+        {
+          "type": "status_code",
+          "value": 200
+        },
+        {
+          "type": "html_title",
+          "value": "Example Domain"
+        },
+        {
+          "type": "screenshot",
+          "value": "/home/runner/work/02-browser-runtime-remote-git/02-browser-runtime-remote-git/screenshots/example.com-2026-05-21.png"
+        }
+      ],
+      "browser": {
+        "provider": "github-actions-browser",
+        "headed": false,
+        "wait_ms": 3000,
+        "timeout_ms": 30000
+      },
+      "duration_ms": 5850
+    }
+  ]
+}

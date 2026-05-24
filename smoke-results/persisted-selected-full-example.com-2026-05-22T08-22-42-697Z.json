@@ -1,0 +1,653 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "dns_infrastructure",
+    "tls_certificate",
+    "subdomain_attack_surface",
+    "organization_intelligence",
+    "remote_fetch",
+    "performance_basic",
+    "api_reachability",
+    "service_fingerprint"
+  ],
+  "async_providers": [
+    "pagespeed",
+    "lighthouse",
+    "browser_runtime",
+    "live_tls"
+  ],
+  "strategy": "mobile",
+  "status": "passed",
+  "elapsed_ms": 76674,
+  "job_id": "scan-example.com-f276bdcb-0628-45be-8cf6-18d23883e96e",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "async_pending",
+    "record_count": 33,
+    "records": {
+      "layers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "probes": [
+        "access_barrier_probe",
+        "ai_frontend_evidence_pack",
+        "api_endpoint_probe",
+        "api_error_surface_probe",
+        "api_protocol_probe",
+        "api_reachability_probe",
+        "app_fingerprint_probe",
+        "basic_performance_probe",
+        "cache_policy_probe",
+        "cdn_header_evidence_probe",
+        "cookie_security_probe",
+        "cors_policy_probe",
+        "frontend_assets_probe",
+        "frontend_technology_probe",
+        "http_headers_probe",
+        "iframe_embedding_probe",
+        "leakage_signal_probe",
+        "mixed_content_probe",
+        "network_infrastructure_probe",
+        "organization_intelligence_probe",
+        "performance_probe",
+        "provider_result_status",
+        "rdap_whois_lite_probe",
+        "resource_weight_probe",
+        "robots_sitemap_probe",
+        "security_headers_probe",
+        "service_fingerprint_probe",
+        "subdomain_attack_surface_probe",
+        "third_party_scripts_probe",
+        "tls_certificate_probe",
+        "wayback_history_probe"
+      ],
+      "sources": [
+        "cloudflare_worker_api_reachability",
+        "cloudflare_worker_dns",
+        "cloudflare_worker_fetch",
+        "cloudflare_worker_fetch + ai_ready_evidence_pack",
+        "cloudflare_worker_fetch + app_fingerprint_rules",
+        "cloudflare_worker_fetch + cache_header_rules",
+        "cloudflare_worker_fetch + cdn_header_rules",
+        "cloudflare_worker_fetch + crawl_metadata_fetch",
+        "cloudflare_worker_fetch + deterministic_frontend_rules",
+        "cloudflare_worker_fetch + domain_classifier",
+        "cloudflare_worker_fetch + header_html_rules",
+        "cloudflare_worker_fetch + html_asset_extractor",
+        "cloudflare_worker_fetch + static_resource_counter",
+        "cloudflare_worker_l7_service_fingerprint",
+        "cloudflare_worker_org_intel",
+        "cloudflare_worker_subdomains",
+        "cloudflare_worker_tls",
+        "github_actions_browser_runtime",
+        "github_actions_lighthouse",
+        "github_actions_live_tls",
+        "pagespeed_api"
+      ]
+    },
+    "provider_jobs": [
+      {
+        "capability": "pagespeed",
+        "provider": "pagespeed",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 1
+      },
+      {
+        "capability": "lighthouse",
+        "provider": "github_actions_lighthouse",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      },
+      {
+        "capability": "browser_runtime",
+        "provider": "github_actions_browser_runtime",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      },
+      {
+        "capability": "live_tls",
+        "provider": "github_actions_live_tls",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      }
+    ]
+  },
+  "polls": [
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 33,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 33,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "completed",
+      "record_count": 43,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 11
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    }
+  ],
+  "read": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-persisted-scan-job/v0.1",
+    "meta_status": "completed",
+    "provider_jobs": [
+      {
+        "capability": "pagespeed",
+        "provider": "pagespeed",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 1
+      },
+      {
+        "capability": "lighthouse",
+        "provider": "github_actions_lighthouse",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 1
+      },
+      {
+        "capability": "browser_runtime",
+        "provider": "github_actions_browser_runtime",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 11
+      },
+      {
+        "capability": "live_tls",
+        "provider": "github_actions_live_tls",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 1
+      }
+    ],
+    "raw_ref": "scan-jobs/raw/scan-example.com-f276bdcb-0628-45be-8cf6-18d23883e96e.json"
+  },
+  "artifact": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-export-artifact/v0.1",
+    "storage_persisted": true,
+    "record_count": 43,
+    "records": {
+      "layers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "probes": [
+        "access_barrier_probe",
+        "ai_frontend_evidence_pack",
+        "api_endpoint_probe",
+        "api_error_surface_probe",
+        "api_protocol_probe",
+        "api_reachability_probe",
+        "app_fingerprint_probe",
+        "basic_performance_probe",
+        "browser_page_probe",
+        "browser_runtime_page_probe",
+        "cache_policy_probe",
+        "cdn_header_evidence_probe",
+        "cookie_security_probe",
+        "cors_policy_probe",
+        "frontend_assets_probe",
+        "frontend_technology_probe",
+        "http_headers_probe",
+        "iframe_embedding_probe",
+        "leakage_signal_probe",
+        "mixed_content_probe",
+        "network_infrastructure_probe",
+        "organization_intelligence_probe",
+        "performance_probe",
+        "rdap_whois_lite_probe",
+        "resource_weight_probe",
+        "robots_sitemap_probe",
+        "runtime_api_requests_probe",
+        "runtime_asset_cache_policy_probe",
+        "runtime_resource_bytes_probe",
+        "runtime_resource_summary_probe",
+        "runtime_resource_waterfall_probe",
+        "runtime_screenshot_evidence_probe",
+        "runtime_security_events_probe",
+        "runtime_third_party_resources_probe",
+        "security_headers_probe",
+        "service_fingerprint_probe",
+        "subdomain_attack_surface_probe",
+        "third_party_scripts_probe",
+        "tls_certificate_probe",
+        "tls_live_certificate_probe",
+        "wayback_history_probe"
+      ],
+      "sources": [
+        "cloudflare_worker_api_reachability",
+        "cloudflare_worker_dns",
+        "cloudflare_worker_fetch",
+        "cloudflare_worker_fetch + ai_ready_evidence_pack",
+        "cloudflare_worker_fetch + app_fingerprint_rules",
+        "cloudflare_worker_fetch + cache_header_rules",
+        "cloudflare_worker_fetch + cdn_header_rules",
+        "cloudflare_worker_fetch + crawl_metadata_fetch",
+        "cloudflare_worker_fetch + deterministic_frontend_rules",
+        "cloudflare_worker_fetch + domain_classifier",
+        "cloudflare_worker_fetch + header_html_rules",
+        "cloudflare_worker_fetch + html_asset_extractor",
+        "cloudflare_worker_fetch + static_resource_counter",
+        "cloudflare_worker_l7_service_fingerprint",
+        "cloudflare_worker_org_intel",
+        "cloudflare_worker_subdomains",
+        "cloudflare_worker_tls",
+        "github-actions-browser",
+        "github-actions-browser + browser_runtime_import_adapter",
+        "github-actions-browser + browser_runtime_import_adapter + cdn_header_rules",
+        "github_actions_lighthouse",
+        "github_actions_node_tls_socket",
+        "pagespeed_api"
+      ]
+    },
+    "evidence_checks": {
+      "layers_1_to_10": true,
+      "l5_performance_count": 2,
+      "l5_lighthouse_count": 1,
+      "l5_pagespeed_count": 1,
+      "l2_live_tls_count": 1,
+      "l4_runtime_record_count": 6,
+      "l6_runtime_api_count": 1,
+      "l10_runtime_security_count": 1
+    },
+    "layer_statuses": [
+      {
+        "layer": 1,
+        "status": "ok",
+        "evidence_ref_count": 3,
+        "missing_data_ids": []
+      },
+      {
+        "layer": 2,
+        "status": "warning",
+        "evidence_ref_count": 2,
+        "missing_data_ids": [
+          "M001",
+          "M002",
+          "M003",
+          "M004",
+          "M005"
+        ]
+      },
+      {
+        "layer": 3,
+        "status": "ok",
+        "evidence_ref_count": 3,
+        "missing_data_ids": []
+      },
+      {
+        "layer": 4,
+        "status": "warning",
+        "evidence_ref_count": 14,
+        "missing_data_ids": []
+      },
+      {
+        "layer": 5,
+        "status": "partial",
+        "evidence_ref_count": 3,
+        "missing_data_ids": [
+          "M006",
+          "M007"
+        ]
+      },
+      {
+        "layer": 6,
+        "status": "ok",
+        "evidence_ref_count": 3,
+        "missing_data_ids": []
+      },
+      {
+        "layer": 7,
+        "status": "partial",
+        "evidence_ref_count": 2,
+        "missing_data_ids": [
+          "M008",
+          "M009",
+          "M010"
+        ]
+      },
+      {
+        "layer": 8,
+        "status": "ok",
+        "evidence_ref_count": 1,
+        "missing_data_ids": []
+      },
+      {
+        "layer": 9,
+        "status": "partial",
+        "evidence_ref_count": 3,
+        "missing_data_ids": [
+          "M011",
+          "M012",
+          "M013"
+        ]
+      },
+      {
+        "layer": 10,
+        "status": "warning",
+        "evidence_ref_count": 5,
+        "missing_data_ids": []
+      }
+    ],
+    "missing_data_count": 13,
+    "missing_data_by_classification": {
+      "add_provider": 9,
+      "requires_permission": 1,
+      "out_of_scope": 2,
+      "manual_review": 1
+    },
+    "missing_data_by_layer": {
+      "2": 5,
+      "5": 2,
+      "7": 3,
+      "9": 3
+    },
+    "missing_data": [
+      {
+        "id": "M001",
+        "layer": 2,
+        "classification": "add_provider",
+        "description": "current_certificate is not collected",
+        "evidence_refs": [
+          "E004"
+        ]
+      },
+      {
+        "id": "M002",
+        "layer": 2,
+        "classification": "add_provider",
+        "description": "live_certificate_chain",
+        "evidence_refs": [
+          "E004"
+        ]
+      },
+      {
+        "id": "M003",
+        "layer": 2,
+        "classification": "add_provider",
+        "description": "live_certificate_expiry",
+        "evidence_refs": [
+          "E004"
+        ]
+      },
+      {
+        "id": "M004",
+        "layer": 2,
+        "classification": "add_provider",
+        "description": "live_certificate_issuer",
+        "evidence_refs": [
+          "E004"
+        ]
+      },
+      {
+        "id": "M005",
+        "layer": 2,
+        "classification": "add_provider",
+        "description": "live_certificate_san",
+        "evidence_refs": [
+          "E004"
+        ]
+      },
+      {
+        "id": "M006",
+        "layer": 5,
+        "classification": "add_provider",
+        "description": "browser_resource_waterfall",
+        "evidence_refs": [
+          "E023"
+        ]
+      },
+      {
+        "id": "M007",
+        "layer": 5,
+        "classification": "add_provider",
+        "description": "javascript_runtime_resource_injection",
+        "evidence_refs": [
+          "E023"
+        ]
+      },
+      {
+        "id": "M008",
+        "layer": 7,
+        "classification": "requires_permission",
+        "description": "l7_authenticated_surface_check",
+        "evidence_refs": [
+          "E029"
+        ]
+      },
+      {
+        "id": "M009",
+        "layer": 7,
+        "classification": "add_provider",
+        "description": "l7_deep_port_service_inventory",
+        "evidence_refs": [
+          "E029"
+        ]
+      },
+      {
+        "id": "M010",
+        "layer": 7,
+        "classification": "add_provider",
+        "description": "l7_external_service_intel",
+        "evidence_refs": [
+          "E029"
+        ]
+      },
+      {
+        "id": "M011",
+        "layer": 9,
+        "classification": "out_of_scope",
+        "description": "external_intelligence.icp is not collected",
+        "evidence_refs": [
+          "E032"
+        ]
+      },
+      {
+        "id": "M012",
+        "layer": 9,
+        "classification": "out_of_scope",
+        "description": "icp",
+        "evidence_refs": [
+          "E032"
+        ]
+      },
+      {
+        "id": "M013",
+        "layer": 9,
+        "classification": "manual_review",
+        "description": "related_domain_confirmation",
+        "evidence_refs": [
+          "E032"
+        ]
+      }
+    ],
+    "has_analysis": true,
+    "has_brief": true,
+    "has_analysis_markdown": true,
+    "has_narrative_markdown": true
+  }
+}

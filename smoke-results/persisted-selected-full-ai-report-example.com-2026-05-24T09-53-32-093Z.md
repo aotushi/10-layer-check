@@ -1,0 +1,81 @@
+# Site Analysis: example.com
+
+## Executive Summary
+
+HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=3 certificate(s): Sectigo for example.com (+2 more). Current evidence highlights: Missing security headers: content-security-policy, strict-transport-security, x-frame-options, x-content-type-options, referrer-policy, permissions-policy. DNS and protocol checks completed; no CDN signal was found from DNS records. Evidence: A=2 item(s): 172.66.147.243, 104.20.23.154; AAAA=2 item(s): 2606:4700:10::ac42:93f3, 2606:4700:10::6814:179a; CNAME=none; HTTPS=1 item(s): \# 58 00 01 00 00 01 00 03 02 68 32 00 04 00 08 68 14 17 9a ac 42 93 f3 00 06 00 20 26 06 47 00 00 10 00 00 00 00 00 00 68 14 17 9a 26 06 47 00 00 10 00 00 00 00 00 0.... No robots.txt or default sitemap.xml was found by the remote fetch provider. Evidence: https://example.com/robots.txt=404; https://example.com/sitemap.xml=404.
+
+Evidence: [E004] [M001] [M002] [M003] [M004]
+
+Boundaries: This record is derived from response/resource headers only.; It complements, but does not replace, DNS-based CDN hints in network_infrastructure_probe.; It does not prove full edge routing, origin shielding, cache behavior, or CDN provider coverage.
+
+## Public Information Architecture
+
+CDN header signal(s) found: cloudflare. Evidence: cf-cache-status=url=https://example.com/, provider=cloudflare; cf-ray=url=https://example.com/, provider=cloudflare; server=url=https://example.com/, provider=cloudflare. Current evidence highlights: Subdomain/reachability matrix: Found 1 CT-discovered subdomain candidate(s). Evidence: provider_status=provider=certspotter, status=ok, certificate_count=7; provider_attempts=1 item(s); subdomains=1 item(s): www.example.com; https_reachability=1 item(s): www.example.com. Public content detail map: Collected 8 bounded public content detail page(s): blog.example.com/; changelog.example.com/; community.example.com/; docs.example.com/; help.example.com/. Evidence: detail_pages=5 endpoint(s): blog.example.com / status 530, changelog.example.com / status 530 (+3 more); public_content_detail_limits=max_seed_pages=5, max_candidate_urls=36, max_detail_pages=8, max_concurrency=3. Public content surface map: Collected 8 bounded public content surface(s): Example Domain; blog.example.com/; community.example.com/; developer.example.com/; developers.example.com/. Evidence: public_content_surfaces=4 endpoint(s): example.com / status 200, blog.example.com / status 530 (+2 more); public_content_surface_limits=max_candidate_urls=24, max_pages=8, max_concurrency=3, timeout_ms=10000. Browser runtime loaded the page without common access barrier signals. Evidence: final_url=https://example.com/; status_code=200; html_title=Example Domain; screenshot=/home/runner/work/02-browser-runtime-remote-git/02-browser-runtime-remote-git/screenshots/example.com-2026-05-24.png. Browser runtime loaded the page and captured rendered-page evidence. Evidence: final_url=https://example.com/; status_code=200; html_title=Example Domain. Missing data: complete_docs_or_blog_corpus (add_provider). No robots.txt or default sitemap.xml was found by the remote fetch provider. Evidence: https://example.com/robots.txt=404; https://example.com/sitemap.xml=404.
+
+Evidence: [E001] [M001] [M002] [M003] [M004]
+
+Boundaries: This record is derived from response/resource headers only.; It complements, but does not replace, DNS-based CDN hints in network_infrastructure_probe.; It does not prove full edge routing, origin shielding, cache behavior, or CDN provider coverage.
+
+## Technology Stack
+
+Current evidence highlights: Observed public app marker(s): api, blog, community, docs, status. Evidence: public_app_marker_names=5 item(s): api on api.example.com api low, blog on blog.example.com blog low, community on community.example.com community low (+2 more); public_app_markers=5 item(s): api on api.example.com api low, blog on blog.example.com blog low, community on community.example.com community low (+2 more); public_marker_checks=2 item(s): example.com /wp-json/ status 404, blog.example.com /wp-json/ status 530; public_host_fingerprint_limits=max_hosts=8, checked_hosts=6, max_requests_per_host=2, max_concur... Extracted 0 scripts, 0 stylesheets, and 0 images from static HTML. Evidence: html_bytes=528; scripts=0; stylesheets=0; images=0. No high-confidence static frontend technology candidate was found. Browser runtime observed 0 third-party scripts and 0 third-party resources. No third-party script was found in static HTML. Remaining gaps: authenticated_content (requires_permission) business_model_validation_beyond_public_text (add_provider) complete_docs_or_blog_corpus (add_provider)
+
+Evidence: [E012] [E013] [E023] [E024] [E038] [E039] [E010] [E009] [M001] [M002] [M003] [M004] [M005] [M006]
+
+Boundaries: Static and heuristic technology evidence is candidate evidence unless directly corroborated.
+
+## Deployment and Network Surface
+
+Current evidence highlights: HTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://example.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=3 certificate(s): Sectigo for example.com (+2 more). CDN header signal(s) found: cloudflare. Evidence: cf-cache-status=url=https://example.com/, provider=cloudflare; cf-ray=url=https://example.com/, provider=cloudflare; server=url=https://example.com/, provider=cloudflare. CDN header signal(s) found: cloudflare. Evidence: cf-ray=url=https://example.com/, provider=cloudflare; cf-cache-status=url=https://example.com/, provider=cloudflare; server=url=https://example.com/, provider=cloudflare. Live certificate expires in 38 day(s). Evidence: tls_protocol=TLSv1.3; tls_cipher=name=TLS_AES_256_GCM_SHA384, standardName=TLS_AES_256_GCM_SHA384, version=TLSv1.3; leaf=valid_to=Jul 1 21:24:46 2026 GMT; tls_certificate_chain=structured 6 item(s). Response cache policy is explicit and does not show an obvious issue for the main response. Evidence: http_status=200; last-modified=Fri, 22 May 2026 08:19:40 GMT; age=9441; cf-cache-status=HIT.
+
+Evidence: [E004] [E001] [E002] [E005] [E007] [E008] [E025] [E026]
+
+Boundaries: Do not claim full origin topology or CDN coverage from headers alone.
+
+## Request and Rendering Chain
+
+Current evidence highlights: Browser runtime loaded the page and captured rendered-page evidence. Evidence: final_url=https://example.com/; status_code=200; html_title=Example Domain. Browser runtime observed 0.00 MiB of known transfer size with 0 unknown resource size(s). Evidence: runtime_transfer_size_total=598; runtime_transfer_size_known_count=1; runtime_transfer_size_unknown_count=0. Browser runtime observed 1 resources. Evidence: runtime_resource_count=1; runtime_resource_counts=document=1, script=0, stylesheet=0, image=0. Browser runtime resource waterfall was imported without failed resources. Evidence: failed_resource_count=0; api_like_resource_count=0. Browser runtime did not observe XHR/fetch/API-like requests during this page load. Evidence: runtime_api_request_count=0; runtime_api_failed_count=0; runtime_api_third_party_count=0. Remaining gaps: authenticated_content (requires_permission) business_model_validation_beyond_public_text (add_provider) complete_docs_or_blog_corpus (add_provider)
+
+Evidence: [E011] [E019] [E020] [E021] [E034] [E010] [E008] [E018] [M001] [M002] [M003] [M004] [M005] [M006] [M007] [M008]
+
+Boundaries: Worker fetch and one browser run do not represent every user route or session state.
+
+## API and Protocol Surface
+
+Current evidence highlights: Bounded public API check: Checked 2 bounded public API endpoint candidate(s); 2 exposed error/request-id signal(s). Evidence: bounded_public_api_checks=4 endpoint(s): api.example.com /health status 530 (+3 more); public_security_detail_limits=max_hosts=6, checked_hosts=6, max_requests_per_host=5, max_concurrency=3. Bounded public CORS check: No CORS allow-origin signal was observed on bounded public checks. Evidence: bounded_cors_checks=4 endpoint(s): example.com / status 200, api.example.com / status 530 (+2 more); public_security_detail_limits=max_hosts=6, checked_hosts=6, max_requests_per_host=5, max_concurrency=3. Bounded public API endpoint inventory: Preserved 2 bounded public API endpoint observation(s): /health, /v1/models. Evidence: public_api_endpoint_inventory=2 item(s): api.example.com /health GET status 530 signals=api error preview observed signals=1 item(s): api_error_preview_observed, api.example.com /v1/models GET status 530 sig...; public_security_detail_limits=max_hosts=6, checked_hosts=6, max_requests_per_host=5, max_concurrency=3. No CORS headers were found on the main response. Evidence: cors=5 field(s). No obvious API or server error surface was detected in the main response. Evidence: error_surface=status_code=200, content_type=text/html. Remaining gaps: credentialed_authenticated_behavior (requires_permission) deep_port_service_inventory (add_provider) login_rate_limit_validation (requires_user_input)
+
+Evidence: [E032] [E028] [E029] [E030] [E031] [E034] [E033] [M007] [M008] [M009] [M010]
+
+Boundaries: Do not infer authenticated API behavior, billing, or backend business logic.
+
+## Subdomains and Attack Surface
+
+Current evidence highlights: Subdomain/reachability matrix: Found 1 CT-discovered subdomain candidate(s). Evidence: provider_status=provider=certspotter, status=ok, certificate_count=7; provider_attempts=1 item(s); subdomains=1 item(s): www.example.com; https_reachability=1 item(s): www.example.com. Collected 2 bounded HTTP(S) service fingerprint hint(s) from 1 host(s). Evidence: checked_hosts=1 item(s): example.com Example Domain; service_fingerprint_limits=max_hosts=1, checked_hosts=1, max_requests_per_host=1, max_concurrency=3. Checked 6 bounded public host candidate(s); observed role hint(s): root, api, blog, community, docs, status. Evidence: public_host_roles=6 item(s): example.com status 200, api.example.com status 530, blog.example.com status 530 (+3 more); public_hosts=6 item(s): example.com status 200 Example Domain cloudflare, api.example.com status 530 cloudflare, blog.example.com status 530 cloudflare (+3 more); reachable_public_hosts=5 endpoint(s): example.com /wp-json/ status 200 (+4 more); public_host_fingerprint_limits=max_hosts=8, checked_hosts=6, max_requests_per_host=2, max_concurrency=3. Found 1 application fingerprint candidate(s): Cloudflare. Evidence: Cloudflare=category=hosting, confidence=high, evidence=server: cloudflare; Cloudflare=category=hosting, confidence=high, evidence=cf-ray: a00b67bee875cb9b-LAX. Missing data: l7_permissioned_authenticated_surface_check (requires_permission). Remaining gaps: l7_permissioned_authenticated_surface_check (requires_permission) l7_permissioned_deep_port_service_inventory (requires_permission) l7_permissioned_external_service_intelligence (requires_permission)
+
+Evidence: [E035] [E036] [E037] [E038] [M011] [M012] [M013] [M014] [M015] [M016]
+
+Boundaries: This is not a port scan, brute-force enumeration, vulnerability scan, or authenticated inventory.
+
+## Organization and Operations Signals
+
+Current evidence highlights: Collected organization-facing DNS, homepage, registration, or archive evidence. Evidence: mx=1 item(s): 0 .; txt=2 item(s): "v=spf1 -all", "_k2n1y4vw3qtb4skdx9e7dxt97qrmmq9"; social_links=none; related_domain_candidates=1 item(s): iana.org. Public business/product content: Collected public business/product text snippets from 1 bounded page(s): homepage / technical_documentation / Example Domain. Evidence: business_product_snippets=1 item(s): example.com / controlled_hint=technical_documentation,label=homepage,excerpt=Example Domain Example Domain This domain is for use in documentation examples without ne...; public_content_surface_limits=max_candidate_urls=24, max_pages=8, max_concurrency=3, timeout_ms=10000. Public product/business detail: Collected public product/business detail snippets from 8 bounded page(s): article / blog / news; article / changelog / news; community / community / community; documentation / docs / technical_documentation; support / help / support. Evidence: product_business_detail_snippets=3 endpoint(s): blog.example.com /, changelog.example.com /, community.example.com /; public_content_detail_limits=max_seed_pages=5, max_candidate_urls=36, max_detail_pages=8, max_concurrency=3. Public content detail map: Collected 8 bounded public content detail page(s): blog.example.com/; changelog.example.com/; community.example.com/; docs.example.com/; help.example.com/. Evidence: detail_pages=5 endpoint(s): blog.example.com / status 530, changelog.example.com / status 530 (+3 more); public_content_detail_limits=max_seed_pages=5, max_candidate_urls=36, max_detail_pages=8, max_concurrency=3. Public content surface map: Collected 8 bounded public content surface(s): Example Domain; blog.example.com/; community.example.com/; developer.example.com/; developers.example.com/. Evidence: public_content_surfaces=4 endpoint(s): example.com / status 200, blog.example.com / status 530 (+2 more); public_content_surface_limits=max_candidate_urls=24, max_pages=8, max_concurrency=3, timeout_ms=10000. Remaining gaps: authenticated_content (requires_permission) business_model_validation_beyond_public_text (add_provider) complete_docs_or_blog_corpus (add_provider)
+
+Evidence: [E040] [E041] [E042] [E043] [E044] [E014] [E015] [M017] [M018] [M019] [M020] [M021] [M022] [M023] [M024]
+
+Boundaries: Registration and historical evidence do not prove current operator or legal ownership.
+
+## Security Posture
+
+Current evidence highlights: Bounded public cookie check: No Set-Cookie header was observed on bounded public checks. Evidence: bounded_cookie_checks=4 endpoint(s): example.com / status 200, api.example.com / status 530 (+2 more); public_security_detail_limits=max_hosts=6, checked_hosts=6, max_requests_per_host=5, max_concurrency=3. No Set-Cookie header was observed on the main response. Evidence: set-cookie=null. Bounded public CORS check: No CORS allow-origin signal was observed on bounded public checks. Evidence: bounded_cors_checks=4 endpoint(s): example.com / status 200, api.example.com / status 530 (+2 more); public_security_detail_limits=max_hosts=6, checked_hosts=6, max_requests_per_host=5, max_concurrency=3. No CORS headers were found on the main response. Evidence: cors=5 field(s). No X-Frame-Options or CSP frame-ancestors policy was found. Evidence: x-frame-options=null; content-security-policy=null; iframe_sources=none. Remaining gaps: credentialed_authenticated_behavior (requires_permission) deep_port_service_inventory (add_provider) login_rate_limit_validation (requires_user_input)
+
+Evidence: [E047] [E051] [E045] [E046] [E048] [E049] [E050] [E030] [M025] [M026] [M027] [M028]
+
+Boundaries: Report missing controls as risk signals, not confirmed exploitability without authorized testing.
+
+## Missing Data and Next Steps
+
+Gap groups: add_provider: 14 (business_model_validation_beyond_public_text; complete_docs_or_blog_corpus; deep_crawl_content; +11 more) | requires_permission: 10 (authenticated_content; credentialed_authenticated_behavior; l7_permissioned_authenticated_surface_check; +7 more) | manual_review: 1 (related_domain_confirmation) | requires_user_input: 2 (login_rate_limit_validation; login_rate_limit_validation) | out_of_scope: 1 (icp) Current evidence highlights: Missing data: authenticated_content (requires_permission). Missing data: business_model_validation_beyond_public_text (add_provider). Missing data: complete_docs_or_blog_corpus (add_provider). Missing data: deep_crawl_content (add_provider). Missing data: form_submission_results (add_provider). Missing data: unlinked_public_pages (add_provider).
+
+Evidence: [M001] [M002] [M003] [M004] [M005] [M006] [M007] [M008]
+
+Boundaries: Do not present missing data as collected evidence.

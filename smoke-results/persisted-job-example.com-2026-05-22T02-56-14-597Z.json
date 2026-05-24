@@ -1,0 +1,43 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "api_reachability"
+  ],
+  "async_providers": [],
+  "strategy": "mobile",
+  "status": "passed",
+  "job_id": "scan-example.com-9f10a54c-786b-4f07-bf5f-5c8c3303717a",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "completed",
+    "record_count": 1,
+    "probes": {
+      "layers": [
+        6
+      ],
+      "probes": [
+        "api_reachability_probe"
+      ]
+    },
+    "async_jobs": []
+  },
+  "read": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-persisted-scan-job/v0.1",
+    "meta_status": "completed",
+    "raw_ref": "scan-jobs/raw/scan-example.com-9f10a54c-786b-4f07-bf5f-5c8c3303717a.json",
+    "artifact_ref": null
+  },
+  "artifact": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-export-artifact/v0.1",
+    "storage_persisted": true,
+    "record_count": 1,
+    "has_analysis": true,
+    "has_brief": true,
+    "has_markdown": true
+  }
+}

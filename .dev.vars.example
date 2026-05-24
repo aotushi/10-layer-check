@@ -1,0 +1,13 @@
+ALLOW_LOCAL_DEV_NO_AUTH=true
+# PROBE_API_KEY=replace-with-a-local-probe-key
+# GITHUB_TOKEN=github_pat_or_fine_grained_token
+GITHUB_OWNER=aotushi
+GITHUB_REPO=02-browser-runtime-remote-git
+GITHUB_LIVE_TLS_WORKFLOW=site-10-layer-check-live-tls.yml
+GITHUB_LIGHTHOUSE_WORKFLOW=site-10-layer-check-lighthouse.yml
+GITHUB_REF=main
+# Cloudflare Workers AI binding uses AI_PROVIDER_MODEL and does not require AI_PROVIDER_API_KEY.
+# Local Workers AI calls may require remote Worker runtime rather than local-only Wrangler.
+AI_PROVIDER_MODEL=@cf/meta/llama-3.1-8b-instruct-fast
+# AI_PROVIDER_API_KEY=sk-or-provider-key
+# AI_PROVIDER_BASE_URL=https://api.openai.com/v1/chat/completions

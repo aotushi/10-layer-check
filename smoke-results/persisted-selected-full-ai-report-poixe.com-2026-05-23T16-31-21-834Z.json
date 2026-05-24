@@ -1,0 +1,508 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://poixe.com",
+  "sync_probes": [
+    "dns_infrastructure",
+    "tls_certificate",
+    "subdomain_attack_surface",
+    "organization_intelligence",
+    "remote_fetch",
+    "performance_basic",
+    "api_reachability",
+    "service_fingerprint",
+    "public_host_fingerprint",
+    "public_security_details",
+    "public_content_surface",
+    "public_spa_metadata"
+  ],
+  "async_providers": [
+    "pagespeed",
+    "lighthouse",
+    "browser_runtime",
+    "live_tls"
+  ],
+  "strategy": "mobile",
+  "status": "passed",
+  "elapsed_ms": 116136,
+  "job_id": "scan-poixe.com-bb29cd77-473c-4c9a-94d3-d115fb5fbb62",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "async_pending",
+    "record_count": 45,
+    "provider_jobs": [
+      {
+        "capability": "pagespeed",
+        "provider": "pagespeed",
+        "status": "completed",
+        "has_result_envelope": true,
+        "normalized_record_count": 1
+      },
+      {
+        "capability": "lighthouse",
+        "provider": "github_actions_lighthouse",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      },
+      {
+        "capability": "browser_runtime",
+        "provider": "github_actions_browser_runtime",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      },
+      {
+        "capability": "live_tls",
+        "provider": "github_actions_live_tls",
+        "status": "queued",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      }
+    ]
+  },
+  "polls": [
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 45,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "async_pending",
+      "record_count": 45,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "running",
+          "has_result_envelope": false,
+          "normalized_record_count": 0
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "running",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    },
+    {
+      "http_status": 200,
+      "job_status": "completed",
+      "record_count": 55,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 11
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "completed",
+          "has_result_envelope": true,
+          "normalized_record_count": 1
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "lighthouse",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "completed",
+          "has_result_envelope": false
+        },
+        {
+          "capability": "live_tls",
+          "status": "completed",
+          "has_result_envelope": false
+        }
+      ]
+    }
+  ],
+  "report_http_status": 200,
+  "report_schema_version": "site-10-layer-persisted-scan-ai-report/v0.1",
+  "report_ok": true,
+  "artifact_schema_version": "site-10-layer-scan-export-artifact/v0.1",
+  "artifact_storage_persisted": true,
+  "artifact_record_count": 55,
+  "artifact_scan_policy": {
+    "schema_version": "site-10-layer-scan-policy/v0.1",
+    "profile": "public_default",
+    "authorization_basis": "user_submitted_target",
+    "allowed_check_count": 20,
+    "denied_check_count": 3,
+    "denied_checks": [
+      "wordpress_user_enumeration",
+      "login_rate_limit_validation",
+      "deep_port_service_inventory"
+    ]
+  },
+  "artifact_records": {
+    "layers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "probes": [
+      "access_barrier_probe",
+      "ai_frontend_evidence_pack",
+      "api_endpoint_probe",
+      "api_error_surface_probe",
+      "api_protocol_probe",
+      "api_reachability_probe",
+      "app_fingerprint_probe",
+      "basic_performance_probe",
+      "bounded_cookie_attribute_observation_probe",
+      "bounded_cors_header_validation_probe",
+      "bounded_public_api_endpoint_inventory_probe",
+      "bounded_public_api_error_surface_probe",
+      "bounded_public_app_header_metadata_probe",
+      "bounded_public_metadata_probe",
+      "browser_page_probe",
+      "browser_runtime_page_probe",
+      "cache_policy_probe",
+      "cdn_header_evidence_probe",
+      "cookie_security_probe",
+      "cors_policy_probe",
+      "frontend_assets_probe",
+      "frontend_technology_probe",
+      "http_headers_probe",
+      "iframe_embedding_probe",
+      "leakage_signal_probe",
+      "mixed_content_probe",
+      "network_infrastructure_probe",
+      "organization_intelligence_probe",
+      "performance_probe",
+      "public_app_marker_probe",
+      "public_business_content_probe",
+      "public_content_surface_probe",
+      "public_host_fingerprint_probe",
+      "public_spa_asset_metadata_probe",
+      "public_spa_route_metadata_probe",
+      "rdap_whois_lite_probe",
+      "resource_weight_probe",
+      "robots_sitemap_probe",
+      "runtime_api_requests_probe",
+      "runtime_asset_cache_policy_probe",
+      "runtime_resource_bytes_probe",
+      "runtime_resource_summary_probe",
+      "runtime_resource_waterfall_probe",
+      "runtime_screenshot_evidence_probe",
+      "runtime_security_events_probe",
+      "runtime_third_party_resources_probe",
+      "security_headers_probe",
+      "service_fingerprint_probe",
+      "subdomain_attack_surface_probe",
+      "third_party_scripts_probe",
+      "tls_certificate_probe",
+      "tls_live_certificate_probe",
+      "wayback_history_probe"
+    ],
+    "sources": [
+      "cloudflare_worker_api_reachability",
+      "cloudflare_worker_dns",
+      "cloudflare_worker_fetch",
+      "cloudflare_worker_fetch + ai_ready_evidence_pack",
+      "cloudflare_worker_fetch + app_fingerprint_rules",
+      "cloudflare_worker_fetch + cache_header_rules",
+      "cloudflare_worker_fetch + cdn_header_rules",
+      "cloudflare_worker_fetch + crawl_metadata_fetch",
+      "cloudflare_worker_fetch + deterministic_frontend_rules",
+      "cloudflare_worker_fetch + domain_classifier",
+      "cloudflare_worker_fetch + header_html_rules",
+      "cloudflare_worker_fetch + html_asset_extractor",
+      "cloudflare_worker_fetch + static_resource_counter",
+      "cloudflare_worker_l7_service_fingerprint",
+      "cloudflare_worker_org_intel",
+      "cloudflare_worker_public_content_surface",
+      "cloudflare_worker_public_host_fingerprint",
+      "cloudflare_worker_public_security_details",
+      "cloudflare_worker_public_spa_metadata",
+      "cloudflare_worker_subdomains",
+      "cloudflare_worker_tls",
+      "github-actions-browser",
+      "github-actions-browser + browser_runtime_import_adapter",
+      "github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter, github-actions-browser + browser_runtime_import_adapter + cdn_header_rules",
+      "github_actions_lighthouse",
+      "github_actions_node_tls_socket",
+      "pagespeed_api"
+    ]
+  },
+  "evidence_checks": {
+    "layers_1_to_10": true,
+    "l5_performance_count": 2,
+    "l5_lighthouse_count": 1,
+    "l5_pagespeed_count": 1,
+    "l2_live_tls_count": 1,
+    "l4_runtime_record_count": 6,
+    "l6_runtime_api_count": 1,
+    "l10_runtime_security_count": 1
+  },
+  "ai_report_schema_version": "site-10-layer-ai-narrative-report-result/v0.1",
+  "ai_report_section_count": 10,
+  "markdown_length": 20335,
+  "markdown_preview": "# Site Analysis: poixe.com\n\n## Executive Summary\n\nHTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://poixe.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=3 certificate(s): Let's Encrypt for *.poixe.com (+2 more). Current evidence highlights: Performance score 34; 5 metric(s) are poor. Evidence: pagespeed=6 item(s): First Contentful Paint 3636.917020723579 poor, Largest Contentful Paint 5376.038297218775 poor, Total Blocking Time 3767.000000000001 poor (+3 more); pagespeed=6 item(s): unused-javascript, server-response-time, redirects (+3 more). Lighthouse performance score 33; 4 metric(s) are poor. Evidence: lighthouse=5 item(s): First Contentful Paint 3969.6759999999995 poor, Largest Contentful Paint 6622.766 p...",
+  "direct_markdown_http_status": 200,
+  "direct_markdown_content_type": "text/markdown; charset=utf-8",
+  "direct_markdown_length": 20335,
+  "direct_markdown_preview": "# Site Analysis: poixe.com\n\n## Executive Summary\n\nHTTPS is reachable, but HSTS was not found on the probed response. Evidence: https=url=https://poixe.com/, reachable=true, status_code=200; strict-transport-security=null; certspotter=3 certificate(s): Let's Encrypt for *.poixe.com (+2 more). Current evidence highlights: Performance score 34; 5 metric(s) are poor. Evidence: pagespeed=6 item(s): First Contentful Paint 3636.917020723579 poor, Largest Contentful Paint 5376.038297218775 poor, Total Blocking Time 3767.000000000001 poor (+3 more); pagespeed=6 item(s): unused-javascript, server-response-time, redirects (+3 more). Lighthouse performance score 33; 4 metric(s) are poor. Evidence: lighthouse=5 item(s): First Contentful Paint 3969.6759999999995 poor, Largest Contentful Paint 6622.766 p...",
+  "direct_markdown_evidence_refs": [
+    "E004",
+    "E010",
+    "E012",
+    "E013",
+    "E014",
+    "E016",
+    "E018",
+    "E021",
+    "E022",
+    "E031",
+    "E036",
+    "E038",
+    "E043",
+    "E047",
+    "E048",
+    "E049",
+    "E050",
+    "E051",
+    "E052",
+    "E053"
+  ],
+  "direct_markdown_missing_data_refs": [
+    "M001",
+    "M002",
+    "M003",
+    "M004",
+    "M005",
+    "M006",
+    "M007",
+    "M008",
+    "M009",
+    "M010",
+    "M011",
+    "M012",
+    "M023",
+    "M024",
+    "M025",
+    "M026",
+    "M027",
+    "M028",
+    "M029",
+    "M030",
+    "M031",
+    "M032",
+    "M033",
+    "M034"
+  ],
+  "unknown_direct_markdown_evidence_refs": [],
+  "unknown_direct_markdown_missing_data_refs": [],
+  "direct_markdown_section_headings": [
+    "Executive Summary",
+    "Public Information Architecture",
+    "Technology Stack",
+    "Deployment and Network Surface",
+    "Request and Rendering Chain",
+    "API and Protocol Surface",
+    "Subdomains and Attack Surface",
+    "Organization and Operations Signals",
+    "Security Posture",
+    "Missing Data and Next Steps"
+  ],
+  "missing_direct_markdown_section_headings": [],
+  "duplicate_direct_markdown_section_headings": [],
+  "direct_markdown_matches_json": true,
+  "markdown_evidence_refs": [
+    "E004",
+    "E010",
+    "E012",
+    "E013",
+    "E014",
+    "E016",
+    "E018",
+    "E021",
+    "E022",
+    "E031",
+    "E036",
+    "E038",
+    "E043",
+    "E047",
+    "E048",
+    "E049",
+    "E050",
+    "E051",
+    "E052",
+    "E053"
+  ],
+  "markdown_missing_data_refs": [
+    "M001",
+    "M002",
+    "M003",
+    "M004",
+    "M005",
+    "M006",
+    "M007",
+    "M008",
+    "M009",
+    "M010",
+    "M011",
+    "M012",
+    "M023",
+    "M024",
+    "M025",
+    "M026",
+    "M027",
+    "M028",
+    "M029",
+    "M030",
+    "M031",
+    "M032",
+    "M033",
+    "M034"
+  ],
+  "unknown_evidence_refs": [],
+  "unknown_missing_data_refs": [],
+  "markdown_section_headings": [
+    "Executive Summary",
+    "Public Information Architecture",
+    "Technology Stack",
+    "Deployment and Network Surface",
+    "Request and Rendering Chain",
+    "API and Protocol Surface",
+    "Subdomains and Attack Surface",
+    "Organization and Operations Signals",
+    "Security Posture",
+    "Missing Data and Next Steps"
+  ],
+  "missing_markdown_section_headings": [],
+  "duplicate_markdown_section_headings": [],
+  "boundaries": {
+    "invokes_ai_provider": true,
+    "deterministic_artifact_preserved": true,
+    "storage_persisted": true,
+    "frontend_state_mutated": false,
+    "ai_report_cache_hit": false
+  }
+}

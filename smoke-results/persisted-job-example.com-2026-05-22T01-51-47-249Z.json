@@ -1,0 +1,29 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "status": "passed",
+  "job_id": "scan-example.com-cb2076bf-fd86-4d94-b923-6522aa96207c",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "completed",
+    "record_count": 20
+  },
+  "read": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-persisted-scan-job/v0.1",
+    "meta_status": "completed",
+    "raw_ref": "scan-jobs/raw/scan-example.com-cb2076bf-fd86-4d94-b923-6522aa96207c.json",
+    "artifact_ref": null
+  },
+  "artifact": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-export-artifact/v0.1",
+    "storage_persisted": true,
+    "record_count": 20,
+    "has_analysis": true,
+    "has_brief": true,
+    "has_markdown": true
+  }
+}

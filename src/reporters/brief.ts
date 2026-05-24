@@ -1,0 +1,458 @@
+import { LAYERS } from "../core/layers";
+import type { Evidence, EvidenceMetadata, Run, SnapshotRecord } from "../core/types";
+import { type AnalysisReport, createAnalysisReport } from "./analysis";
+
+export type MissingDataClassification =
+  | "add_provider"
+  | "requires_user_input"
+  | "requires_permission"
+  | "manual_review"
+  | "out_of_scope";
+
+export type ReportBriefEvidence = {
+  id: string;
+  layer: number;
+  probe: string;
+  item: string;
+  status: string;
+  source: string;
+  summary: string;
+  metadata: EvidenceMetadata | null;
+  evidence_items: ReportBriefEvidenceItem[];
+  limitations: string[];
+};
+
+export type ReportBriefEvidenceItem = {
+  type: string;
+  name?: string;
+  value: string;
+};
+
+export type ReportBriefMissingData = {
+  id: string;
+  layer: number;
+  description: string;
+  classification: MissingDataClassification;
+  evidence_refs: string[];
+};
+
+export type ReportBriefLayer = {
+  layer: number;
+  name: string;
+  status: string;
+  summary: string;
+  key_findings: string[];
+  evidence_refs: string[];
+  limitations: string[];
+  missing_data_ids: string[];
+};
+
+export type ReportBrief = {
+  schema_version: "site-10-layer-report-brief/v0.1";
+  target: string;
+  normalized_target: string;
+  generated_at: string;
+  run: AnalysisReport["run"];
+  coverage: AnalysisReport["coverage"];
+  ai_boundary: {
+    invokes_ai_provider: false;
+    instruction: string;
+    claim_policy: string[];
+  };
+  executive_summary: string[];
+  layers: ReportBriefLayer[];
+  evidence_index: ReportBriefEvidence[];
+  missing_data: ReportBriefMissingData[];
+  risks: AnalysisReport["risks"];
+  next_steps: string[];
+};
+
+export function createReportBrief(run: Run, analysis: AnalysisReport = createAnalysisReport(run)): ReportBrief {
+  const evidenceIndex = createBriefEvidenceIndex(run, analysis);
+  const missingData = createMissingData(run, analysis);
+  const missingByLayer = groupMissingByLayer(missingData);
+
+  return {
+    schema_version: "site-10-layer-report-brief/v0.1",
+    target: analysis.target,
+    normalized_target: analysis.normalized_target,
+    generated_at: analysis.generated_at,
+    run: analysis.run,
+    coverage: analysis.coverage,
+    ai_boundary: {
+      invokes_ai_provider: false,
+      instruction:
+        "Use this brief as evidence input only. Final narrative claims must cite evidence_refs and account for limitations and missing_data.",
+      claim_policy: [
+        "Do not turn registration, archive, DNS, header, or heuristic signals into ownership claims without explicit evidence.",
+        "Do not treat provider-ready contracts as collected target evidence.",
+        "If a layer has missing_data, describe the gap or keep the conclusion provisional.",
+      ],
+    },
+    executive_summary: analysis.executive_summary,
+    layers: analysis.layer_summaries.map((layer) => ({
+      layer: layer.layer,
+      name: layer.name,
+      status: layer.status,
+      summary: layer.summary,
+      key_findings: layer.key_findings,
+      evidence_refs: layer.evidence_refs,
+      limitations: layer.limitations,
+      missing_data_ids: (missingByLayer.get(layer.layer) ?? []).map((item) => item.id),
+    })),
+    evidence_index: evidenceIndex,
+    missing_data: missingData,
+    risks: analysis.risks,
+    next_steps: analysis.next_steps,
+  };
+}
+
+function createBriefEvidenceIndex(run: Run, analysis: AnalysisReport): ReportBriefEvidence[] {
+  return analysis.evidence_index.map((ref) => {
+    const record = run.records.find(
+      (item) =>
+        item.layer === ref.layer &&
+        item.probe === ref.probe &&
+        item.item === ref.item &&
+        item.status === ref.status &&
+        item.source === ref.source,
+    );
+
+    return {
+      id: ref.id,
+      layer: ref.layer,
+      probe: ref.probe,
+      item: ref.item,
+      status: ref.status,
+      source: ref.source,
+      summary: record?.risk.summary ?? "",
+      metadata: record?.evidence_metadata ?? null,
+      evidence_items: compactEvidenceItems(record?.evidence ?? []),
+      limitations: record?.evidence_metadata?.limitations ?? [],
+    };
+  });
+}
+
+function createMissingData(run: Run, analysis: AnalysisReport): ReportBriefMissingData[] {
+  const items: Array<Omit<ReportBriefMissingData, "id">> = [];
+
+  items.push(...createProviderStatusMissingData(run, analysis));
+  items.push(...createExplicitMissingData(run, analysis));
+
+  for (const layer of analysis.layer_summaries) {
+    if (layer.status === "missing") {
+      items.push({
+        layer: layer.layer,
+        description: `Layer ${layer.layer} ${layer.name} has no collected target evidence.`,
+        classification: "add_provider",
+        evidence_refs: [],
+      });
+    }
+  }
+
+  const deduped = dedupeMissingData(items);
+  return deduped.map((item, index) => ({
+    id: `M${String(index + 1).padStart(3, "0")}`,
+    ...item,
+  }));
+}
+
+function createProviderStatusMissingData(
+  run: Run,
+  analysis: AnalysisReport,
+): Array<Omit<ReportBriefMissingData, "id">> {
+  const items: Array<Omit<ReportBriefMissingData, "id">> = [];
+
+  for (const record of run.records) {
+    if (!isProviderResultStatusRecord(record) || record.layer < 1 || record.layer > 10) continue;
+
+    const value = record.value;
+    const provider = typeof value.provider === "string" ? value.provider : record.source;
+    const errorCode = typeof value.error_code === "string" ? value.error_code : null;
+    const error = typeof value.error === "string" ? value.error : null;
+    const status = typeof value.status === "string" || typeof value.status === "number" ? String(value.status) : record.status;
+    const missingConfig = Array.isArray(value.missing_config)
+      ? value.missing_config.filter((item): item is string => typeof item === "string")
+      : [];
+    const evidenceRef = analysis.evidence_index.find(
+      (item) =>
+        item.layer === record.layer &&
+        item.probe === record.probe &&
+        item.item === record.item &&
+        item.status === record.status &&
+        item.source === record.source,
+    )?.id;
+
+    items.push({
+      layer: record.layer,
+      description:
+        record.status === "error"
+          ? `${provider} provider did not return usable target evidence: ${errorCode ?? error ?? "provider_error"}.`
+          : `${provider} provider has no completed target evidence yet; current provider status is ${status}.`,
+      classification: missingConfig.length > 0 ? "requires_user_input" : "add_provider",
+      evidence_refs: evidenceRef ? [evidenceRef] : [],
+    });
+  }
+
+  return items;
+}
+
+function createExplicitMissingData(run: Run, analysis: AnalysisReport): Array<Omit<ReportBriefMissingData, "id">> {
+  const items: Array<Omit<ReportBriefMissingData, "id">> = [];
+  const collectedSignalsByLayer = createCollectedSignalsByLayer(run);
+
+  for (const record of run.records) {
+    if (record.status === "skipped" || isProviderContractRecord(record)) continue;
+
+    const evidenceRef = analysis.evidence_index.find(
+      (item) =>
+        item.layer === record.layer &&
+        item.probe === record.probe &&
+        item.item === record.item &&
+        item.status === record.status &&
+        item.source === record.source,
+    )?.id;
+    const evidenceRefs = evidenceRef ? [evidenceRef] : [];
+
+    for (const description of extractExplicitGaps(record.value)) {
+      if (isGapSatisfiedByLayerEvidence(description, collectedSignalsByLayer.get(record.layer))) continue;
+      items.push({
+        layer: record.layer,
+        description,
+        classification: classifyMissingData(description),
+        evidence_refs: evidenceRefs,
+      });
+    }
+  }
+
+  return items;
+}
+
+function createCollectedSignalsByLayer(run: Run): Map<number, Set<string>> {
+  const result = new Map<number, Set<string>>();
+
+  for (const record of run.records) {
+    if (record.status === "skipped" || isProviderContractRecord(record)) continue;
+
+    const signals = result.get(record.layer) ?? new Set<string>();
+    addCollectedSignals(signals, record.value);
+    addDerivedCollectedSignals(signals, record);
+    result.set(record.layer, signals);
+  }
+
+  addCrossLayerCollectedSignals(result, run.records);
+
+  return result;
+}
+
+function addCrossLayerCollectedSignals(signalsByLayer: Map<number, Set<string>>, records: SnapshotRecord[]): void {
+  const layerFiveSignals = signalsByLayer.get(5) ?? new Set<string>();
+
+  for (const record of records) {
+    if (record.status === "skipped" || isProviderContractRecord(record)) continue;
+
+    if (record.probe === "runtime_resource_waterfall_probe") {
+      layerFiveSignals.add(normalizeSignal("runtime_resource_waterfall"));
+      layerFiveSignals.add(normalizeSignal("browser_resource_waterfall"));
+      layerFiveSignals.add(normalizeSignal("javascript_runtime_resource_injection"));
+    }
+  }
+
+  signalsByLayer.set(5, layerFiveSignals);
+}
+
+function addCollectedSignals(signals: Set<string>, value: unknown): void {
+  if (!isRecord(value)) return;
+
+  const coverage = isRecord(value.coverage) ? value.coverage : null;
+  if (Array.isArray(coverage?.collected)) {
+    for (const item of coverage.collected) {
+      if (typeof item === "string") signals.add(normalizeSignal(item));
+    }
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "html" || key === "certificates" || key === "records") continue;
+    addCollectedSignals(signals, child);
+  }
+}
+
+function addDerivedCollectedSignals(signals: Set<string>, record: SnapshotRecord): void {
+  if (record.layer === 2 && record.probe === "tls_live_certificate_probe" && record.status !== "error" && isRecord(record.value)) {
+    signals.add(normalizeSignal("current_certificate"));
+    signals.add(normalizeSignal("live_certificate"));
+
+    const chain = Array.isArray(record.value.chain) ? record.value.chain : [];
+    if (chain.length > 0) signals.add(normalizeSignal("live_certificate_chain"));
+
+    const certificate = isRecord(record.value.certificate) ? record.value.certificate : null;
+    if (certificate) {
+      signals.add(normalizeSignal("current_certificate"));
+      if (isRecord(certificate.issuer)) signals.add(normalizeSignal("live_certificate_issuer"));
+      if (typeof certificate.valid_to === "string" || typeof record.value.days_until_expiry === "number") {
+        signals.add(normalizeSignal("live_certificate_expiry"));
+      }
+      if (
+        (Array.isArray(certificate.subject_alt_names) && certificate.subject_alt_names.length > 0) ||
+        typeof certificate.raw_subject_alt_name === "string"
+      ) {
+        signals.add(normalizeSignal("live_certificate_san"));
+      }
+    }
+  }
+
+  if (record.layer !== 5 || record.probe !== "performance_probe" || !isRecord(record.value)) return;
+
+  const metrics = Array.isArray(record.value.metrics) ? record.value.metrics : [];
+  if (metrics.length > 0) signals.add(normalizeSignal("lighthouse_lab_metrics"));
+
+  const performanceScore = record.value.performance_score;
+  if (typeof performanceScore === "number") {
+    signals.add(normalizeSignal("performance_score"));
+    signals.add(normalizeSignal("lighthouse_score"));
+  }
+
+  const rawSummary = isRecord(record.value.raw_summary) ? record.value.raw_summary : null;
+  const fieldData = isRecord(rawSummary?.field_data) ? rawSummary.field_data : null;
+  if (fieldData?.available === true) {
+    signals.add(normalizeSignal("crux_field_data"));
+    signals.add(normalizeSignal("core_web_vitals_field_data"));
+  }
+}
+
+function isGapSatisfiedByLayerEvidence(description: string, signals: Set<string> | undefined): boolean {
+  if (!signals) return false;
+
+  for (const candidate of getGapSignalCandidates(description)) {
+    if (signals.has(normalizeSignal(candidate))) return true;
+  }
+
+  return false;
+}
+
+function getGapSignalCandidates(description: string): string[] {
+  const normalized = normalizeSignal(description);
+  const aliases: Record<string, string[]> = {
+    lighthouse_score: ["performance_score", "lighthouse_lab_metrics"],
+    core_web_vitals_field_data: ["crux_field_data"],
+    current_certificate_is_not_collected: ["current_certificate", "live_certificate"],
+    live_certificate_chain: ["live_certificate_chain", "live_certificate"],
+    live_certificate_san: ["live_certificate_san", "live_certificate"],
+    live_certificate_issuer: ["live_certificate_issuer", "live_certificate"],
+    live_certificate_expiry: ["live_certificate_expiry", "live_certificate"],
+    browser_resource_waterfall: ["runtime_resource_waterfall"],
+    javascript_runtime_resource_injection: ["runtime_resource_waterfall"],
+  };
+
+  return [normalized, ...(aliases[normalized] ?? [])];
+}
+
+function normalizeSignal(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function classifyMissingData(description: string): MissingDataClassification {
+  const value = description.toLowerCase();
+
+  if (/\bout[- ]of[- ]scope\b|out of scope|icp|jurisdiction/.test(value)) return "out_of_scope";
+  if (/permission|authorization|authorisation|intrusive|scan boundary|rate limit|authenticated|user-enumeration/.test(value)) {
+    return "requires_permission";
+  }
+  if (/user input|user-provided|user supplied|credential|api key|login|account/.test(value)) return "requires_user_input";
+  if (/manual review|manual confirmation|related[-_ ]domain|ownership|operating entity|report layer|ai\/report|final entity/.test(value)) {
+    return "manual_review";
+  }
+
+  return "add_provider";
+}
+
+function extractExplicitGaps(value: unknown, path = ""): string[] {
+  if (!isRecord(value)) return [];
+
+  const gaps: string[] = [];
+
+  if (value.status === "not_collected" && path) {
+    gaps.push(`${path} is not collected`);
+  }
+
+  if (path.endsWith("coverage") && Array.isArray(value.missing)) {
+    for (const item of value.missing) {
+      if (typeof item === "string") gaps.push(item);
+    }
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "html" || key === "certificates" || key === "records") continue;
+    gaps.push(...extractExplicitGaps(child, path ? `${path}.${key}` : key));
+  }
+
+  return gaps;
+}
+
+function compactEvidenceItems(items: Evidence[]): ReportBriefEvidenceItem[] {
+  return items.slice(0, 20).map((item) => ({
+    type: item.type,
+    ...(item.name ? { name: item.name } : {}),
+    value: compactValue(item.value),
+  }));
+}
+
+function compactValue(value: unknown): string {
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return text.length > 900 ? `${text.slice(0, 900)}...` : text;
+}
+
+function isProviderContractRecord(record: SnapshotRecord): boolean {
+  if (!isRecord(record.value)) return false;
+  const coverageState = record.value.coverage_state;
+  return coverageState === "provider_configured" || coverageState === "provider_required" || coverageState === "planned";
+}
+
+function isProviderResultStatusRecord(record: SnapshotRecord): record is SnapshotRecord<Record<string, unknown>> {
+  if (record.probe !== "provider_result_status" || !isRecord(record.value)) return false;
+  return record.value.schema_version === "site-10-layer-provider-result-status/v0.1";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function dedupeMissingData(items: Array<Omit<ReportBriefMissingData, "id">>): Array<Omit<ReportBriefMissingData, "id">> {
+  const byKey = new Map<string, Omit<ReportBriefMissingData, "id">>();
+
+  for (const item of items) {
+    const normalizedItem = {
+      ...item,
+      description: canonicalMissingDataDescription(item.description),
+    };
+    const key = `${normalizedItem.layer}:${normalizedItem.classification}:${normalizedItem.description}`;
+    if (!byKey.has(key)) byKey.set(key, normalizedItem);
+  }
+
+  return Array.from(byKey.values()).sort((left, right) => {
+    if (left.layer !== right.layer) return left.layer - right.layer;
+    return left.description.localeCompare(right.description);
+  });
+}
+
+function canonicalMissingDataDescription(value: string): string {
+  const normalized = normalizeSignal(value);
+
+  if (normalized === "external_intelligence_icp_is_not_collected") return "icp";
+
+  return value;
+}
+
+function groupMissingByLayer(items: ReportBriefMissingData[]): Map<number, ReportBriefMissingData[]> {
+  const result = new Map<number, ReportBriefMissingData[]>();
+
+  for (const layer of LAYERS) {
+    result.set(layer.layer, []);
+  }
+
+  for (const item of items) {
+    result.set(item.layer, [...(result.get(item.layer) ?? []), item]);
+  }
+
+  return result;
+}

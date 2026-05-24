@@ -1,0 +1,46 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "remote_fetch"
+  ],
+  "async_providers": [],
+  "status": "passed",
+  "job_id": "scan-example.com-3b0d6ea7-8c48-474e-877d-5729d42211c3",
+  "created_http_status": 200,
+  "created_schema_version": "site-10-layer-scan-job/v0.1",
+  "created_storage_persisted": true,
+  "report_http_status": 200,
+  "report_schema_version": "site-10-layer-persisted-scan-ai-report/v0.1",
+  "report_ok": true,
+  "artifact_schema_version": "site-10-layer-scan-export-artifact/v0.1",
+  "artifact_storage_persisted": true,
+  "artifact_record_count": 20,
+  "ai_report_schema_version": "site-10-layer-ai-narrative-report-result/v0.1",
+  "ai_report_section_count": 6,
+  "markdown_length": 2165,
+  "markdown_preview": "## Public Information Architecture\n\nThis site has 6/10 layers with collected evidence. Two layers contain warning or error records. One high/medium risk item should be reviewed first. [E002] [E003] [E004] [M001] [M002] [M003] [M004]\n\nLimitations: Access-barrier detection is based on status codes, response headers, title, and static HTML patterns.; It does not prove whether a human browser session would pass or fail the barrier.\n\n## Technology Stack\n\nThe site uses Cloudflare as its CDN provider, as indicated by the CDN header signals found in the evidence. [E001]\n\nLimitations: This record is de...",
+  "markdown_evidence_refs": [
+    "E001",
+    "E002",
+    "E003",
+    "E004",
+    "E007",
+    "E011",
+    "E017"
+  ],
+  "markdown_missing_data_refs": [
+    "M001",
+    "M002",
+    "M003",
+    "M004"
+  ],
+  "unknown_evidence_refs": [],
+  "unknown_missing_data_refs": [],
+  "boundaries": {
+    "invokes_ai_provider": true,
+    "deterministic_artifact_preserved": true,
+    "storage_persisted": true,
+    "frontend_state_mutated": false
+  }
+}

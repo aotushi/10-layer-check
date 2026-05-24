@@ -1,0 +1,52 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "remote_fetch"
+  ],
+  "async_providers": [],
+  "status": "passed",
+  "http_status": 200,
+  "schema_version": "site-10-layer-scan-ai-report/v0.1",
+  "ok": true,
+  "artifact_schema_version": "site-10-layer-scan-export-artifact/v0.1",
+  "artifact_record_count": 20,
+  "artifact_has_brief": true,
+  "ai_report_schema_version": "site-10-layer-ai-narrative-report-result/v0.1",
+  "ai_report_section_count": 6,
+  "markdown_length": 1766,
+  "markdown_preview": "## Technical Site Analysis Report\n\n6/10 layers have collected evidence. 2 layer(s) contain warning or error records. 1 high/medium risk item(s) should be reviewed first. [E001] [E002] [E003] [E004] [M001] [M002] [M003] [M004]\n\nLimitations: This record is derived from response/resource headers only.; It complements, but does not replace, DNS-based CDN hints in network_infrastructure_probe.; It does not prove full edge routing, origin shielding, cache behavior, or CDN provider coverage.\n\n## Public Information Architecture\n\n## Public Information Architecture [E005] [E006] [E007] [E008] [E009] [E0...",
+  "markdown_evidence_refs": [
+    "E001",
+    "E002",
+    "E003",
+    "E004",
+    "E005",
+    "E006",
+    "E007",
+    "E008",
+    "E009",
+    "E010",
+    "E011",
+    "E012",
+    "E013",
+    "E014",
+    "E015",
+    "E016",
+    "E017"
+  ],
+  "markdown_missing_data_refs": [
+    "M001",
+    "M002",
+    "M003",
+    "M004"
+  ],
+  "unknown_evidence_refs": [],
+  "unknown_missing_data_refs": [],
+  "boundaries": {
+    "invokes_ai_provider": true,
+    "deterministic_artifact_preserved": true,
+    "storage_persisted": false,
+    "frontend_state_mutated": false
+  }
+}

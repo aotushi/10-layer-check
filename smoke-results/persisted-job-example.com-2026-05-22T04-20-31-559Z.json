@@ -1,0 +1,144 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "dns_infrastructure",
+    "tls_certificate",
+    "subdomain_attack_surface",
+    "organization_intelligence",
+    "remote_fetch",
+    "performance_basic",
+    "api_reachability",
+    "service_fingerprint"
+  ],
+  "async_providers": [
+    "pagespeed"
+  ],
+  "strategy": "mobile",
+  "status": "passed",
+  "job_id": "scan-example.com-7c9967d6-78b6-4a03-bfa5-ca56ecf5b0ad",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "partial",
+    "record_count": 30,
+    "probes": {
+      "layers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "probes": [
+        "access_barrier_probe",
+        "ai_frontend_evidence_pack",
+        "api_endpoint_probe",
+        "api_error_surface_probe",
+        "api_protocol_probe",
+        "api_reachability_probe",
+        "app_fingerprint_probe",
+        "basic_performance_probe",
+        "cache_policy_probe",
+        "cdn_header_evidence_probe",
+        "cookie_security_probe",
+        "cors_policy_probe",
+        "frontend_assets_probe",
+        "frontend_technology_probe",
+        "http_headers_probe",
+        "iframe_embedding_probe",
+        "leakage_signal_probe",
+        "mixed_content_probe",
+        "network_infrastructure_probe",
+        "organization_intelligence_probe",
+        "provider_result_status",
+        "rdap_whois_lite_probe",
+        "resource_weight_probe",
+        "robots_sitemap_probe",
+        "security_headers_probe",
+        "service_fingerprint_probe",
+        "subdomain_attack_surface_probe",
+        "third_party_scripts_probe",
+        "tls_certificate_probe",
+        "wayback_history_probe"
+      ]
+    },
+    "async_jobs": [
+      {
+        "capability": "pagespeed",
+        "provider": "pagespeed",
+        "status": "failed",
+        "has_result_envelope": false,
+        "normalized_record_count": 0
+      }
+    ]
+  },
+  "read": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-persisted-scan-job/v0.1",
+    "meta_status": "partial",
+    "raw_ref": "scan-jobs/raw/scan-example.com-7c9967d6-78b6-4a03-bfa5-ca56ecf5b0ad.json",
+    "artifact_ref": null
+  },
+  "artifact": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-export-artifact/v0.1",
+    "storage_persisted": true,
+    "record_count": 30,
+    "probes": {
+      "layers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "probes": [
+        "access_barrier_probe",
+        "ai_frontend_evidence_pack",
+        "api_endpoint_probe",
+        "api_error_surface_probe",
+        "api_protocol_probe",
+        "api_reachability_probe",
+        "app_fingerprint_probe",
+        "basic_performance_probe",
+        "cache_policy_probe",
+        "cdn_header_evidence_probe",
+        "cookie_security_probe",
+        "cors_policy_probe",
+        "frontend_assets_probe",
+        "frontend_technology_probe",
+        "http_headers_probe",
+        "iframe_embedding_probe",
+        "leakage_signal_probe",
+        "mixed_content_probe",
+        "network_infrastructure_probe",
+        "organization_intelligence_probe",
+        "provider_result_status",
+        "rdap_whois_lite_probe",
+        "resource_weight_probe",
+        "robots_sitemap_probe",
+        "security_headers_probe",
+        "service_fingerprint_probe",
+        "subdomain_attack_surface_probe",
+        "third_party_scripts_probe",
+        "tls_certificate_probe",
+        "wayback_history_probe"
+      ]
+    },
+    "has_analysis": true,
+    "has_brief": true,
+    "has_markdown": true
+  }
+}

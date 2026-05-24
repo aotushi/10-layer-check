@@ -1,0 +1,296 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://poixe.com",
+  "sync_probes": [
+    "dns_infrastructure",
+    "tls_certificate",
+    "subdomain_attack_surface",
+    "organization_intelligence",
+    "remote_fetch",
+    "performance_basic",
+    "api_reachability",
+    "service_fingerprint"
+  ],
+  "async_providers": [
+    "pagespeed",
+    "lighthouse",
+    "browser_runtime",
+    "live_tls"
+  ],
+  "strategy": "mobile",
+  "status": "failed",
+  "elapsed_ms": 54573,
+  "job_id": "scan-poixe.com-0758b488-4968-4574-84fd-e2d813c4c0e4",
+  "created": {
+    "http_status": 200,
+    "schema_version": "site-10-layer-scan-job/v0.1",
+    "storage_persisted": true,
+    "job_status": "partial",
+    "record_count": 33,
+    "provider_jobs": [
+      {
+        "capability": "pagespeed",
+        "provider": "pagespeed",
+        "status": "failed",
+        "has_result_envelope": false,
+        "normalized_record_count": 0,
+        "error_code": "site_scan_async_provider_failed",
+        "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+      },
+      {
+        "capability": "lighthouse",
+        "provider": "github_actions_lighthouse",
+        "status": "failed",
+        "has_result_envelope": false,
+        "normalized_record_count": 0,
+        "error_code": "site_scan_async_provider_failed",
+        "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+      },
+      {
+        "capability": "browser_runtime",
+        "provider": "github_actions_browser_runtime",
+        "status": "failed",
+        "has_result_envelope": false,
+        "normalized_record_count": 0,
+        "error_code": "site_scan_async_provider_failed",
+        "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+      },
+      {
+        "capability": "live_tls",
+        "provider": "github_actions_live_tls",
+        "status": "failed",
+        "has_result_envelope": false,
+        "normalized_record_count": 0,
+        "error_code": "site_scan_async_provider_failed",
+        "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+      }
+    ]
+  },
+  "polls": [
+    {
+      "http_status": 200,
+      "job_status": "partial",
+      "record_count": 33,
+      "provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "provider": "pagespeed",
+          "status": "failed",
+          "has_result_envelope": false,
+          "normalized_record_count": 0,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        },
+        {
+          "capability": "lighthouse",
+          "provider": "github_actions_lighthouse",
+          "status": "failed",
+          "has_result_envelope": false,
+          "normalized_record_count": 0,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        },
+        {
+          "capability": "browser_runtime",
+          "provider": "github_actions_browser_runtime",
+          "status": "failed",
+          "has_result_envelope": false,
+          "normalized_record_count": 0,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        },
+        {
+          "capability": "live_tls",
+          "provider": "github_actions_live_tls",
+          "status": "failed",
+          "has_result_envelope": false,
+          "normalized_record_count": 0,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        }
+      ],
+      "checked_provider_jobs": [
+        {
+          "capability": "pagespeed",
+          "status": "failed",
+          "has_result_envelope": false,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        },
+        {
+          "capability": "lighthouse",
+          "status": "failed",
+          "has_result_envelope": false,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        },
+        {
+          "capability": "browser_runtime",
+          "status": "failed",
+          "has_result_envelope": false,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        },
+        {
+          "capability": "live_tls",
+          "status": "failed",
+          "has_result_envelope": false,
+          "error_code": "site_scan_async_provider_failed",
+          "error": "Too many subrequests by single Worker invocation. To configure this limit, refer to https://developers.cloudflare.com/workers/wrangler/configuration/#limits"
+        }
+      ]
+    }
+  ],
+  "report_http_status": 200,
+  "report_schema_version": "site-10-layer-persisted-scan-ai-report/v0.1",
+  "report_ok": true,
+  "artifact_schema_version": "site-10-layer-scan-export-artifact/v0.1",
+  "artifact_storage_persisted": true,
+  "artifact_record_count": 33,
+  "artifact_records": {
+    "layers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "probes": [
+      "access_barrier_probe",
+      "ai_frontend_evidence_pack",
+      "api_endpoint_probe",
+      "api_error_surface_probe",
+      "api_protocol_probe",
+      "api_reachability_probe",
+      "app_fingerprint_probe",
+      "basic_performance_probe",
+      "cache_policy_probe",
+      "cdn_header_evidence_probe",
+      "cookie_security_probe",
+      "cors_policy_probe",
+      "frontend_assets_probe",
+      "frontend_technology_probe",
+      "http_headers_probe",
+      "iframe_embedding_probe",
+      "leakage_signal_probe",
+      "mixed_content_probe",
+      "network_infrastructure_probe",
+      "organization_intelligence_probe",
+      "provider_result_status",
+      "rdap_whois_lite_probe",
+      "resource_weight_probe",
+      "robots_sitemap_probe",
+      "security_headers_probe",
+      "service_fingerprint_probe",
+      "subdomain_attack_surface_probe",
+      "third_party_scripts_probe",
+      "tls_certificate_probe",
+      "wayback_history_probe"
+    ],
+    "sources": [
+      "cloudflare_worker_api_reachability",
+      "cloudflare_worker_dns",
+      "cloudflare_worker_fetch",
+      "cloudflare_worker_fetch + ai_ready_evidence_pack",
+      "cloudflare_worker_fetch + app_fingerprint_rules",
+      "cloudflare_worker_fetch + cache_header_rules",
+      "cloudflare_worker_fetch + cdn_header_rules",
+      "cloudflare_worker_fetch + crawl_metadata_fetch",
+      "cloudflare_worker_fetch + deterministic_frontend_rules",
+      "cloudflare_worker_fetch + domain_classifier",
+      "cloudflare_worker_fetch + header_html_rules",
+      "cloudflare_worker_fetch + html_asset_extractor",
+      "cloudflare_worker_fetch + static_resource_counter",
+      "cloudflare_worker_l7_service_fingerprint",
+      "cloudflare_worker_org_intel",
+      "cloudflare_worker_subdomains",
+      "cloudflare_worker_tls",
+      "github_actions_browser_runtime",
+      "github_actions_lighthouse",
+      "github_actions_live_tls",
+      "pagespeed"
+    ]
+  },
+  "evidence_checks": {
+    "layers_1_to_10": true,
+    "l5_performance_count": 0,
+    "l5_lighthouse_count": 0,
+    "l5_pagespeed_count": 0,
+    "l2_live_tls_count": 0,
+    "l4_runtime_record_count": 0,
+    "l6_runtime_api_count": 0,
+    "l10_runtime_security_count": 0
+  },
+  "ai_report_schema_version": "site-10-layer-ai-narrative-report-result/v0.1",
+  "ai_report_section_count": 8,
+  "markdown_length": 2941,
+  "markdown_preview": "# Site Analysis: poixe.com\n\n## Public Information Architecture\n\nThis report covers 10 layers of evidence, with 5 layers containing warning or error records. The top risks include HTTPS is reachable, but HSTS was not found on the probed response, and missing security headers: content-security-policy, strict-transport-security, permissions-policy.\n\nEvidence: [E004] [E029]\n\nBoundaries: Single URL and bounded runtime evidence may miss authenticated routes and deep crawl paths.\n\n## Technology Stack\n\nThe technology stack includes a deterministic frontend technology candidate: Vite-like build. The app fingerprint candidates include Cloudflare and React.\n\nEvidence: [E010] [E022]\n\nBoundaries: Static and heuristic technology evidence is candidate evidence unless directly corroborated.\n\n## Deployment...",
+  "direct_markdown_http_status": 200,
+  "direct_markdown_content_type": "text/markdown; charset=utf-8",
+  "direct_markdown_length": 2941,
+  "direct_markdown_preview": "# Site Analysis: poixe.com\n\n## Public Information Architecture\n\nThis report covers 10 layers of evidence, with 5 layers containing warning or error records. The top risks include HTTPS is reachable, but HSTS was not found on the probed response, and missing security headers: content-security-policy, strict-transport-security, permissions-policy.\n\nEvidence: [E004] [E029]\n\nBoundaries: Single URL and bounded runtime evidence may miss authenticated routes and deep crawl paths.\n\n## Technology Stack\n\nThe technology stack includes a deterministic frontend technology candidate: Vite-like build. The app fingerprint candidates include Cloudflare and React.\n\nEvidence: [E010] [E022]\n\nBoundaries: Static and heuristic technology evidence is candidate evidence unless directly corroborated.\n\n## Deployment...",
+  "direct_markdown_evidence_refs": [
+    "E002",
+    "E004",
+    "E007",
+    "E010",
+    "E018",
+    "E019",
+    "E020",
+    "E021",
+    "E022",
+    "E023",
+    "E024",
+    "E026",
+    "E027",
+    "E029"
+  ],
+  "direct_markdown_missing_data_refs": [
+    "M014",
+    "M015",
+    "M016",
+    "M017",
+    "M018",
+    "M019"
+  ],
+  "unknown_direct_markdown_evidence_refs": [],
+  "unknown_direct_markdown_missing_data_refs": [],
+  "direct_markdown_matches_json": true,
+  "markdown_evidence_refs": [
+    "E002",
+    "E004",
+    "E007",
+    "E010",
+    "E018",
+    "E019",
+    "E020",
+    "E021",
+    "E022",
+    "E023",
+    "E024",
+    "E026",
+    "E027",
+    "E029"
+  ],
+  "markdown_missing_data_refs": [
+    "M014",
+    "M015",
+    "M016",
+    "M017",
+    "M018",
+    "M019"
+  ],
+  "unknown_evidence_refs": [],
+  "unknown_missing_data_refs": [],
+  "boundaries": {
+    "invokes_ai_provider": true,
+    "deterministic_artifact_preserved": true,
+    "storage_persisted": true,
+    "frontend_state_mutated": false
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "endpoint": "https://probe.9shi.cc",
+  "target": "https://example.com",
+  "sync_probes": [
+    "remote_fetch"
+  ],
+  "async_providers": [],
+  "status": "failed",
+  "http_status": 502,
+  "schema_version": "site-10-layer-scan-ai-report/v0.1",
+  "ok": false,
+  "artifact_schema_version": "site-10-layer-scan-export-artifact/v0.1",
+  "artifact_record_count": 20,
+  "artifact_has_brief": true,
+  "ai_report_section_count": 0,
+  "markdown_length": 0,
+  "markdown_evidence_refs": [],
+  "markdown_missing_data_refs": [],
+  "unknown_evidence_refs": [],
+  "unknown_missing_data_refs": [],
+  "boundaries": {
+    "invokes_ai_provider": false,
+    "deterministic_artifact_preserved": true,
+    "storage_persisted": false,
+    "frontend_state_mutated": false
+  },
+  "provider_error_code": "invalid_model_output",
+  "provider_error": "AI narrative report provider returned invalid output."
+}
