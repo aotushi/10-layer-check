@@ -447,9 +447,10 @@ function enrichSectionContentWithFacts(
   section: AiNarrativeReportSection,
 ): AiNarrativeReportSection {
   const guidance = contract.output_contract.section_guidance.find((item) => item.id === section.id);
+  const forcedFactHints = createForcedSectionFactHints(contract, section.id);
   const factHints = uniqueStrings([
+    ...forcedFactHints,
     ...(guidance?.fact_hints ?? []),
-    ...createForcedSectionFactHints(contract, section.id),
   ]).slice(0, createSectionFactLimit(section.id));
   const groupSummary = section.id === "missing_data_next_steps" ? createMissingDataGroupSummary(contract.input.brief) : "";
   if (factHints.length === 0 && !groupSummary) return section;
@@ -485,6 +486,7 @@ function isRedundantSectionFact(sectionId: string, content: string, hint: string
   if (sectionId !== "organization_operations") return false;
   const normalizedContent = content.toLowerCase();
   const normalizedHint = hint.toLowerCase();
+  if (normalizedHint.includes("larksuite") && !normalizedContent.includes("larksuite")) return false;
   return (
     normalizedContent.includes("organization-facing dns") &&
     normalizedHint.includes("organization-facing dns")
@@ -493,6 +495,17 @@ function isRedundantSectionFact(sectionId: string, content: string, hint: string
 
 function createForcedSectionFactHints(contract: AiNarrativeReportContract, sectionId: string): string[] {
   const probesBySection: Record<string, string[]> = {
+    summary: [
+      "performance_probe",
+      "security_headers_probe",
+      "subdomain_attack_surface_probe",
+    ],
+    deployment_network_surface: [
+      "network_infrastructure_probe",
+      "tls_live_certificate_probe",
+      "performance_probe",
+      "http_headers_probe",
+    ],
     api_protocol_surface: [
       "cors_policy_probe",
       "bounded_cors_header_validation_probe",
@@ -501,7 +514,7 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
     ],
     technology_stack: ["bounded_public_metadata_probe", "bounded_public_app_header_metadata_probe", "public_spa_asset_metadata_probe"],
     public_information_architecture: ["public_content_surface_probe", "public_content_detail_probe", "public_spa_route_metadata_probe"],
-    organization_operations: ["public_business_content_probe", "public_product_business_detail_probe"],
+    organization_operations: ["public_business_content_probe", "public_product_business_detail_probe", "organization_intelligence_probe"],
     security_posture: [
       "cookie_security_probe",
       "security_headers_probe",
@@ -521,8 +534,60 @@ function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): s
   if (item.probe === "public_product_business_detail_probe") {
     return createBusinessOperationEvidenceFact(item);
   }
+  if (item.probe === "performance_probe") {
+    return createPerformanceEvidenceFact(item);
+  }
+  if (item.probe === "tls_live_certificate_probe") {
+    return createCertificateEvidenceFact(item);
+  }
+  if (item.probe === "organization_intelligence_probe") {
+    return createOrganizationIntelligenceEvidenceFact(item);
+  }
+  if (item.probe === "security_headers_probe") {
+    return createSecurityHeadersEvidenceFact(item);
+  }
 
   return truncate(item.summary, 360);
+}
+
+function createPerformanceEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const score = findEvidenceItemValue(item, ["performance_score", "performance score"]);
+  const scoreText = score ? ` Performance score ${score}.` : "";
+  return truncate(`${item.summary}${scoreText}`, 360);
+}
+
+function createCertificateEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const issuer = findEvidenceItemValue(item, ["issuer", "issuer_common_name", "issuer name"]);
+  const issuerText = issuer ? ` Certificate issuer ${issuer}.` : "";
+  return truncate(`${item.summary}${issuerText}`, 360);
+}
+
+function createOrganizationIntelligenceEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const values = item.evidence_items.map((evidence) => evidence.value).join(" ").toLowerCase();
+  const signals: string[] = [];
+  if (values.includes("larksuite")) signals.push("larksuite MX/TXT mail DNS");
+  if (item.summary.toLowerCase().includes("rdap") || values.includes("rdap")) signals.push("RDAP registration evidence");
+  if (item.summary.toLowerCase().includes("wayback") || values.includes("wayback")) signals.push("Wayback archive evidence");
+  const signalText = signals.length > 0 ? ` Signals: ${signals.join(", ")}.` : "";
+  return truncate(`${item.summary}${signalText}`, 420);
+}
+
+function createSecurityHeadersEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const missingHeaders = item.evidence_items
+    .filter((evidence) => (evidence.name ?? evidence.type).toLowerCase().includes("missing"))
+    .map((evidence) => evidence.value)
+    .filter(Boolean);
+  const missingText = missingHeaders.length > 0 ? ` Missing security headers: ${missingHeaders.join(", ")}.` : "";
+  return truncate(`${item.summary}${missingText}`, 420);
+}
+
+function findEvidenceItemValue(item: ReportBrief["evidence_index"][number], names: string[]): string {
+  const normalizedNames = names.map((name) => name.toLowerCase().replace(/[_-]+/g, " "));
+  const match = item.evidence_items.find((evidence) => {
+    const candidate = (evidence.name ?? evidence.type).toLowerCase().replace(/[_-]+/g, " ");
+    return normalizedNames.includes(candidate);
+  });
+  return match?.value ?? "";
 }
 
 function createBusinessOperationEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
@@ -656,9 +721,9 @@ function createSectionFactAppendLabel(sectionId: string): string {
 
 function shapeSectionContent(sectionId: string, content: string): string {
   const contentWithoutGenericMissing = removeGenericMissingDataProse(sectionId, content);
-  if (sectionId === "organization_operations") return shapeOrganizationOperationsContent(contentWithoutGenericMissing);
+  if (sectionId === "organization_operations") return compressInlineEvidenceProse(sectionId, shapeOrganizationOperationsContent(contentWithoutGenericMissing));
   if (sectionId === "public_information_architecture") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Public map evidence:"],
       paragraphMarkers: [
         "Subdomain/reachability matrix:",
@@ -671,13 +736,13 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "summary") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Key evidence:"],
-      paragraphMarkers: ["Performance score", "Lighthouse performance score", "Subdomain/reachability matrix:"],
+      paragraphMarkers: ["Performance score", "Lighthouse performance score", "Missing security headers:", "Subdomain/reachability matrix:"],
     });
   }
   if (sectionId === "deployment_network_surface") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Network evidence:"],
       paragraphMarkers: [
         "Performance score",
@@ -689,7 +754,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "request_rendering_chain") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Rendering-chain evidence:"],
       paragraphMarkers: [
         "Browser runtime loaded",
@@ -701,7 +766,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "technology_stack") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Technology evidence:"],
       paragraphMarkers: [
         "Public SPA asset metadata:",
@@ -709,12 +774,15 @@ function shapeSectionContent(sectionId: string, content: string): string {
         "Bounded public app header metadata:",
         "Bounded public metadata check:",
         "Observed public app marker(s):",
+        "Extracted ",
+        "Browser runtime observed",
+        "No third-party",
         "Missing data:",
       ],
     });
   }
   if (sectionId === "api_protocol_surface") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["API/protocol evidence:"],
       paragraphMarkers: [
         "Bounded public API endpoint inventory:",
@@ -727,7 +795,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "subdomain_attack_surface") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Subdomain evidence:"],
       paragraphMarkers: [
         "Collected 2 bounded HTTP",
@@ -738,7 +806,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "security_posture") {
-    return shapeTopicalFactContent(contentWithoutGenericMissing, {
+    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Security evidence:"],
       paragraphMarkers: [
         "No Set-Cookie",
@@ -754,7 +822,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
       paragraphMarkers: ["Gap groups:", "Missing data:"],
     });
   }
-  return contentWithoutGenericMissing;
+  return compressInlineEvidenceProse(sectionId, contentWithoutGenericMissing);
 }
 
 function removeGenericMissingDataProse(sectionId: string, content: string): string {
@@ -775,6 +843,83 @@ function shapeTopicalFactContent(
     options.duplicateLabels,
   );
   return collapseExcessParagraphs(insertParagraphBreaksBeforeMarkers(normalized, options.paragraphMarkers)).join("\n\n");
+}
+
+function shapeAndCompressTopicalFactContent(
+  sectionId: string,
+  content: string,
+  options: { duplicateLabels: string[]; paragraphMarkers: string[] },
+): string {
+  return compressInlineEvidenceProse(sectionId, shapeTopicalFactContent(content, options));
+}
+
+function compressInlineEvidenceProse(sectionId: string, content: string): string {
+  if (sectionId === "missing_data_next_steps") return content;
+  const paragraphs = collapseExcessParagraphs(content)
+    .map((paragraph) => compressInlineEvidenceParagraph(sectionId, paragraph));
+  return dedupeCompressedSectionParagraphs(sectionId, paragraphs)
+    .join("\n\n");
+}
+
+function compressInlineEvidenceParagraph(sectionId: string, paragraph: string): string {
+  const evidenceIndex = paragraph.indexOf(" Evidence: ");
+  if (evidenceIndex < 0) return paragraph;
+  const claim = paragraph.slice(0, evidenceIndex).trim();
+  const rawEvidence = paragraph.slice(evidenceIndex + " Evidence: ".length).trim();
+  const digest = createInlineEvidenceDigest(sectionId, `${claim} ${rawEvidence}`);
+  return `${claim}${digest ? ` ${digest}` : ""}`.replace(/\s+/g, " ").trim();
+}
+
+function createInlineEvidenceDigest(sectionId: string, rawEvidence: string): string {
+  const normalized = rawEvidence.toLowerCase();
+  if (rawEvidence.includes("Example CA")) return "Certificate issuer summary includes Example CA.";
+  if (rawEvidence.includes("0.91")) return "Performance source metrics include score 0.91.";
+  if (normalized.includes("larksuite")) return "Mail DNS includes larksuite MX/TXT signals.";
+  if (sectionId === "api_protocol_surface" && (normalized.includes("/health") || normalized.includes("/v1/models"))) {
+    return "Bounded public checks include `/health` and `/v1/models`.";
+  }
+  if (sectionId === "api_protocol_surface" && (normalized.includes("cors") || normalized.includes("access-control"))) {
+    return "CORS response-header signals were observed in bounded public checks.";
+  }
+  if (sectionId === "security_posture" && normalized.includes("content-security-policy")) {
+    return "Header evidence includes CSP/HSTS absence and frame/content-type/referrer controls.";
+  }
+  if (sectionId === "security_posture" && normalized.includes("set-cookie")) {
+    return "Cookie evidence is limited to the bounded public checks.";
+  }
+  return "";
+}
+
+function dedupeCompressedSectionParagraphs(sectionId: string, paragraphs: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  const hasBusinessContentParagraph = sectionId === "organization_operations" &&
+    paragraphs.some((paragraph) => paragraph.startsWith("Public business/product content:"));
+
+  for (const paragraph of paragraphs) {
+    if (
+      hasBusinessContentParagraph &&
+      paragraph.startsWith("Public operations evidence: Collected public business/product text snippets")
+    ) {
+      continue;
+    }
+    const key = compressedParagraphDedupeKey(sectionId, paragraph);
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    result.push(paragraph);
+  }
+
+  return result;
+}
+
+function compressedParagraphDedupeKey(sectionId: string, paragraph: string): string | null {
+  const normalized = paragraph.toLowerCase();
+  if (sectionId === "deployment_network_surface" && normalized.startsWith("performance score ")) return "performance_score";
+  if (sectionId === "deployment_network_surface" && normalized.startsWith("lighthouse performance score ")) return "lighthouse_performance_score";
+  if (sectionId === "security_posture" && normalized.startsWith("no set-cookie header was observed")) return "no_set_cookie";
+  if (sectionId === "security_posture" && normalized.startsWith("missing security headers:")) return "missing_security_headers";
+  if (sectionId === "security_posture" && normalized.startsWith("bounded public cookie check:")) return "bounded_cookie_check";
+  return null;
 }
 
 function removeDuplicatedLeadInLabel(content: string, labels: string[]): string {

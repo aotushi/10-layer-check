@@ -71,6 +71,7 @@ try {
   assertConcreteFacts(markdown);
   assertMarkdownPlacement(markdown);
   assertSectionFactOwnership(markdown);
+  assertRawEvidenceProseCompressed(markdown);
   assertSectionDensityShape(markdown);
   assertSectionCitationShape(markdown);
   assertKnownRefs(markdown, brief);
@@ -373,6 +374,19 @@ function assertSectionFactOwnership(markdown) {
   assert.ok(
     !security.includes("bounded public cors check:") && !security.includes("observed cors response header"),
     "Security section should not duplicate CORS facts owned by API.",
+  );
+}
+
+function assertRawEvidenceProseCompressed(markdown) {
+  const rawEvidenceLines = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.includes("Evidence:"))
+    .filter((line) => !/^Evidence:\s+(?:\[(?:E|M)\d{3}\]\s*)+$/.test(line));
+  assert.equal(
+    rawEvidenceLines.length,
+    0,
+    `Generated Markdown should keep evidence refs, not inline raw key/value evidence prose. Found: ${rawEvidenceLines[0] ?? ""}`,
   );
 }
 
