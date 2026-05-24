@@ -143,8 +143,13 @@ try {
   }
   const shapedSummary = shaped.result.sections.find((section) => section.id === "summary")?.content ?? "";
   const shapedTechnology = shaped.result.sections.find((section) => section.id === "technology_stack")?.content ?? "";
+  const shapedDeployment = shaped.result.sections.find((section) => section.id === "deployment_network_surface")?.content ?? "";
+  const shapedRendering = shaped.result.sections.find((section) => section.id === "request_rendering_chain")?.content ?? "";
   const shapedApi = shaped.result.sections.find((section) => section.id === "api_protocol_surface")?.content ?? "";
+  const shapedSubdomains = shaped.result.sections.find((section) => section.id === "subdomain_attack_surface")?.content ?? "";
   const shapedSecurity = shaped.result.sections.find((section) => section.id === "security_posture")?.content ?? "";
+  const shapedMissingData = shaped.result.sections.find((section) => section.id === "missing_data_next_steps")?.content ?? "";
+  const shapedSummaryLimitations = shaped.result.sections.find((section) => section.id === "summary")?.limitations ?? [];
   if (shapedSummary.includes("Key evidence:")) {
     throw new Error("Summary shaping should remove a duplicated Key evidence lead-in.");
   }
@@ -157,17 +162,54 @@ try {
   if (!shapedTechnology.includes("\n\nPublic SPA asset metadata:")) {
     throw new Error("Technology shaping should split SPA metadata into a topical paragraph.");
   }
+  if (shapedDeployment.includes("Network evidence:")) {
+    throw new Error("Deployment shaping should remove a duplicated Network evidence lead-in.");
+  }
+  if (!shapedDeployment.includes("\n\nCDN header signal(s) found:")) {
+    throw new Error("Deployment shaping should split CDN facts into a topical paragraph.");
+  }
+  if (shapedRendering.includes("Rendering-chain evidence:")) {
+    throw new Error("Rendering shaping should remove a duplicated Rendering-chain evidence lead-in.");
+  }
+  if (!shapedRendering.includes("\n\nFinal response returned")) {
+    throw new Error("Rendering shaping should split final response facts into a topical paragraph.");
+  }
   if (shapedApi.includes("API/protocol evidence:")) {
     throw new Error("API shaping should remove a duplicated API/protocol evidence lead-in.");
   }
   if (!shapedApi.includes("\n\nBounded public API endpoint inventory:")) {
     throw new Error("API shaping should split endpoint inventory into a topical paragraph.");
   }
+  if (shapedSubdomains.includes("Subdomain evidence:")) {
+    throw new Error("Subdomain shaping should remove a duplicated Subdomain evidence lead-in.");
+  }
+  if (!shapedSubdomains.includes("\n\nChecked 6 bounded public host")) {
+    throw new Error("Subdomain shaping should split public host facts into a topical paragraph.");
+  }
   if (shapedSecurity.includes("Security evidence:")) {
     throw new Error("Security shaping should remove a duplicated Security evidence lead-in.");
   }
   if (!shapedSecurity.includes("\n\nMissing security headers:")) {
     throw new Error("Security shaping should split security headers into a topical paragraph.");
+  }
+  if (shapedMissingData.includes("Gap examples:")) {
+    throw new Error("Missing-data shaping should remove dense Gap examples labels.");
+  }
+  if (!shapedMissingData.includes("\n\nGap groups:")) {
+    throw new Error("Missing-data shaping should split grouped gaps into a topical paragraph.");
+  }
+  if (shapedSummaryLimitations.some((item) => item.includes("Evidence:") || item.includes("status_code="))) {
+    throw new Error("Fact-like limitations should be removed from rendered boundaries.");
+  }
+  if (!shapedSummaryLimitations.includes("Do not infer business model or ownership from technical evidence alone.")) {
+    throw new Error("Removed fact-like limitations should fall back to the section guidance boundary.");
+  }
+  if (
+    shaped.result.sections.some((section) =>
+      section.limitations.some((item) => /^(this is (an? )?.+ section|generated from bounded reportbrief)/i.test(item)),
+    )
+  ) {
+    throw new Error("Placeholder or meta limitations should be removed from rendered boundaries.");
   }
 
   const invalid = await runWorkerAiNarrativeReportProvider(
@@ -475,6 +517,15 @@ function createDenseModelOutput() {
           "HTTPS is reachable. Key evidence: HTTPS is reachable. Performance score 31; 5 metric(s) are poor. Lighthouse performance score 33; 4 metric(s) are poor.",
         evidence_refs: ["E001"],
         missing_data_refs: ["M001"],
+        limitations: ["HTTPS is reachable. Evidence: status_code=200."],
+      },
+      {
+        id: "public_information_architecture",
+        title: "Public Information Architecture",
+        content:
+          "Public SPA asset metadata: React and Vite. Public map evidence: Subdomain/reachability matrix: found public hosts. Public content detail map: collected docs pages. Browser runtime loaded the page without access barriers.",
+        evidence_refs: ["E001"],
+        missing_data_refs: [],
         limitations: ["Generated from bounded ReportBrief evidence."],
       },
       {
@@ -482,6 +533,24 @@ function createDenseModelOutput() {
         title: "Technology Stack",
         content:
           "Found 1 deterministic frontend technology candidate(s). Technology evidence: Found 1 deterministic frontend technology candidate(s). Public SPA asset metadata: React; Vite-like asset pipeline. Bounded public metadata check: Observed CMS/forum metadata signal(s).",
+        evidence_refs: ["E001"],
+        missing_data_refs: [],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+      {
+        id: "deployment_network_surface",
+        title: "Deployment and Network Surface",
+        content:
+          "HTTPS is reachable. Network evidence: HTTPS is reachable. Performance score 31; 5 metric(s) are poor. CDN header signal(s) found: cloudflare. Live certificate expires in 55 day(s).",
+        evidence_refs: ["E001"],
+        missing_data_refs: [],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+      {
+        id: "request_rendering_chain",
+        title: "Request and Rendering Chain",
+        content:
+          "Browser runtime observed 2 failed resource(s). Rendering-chain evidence: Browser runtime observed 2 failed resource(s). Browser runtime loaded the page. Final response returned HTTP 200.",
         evidence_refs: ["E001"],
         missing_data_refs: [],
         limitations: ["Generated from bounded ReportBrief evidence."],
@@ -496,12 +565,30 @@ function createDenseModelOutput() {
         limitations: ["Generated from bounded ReportBrief evidence."],
       },
       {
+        id: "subdomain_attack_surface",
+        title: "Subdomains and Attack Surface",
+        content:
+          "Subdomain/reachability matrix: found public hosts. Subdomain evidence: Collected 2 bounded HTTP(S) service fingerprint hint(s). Checked 6 bounded public host candidate(s). Missing data: deep service inventory.",
+        evidence_refs: ["E001"],
+        missing_data_refs: [],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+      {
         id: "security_posture",
         title: "Security Posture",
         content:
           "Bounded public cookie check: Observed Set-Cookie header(s). Security evidence: Bounded public cookie check: Observed Set-Cookie header(s). Missing security headers: content-security-policy, strict-transport-security, permissions-policy.",
         evidence_refs: ["E001"],
         missing_data_refs: [],
+        limitations: ["Generated from bounded ReportBrief evidence."],
+      },
+      {
+        id: "missing_data_next_steps",
+        title: "Missing Data and Next Steps",
+        content:
+          "Missing data: authenticated_content (requires_permission). Gap groups: add_provider: 2; requires_permission: 1. Gap examples: Missing data: deep_crawl_content (add_provider).",
+        evidence_refs: [],
+        missing_data_refs: ["M001"],
         limitations: ["Generated from bounded ReportBrief evidence."],
       },
     ],

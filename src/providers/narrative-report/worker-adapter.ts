@@ -322,6 +322,7 @@ function completeRequiredSections(
     ...section,
     title: getCanonicalSectionTitle(contract, section),
     content: shapeSectionContent(section.id, section.content),
+    limitations: sanitizeSectionLimitations(contract, section.id, section.limitations),
   }));
 }
 
@@ -613,10 +614,47 @@ function createSectionFactAppendLabel(sectionId: string): string {
 
 function shapeSectionContent(sectionId: string, content: string): string {
   if (sectionId === "organization_operations") return shapeOrganizationOperationsContent(content);
+  if (sectionId === "public_information_architecture") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Public map evidence:"],
+      paragraphMarkers: [
+        "Subdomain/reachability matrix:",
+        "Public content detail map:",
+        "Public content surface map:",
+        "Browser runtime loaded",
+        "Public SPA route metadata:",
+        "Browser runtime observed",
+      ],
+    });
+  }
   if (sectionId === "summary") {
     return shapeTopicalFactContent(content, {
       duplicateLabels: ["Key evidence:"],
       paragraphMarkers: ["Performance score", "Lighthouse performance score", "Subdomain/reachability matrix:"],
+    });
+  }
+  if (sectionId === "deployment_network_surface") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Network evidence:"],
+      paragraphMarkers: [
+        "Performance score",
+        "Lighthouse performance score",
+        "CDN header signal(s) found:",
+        "Live certificate expires",
+        "Response cache policy",
+      ],
+    });
+  }
+  if (sectionId === "request_rendering_chain") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Rendering-chain evidence:"],
+      paragraphMarkers: [
+        "Browser runtime loaded",
+        "Browser runtime observed 0.",
+        "Browser runtime observed 22",
+        "Browser runtime observed 6 API-like",
+        "Final response returned",
+      ],
     });
   }
   if (sectionId === "technology_stack") {
@@ -645,6 +683,17 @@ function shapeSectionContent(sectionId: string, content: string): string {
       ],
     });
   }
+  if (sectionId === "subdomain_attack_surface") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Subdomain evidence:"],
+      paragraphMarkers: [
+        "Collected 2 bounded HTTP",
+        "Checked 6 bounded public host",
+        "Found 2 application fingerprint",
+        "Missing data:",
+      ],
+    });
+  }
   if (sectionId === "security_posture") {
     return shapeTopicalFactContent(content, {
       duplicateLabels: ["Security evidence:"],
@@ -656,6 +705,12 @@ function shapeSectionContent(sectionId: string, content: string): string {
         "Frame embedding policy",
         "Browser runtime observed",
       ],
+    });
+  }
+  if (sectionId === "missing_data_next_steps") {
+    return shapeTopicalFactContent(content, {
+      duplicateLabels: ["Gap examples:"],
+      paragraphMarkers: ["Gap groups:", "Missing data:"],
     });
   }
   return content;
@@ -706,6 +761,38 @@ function insertParagraphBreaksBeforeMarkers(content: string, markers: string[]):
 
 function normalizeComparableText(value: string): string {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function sanitizeSectionLimitations(
+  contract: AiNarrativeReportContract,
+  sectionId: string,
+  limitations: string[],
+): string[] {
+  const guidanceBoundary = contract.output_contract.section_guidance.find((item) => item.id === sectionId)?.boundary;
+  const cleaned = uniqueStrings(
+    limitations
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .filter((value) => !isInvalidSectionLimitation(value)),
+  ).slice(0, 8);
+  if (cleaned.length > 0) return cleaned;
+  return guidanceBoundary ? [guidanceBoundary] : [];
+}
+
+function isInvalidSectionLimitation(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.includes(" evidence:") ||
+    normalized.includes("generated from bounded reportbrief") ||
+    normalized.includes("status_code=") ||
+    normalized.includes("metric(s)") ||
+    normalized.includes("certificate(s)") ||
+    normalized.includes("endpoint(s)") ||
+    normalized.includes("item(s):") ||
+    normalized.includes("host(s):") ||
+    normalized.includes("https=url=") ||
+    /^this is (an? )?.+ section\.?$/.test(normalized)
+  );
 }
 
 function escapeRegExp(value: string): string {

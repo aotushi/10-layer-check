@@ -326,15 +326,32 @@ function assertMarkdownPlacement(markdown) {
 }
 
 function assertSectionDensityShape(markdown) {
+  const publicIa = sectionText(markdown, "Public Information Architecture");
   const summary = sectionText(markdown, "Executive Summary");
   const technology = sectionText(markdown, "Technology Stack");
+  const deployment = sectionText(markdown, "Deployment and Network Surface");
+  const rendering = sectionText(markdown, "Request and Rendering Chain");
   const api = sectionText(markdown, "API and Protocol Surface");
+  const subdomains = sectionText(markdown, "Subdomains and Attack Surface");
   const security = sectionText(markdown, "Security Posture");
+  const missingData = sectionText(markdown, "Missing Data and Next Steps");
 
   assert.ok(!summary.includes("Key evidence:"), "Summary should not keep duplicated Key evidence labels.");
+  assert.ok(!publicIa.includes("Public map evidence:"), "Public IA should not keep dense Public map evidence labels.");
   assert.ok(!technology.includes("Technology evidence:"), "Technology section should not keep duplicated evidence labels.");
+  assert.ok(!deployment.includes("Network evidence:"), "Deployment section should not keep duplicated evidence labels.");
+  assert.ok(!rendering.includes("Rendering-chain evidence:"), "Rendering section should not keep duplicated evidence labels.");
   assert.ok(!api.includes("API/protocol evidence:"), "API section should not keep duplicated evidence labels.");
+  assert.ok(!subdomains.includes("Subdomain evidence:"), "Subdomain section should not keep duplicated evidence labels.");
   assert.ok(!security.includes("Security evidence:"), "Security section should not keep duplicated evidence labels.");
+  assert.ok(!missingData.includes("Gap examples:"), "Missing-data section should not keep dense Gap examples labels.");
+  assert.ok(!/Boundaries:[^\n]*(Evidence:|status_code=|metric\(s\)|certificate\(s\))/i.test(markdown), "Boundaries should not contain fact-like evidence prose.");
+  if (publicIa.includes("Public content detail map:") || publicIa.includes("Public content surface map:")) {
+    assert.ok(
+      publicIa.includes("\n\nPublic content detail map:") || publicIa.includes("\n\nPublic content surface map:"),
+      "Public IA should split content maps into topical paragraphs.",
+    );
+  }
   if (summary.includes("Performance score") || summary.includes("Lighthouse performance score")) {
     assert.ok(
       summary.includes("\n\nPerformance score") || summary.includes("\n\nLighthouse performance score"),
@@ -347,16 +364,40 @@ function assertSectionDensityShape(markdown) {
       "Technology section should split public SPA metadata into a topical paragraph.",
     );
   }
+  if (deployment.includes("CDN header signal(s) found:")) {
+    assert.ok(
+      deployment.includes("\n\nCDN header signal(s) found:"),
+      "Deployment section should split CDN facts into a topical paragraph.",
+    );
+  }
+  if (rendering.includes("Final response returned")) {
+    assert.ok(
+      rendering.includes("\n\nFinal response returned"),
+      "Rendering section should split final-response facts into a topical paragraph.",
+    );
+  }
   if (api.includes("Bounded public API endpoint inventory:")) {
     assert.ok(
       api.includes("\n\nBounded public API endpoint inventory:"),
       "API section should split endpoint inventory into a topical paragraph.",
     );
   }
+  if (subdomains.includes("Checked 6 bounded public host")) {
+    assert.ok(
+      subdomains.includes("\n\nChecked 6 bounded public host"),
+      "Subdomain section should split bounded public host facts into a topical paragraph.",
+    );
+  }
   if (security.includes("Missing security headers:")) {
     assert.ok(
       security.includes("\n\nMissing security headers:"),
       "Security section should split security header facts into a topical paragraph.",
+    );
+  }
+  if (missingData.includes("Gap groups:")) {
+    assert.ok(
+      missingData.startsWith("Gap groups:") || missingData.includes("\n\nGap groups:"),
+      "Missing-data section should split grouped gaps into a topical paragraph.",
     );
   }
 }
