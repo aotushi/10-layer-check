@@ -322,6 +322,8 @@ function completeRequiredSections(
     ...section,
     title: getCanonicalSectionTitle(contract, section),
     content: shapeSectionContent(section.id, section.content),
+    evidence_refs: prioritizeSectionEvidenceRefs(contract, section),
+    missing_data_refs: prioritizeSectionMissingDataRefs(contract, section),
     limitations: sanitizeSectionLimitations(contract, section.id, section.limitations),
   }));
 }
@@ -380,6 +382,64 @@ function createFallbackSection(
 
 function getCanonicalSectionTitle(contract: AiNarrativeReportContract, section: Pick<AiNarrativeReportSection, "id" | "title">): string {
   return contract.output_contract.section_guidance.find((item) => item.id === section.id)?.title ?? section.title;
+}
+
+function prioritizeSectionEvidenceRefs(
+  contract: AiNarrativeReportContract,
+  section: AiNarrativeReportSection,
+): string[] {
+  const guidanceRefs = getSectionGuidance(contract, section.id)?.evidence_ref_hints ?? [];
+  return prioritizeSectionRefs(section.evidence_refs, guidanceRefs, sectionCitationLimit(section.id, "evidence"));
+}
+
+function prioritizeSectionMissingDataRefs(
+  contract: AiNarrativeReportContract,
+  section: AiNarrativeReportSection,
+): string[] {
+  const guidanceRefs = getSectionGuidance(contract, section.id)?.missing_data_ref_hints ?? [];
+  return prioritizeSectionRefs(section.missing_data_refs, guidanceRefs, sectionCitationLimit(section.id, "missing"));
+}
+
+function prioritizeSectionRefs(sectionRefs: string[], guidanceRefs: string[], limit: number): string[] {
+  const sectionSet = new Set(sectionRefs);
+  const preferred = guidanceRefs.filter((ref) => sectionSet.size === 0 || sectionSet.has(ref));
+  const fallbackGuidance = guidanceRefs.filter((ref) => !preferred.includes(ref));
+  const extraSectionRefs = sectionRefs.filter((ref) => !preferred.includes(ref) && !fallbackGuidance.includes(ref));
+  return uniqueStrings([...preferred, ...fallbackGuidance, ...extraSectionRefs]).slice(0, limit);
+}
+
+function sectionCitationLimit(sectionId: string, kind: "evidence" | "missing"): number {
+  if (kind === "missing") {
+    const limits: Record<string, number> = {
+      summary: 3,
+      missing_data_next_steps: 10,
+      public_information_architecture: 4,
+      request_rendering_chain: 4,
+      api_protocol_surface: 4,
+      subdomain_attack_surface: 4,
+      organization_operations: 4,
+      security_posture: 4,
+    };
+    return limits[sectionId] ?? 3;
+  }
+
+  const limits: Record<string, number> = {
+    summary: 6,
+    public_information_architecture: 7,
+    technology_stack: 7,
+    deployment_network_surface: 7,
+    request_rendering_chain: 6,
+    api_protocol_surface: 6,
+    subdomain_attack_surface: 5,
+    organization_operations: 7,
+    security_posture: 6,
+    missing_data_next_steps: 0,
+  };
+  return limits[sectionId] ?? 6;
+}
+
+function getSectionGuidance(contract: AiNarrativeReportContract, sectionId: string) {
+  return contract.output_contract.section_guidance.find((item) => item.id === sectionId);
 }
 
 function enrichSectionContentWithFacts(
@@ -464,12 +524,7 @@ function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): s
     return createBusinessOperationEvidenceFact(item);
   }
 
-  const evidence = item.evidence_items
-    .slice(0, 3)
-    .map((value) => [value.name ?? value.type, value.value].filter(Boolean).join("="))
-    .join("; ");
-  const suffix = evidence ? ` Evidence: ${evidence}.` : "";
-  return truncate(`${item.summary}${suffix}`, 500);
+  return truncate(item.summary, 360);
 }
 
 function createBusinessOperationEvidenceFact(item: ReportBrief["evidence_index"][number]): string {

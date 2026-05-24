@@ -275,7 +275,8 @@ function selectFactHints(brief: ReportBrief, sectionId: string, evidenceRefs: st
     .filter((item): item is ReportBrief["missing_data"][number] => Boolean(item))
     .map((item) => `Missing data: ${item.description} (${item.classification}).`);
 
-  return prioritizeFactHints(sectionId, uniqueStrings([...evidenceFacts, ...missingFacts])).slice(0, 12);
+  return prioritizeFactHints(sectionId, uniqueStrings([...evidenceFacts, ...missingFacts]))
+    .slice(0, factHintLimitForSection(sectionId));
 }
 
 function createEvidenceFactHint(item: ReportBrief["evidence_index"][number]): string {
@@ -894,7 +895,7 @@ function selectEvidenceRefHints(brief: ReportBrief, sectionId: string): string[]
   return scored
     .filter((item) => item.score > 0)
     .sort((left, right) => right.score - left.score || left.index - right.index)
-    .slice(0, 12)
+    .slice(0, evidenceRefLimitForSection(sectionId))
     .map((item) => item.id);
 }
 
@@ -935,8 +936,52 @@ function selectMissingDataRefHints(brief: ReportBrief, sectionId: string): strin
   const layers = SECTION_EVIDENCE_SELECTION[sectionId]?.layers ?? [];
   return brief.missing_data
     .filter((item) => layers.includes(item.layer))
-    .slice(0, 8)
+    .slice(0, missingDataRefLimitForSection(sectionId))
     .map((item) => item.id);
+}
+
+function evidenceRefLimitForSection(sectionId: string): number {
+  const limits: Record<string, number> = {
+    public_information_architecture: 7,
+    technology_stack: 7,
+    deployment_network_surface: 7,
+    request_rendering_chain: 6,
+    api_protocol_surface: 6,
+    subdomain_attack_surface: 5,
+    organization_operations: 7,
+    security_posture: 6,
+  };
+  return limits[sectionId] ?? 8;
+}
+
+function missingDataRefLimitForSection(sectionId: string): number {
+  const limits: Record<string, number> = {
+    public_information_architecture: 4,
+    technology_stack: 3,
+    deployment_network_surface: 2,
+    request_rendering_chain: 4,
+    api_protocol_surface: 4,
+    subdomain_attack_surface: 4,
+    organization_operations: 4,
+    security_posture: 4,
+  };
+  return limits[sectionId] ?? 8;
+}
+
+function factHintLimitForSection(sectionId: string): number {
+  const limits: Record<string, number> = {
+    summary: 4,
+    public_information_architecture: 7,
+    technology_stack: 8,
+    deployment_network_surface: 6,
+    request_rendering_chain: 6,
+    api_protocol_surface: 6,
+    subdomain_attack_surface: 5,
+    organization_operations: 7,
+    security_posture: 6,
+    missing_data_next_steps: 8,
+  };
+  return limits[sectionId] ?? 8;
 }
 
 function scoreEvidenceForSection(

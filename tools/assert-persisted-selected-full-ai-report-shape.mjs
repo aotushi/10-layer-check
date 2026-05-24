@@ -71,6 +71,7 @@ try {
   assertConcreteFacts(markdown);
   assertMarkdownPlacement(markdown);
   assertSectionDensityShape(markdown);
+  assertSectionCitationShape(markdown);
   assertKnownRefs(markdown, brief);
 
   await assertPersistedJsonAndMarkdownShareAiResult(worker);
@@ -400,6 +401,46 @@ function assertSectionDensityShape(markdown) {
       "Missing-data section should split grouped gaps into a topical paragraph.",
     );
   }
+}
+
+function assertSectionCitationShape(markdown) {
+  const maxEvidenceRefs = {
+    "Executive Summary": 6,
+    "Public Information Architecture": 7,
+    "Technology Stack": 7,
+    "Deployment and Network Surface": 7,
+    "Request and Rendering Chain": 6,
+    "API and Protocol Surface": 6,
+    "Subdomains and Attack Surface": 5,
+    "Organization and Operations Signals": 7,
+    "Security Posture": 6,
+    "Missing Data and Next Steps": 0,
+  };
+  const maxMissingRefs = {
+    "Executive Summary": 3,
+    "Public Information Architecture": 4,
+    "Technology Stack": 3,
+    "Deployment and Network Surface": 3,
+    "Request and Rendering Chain": 4,
+    "API and Protocol Surface": 4,
+    "Subdomains and Attack Surface": 4,
+    "Organization and Operations Signals": 4,
+    "Security Posture": 4,
+    "Missing Data and Next Steps": 10,
+  };
+
+  for (const [heading, max] of Object.entries(maxEvidenceRefs)) {
+    const refs = extractRefs(sectionText(markdown, heading), "E");
+    assert.ok(refs.length <= max, `${heading} should cite at most ${max} evidence refs, got ${refs.length}.`);
+  }
+  for (const [heading, max] of Object.entries(maxMissingRefs)) {
+    const refs = extractRefs(sectionText(markdown, heading), "M");
+    assert.ok(refs.length <= max, `${heading} should cite at most ${max} missing-data refs, got ${refs.length}.`);
+  }
+}
+
+function extractRefs(value, prefix) {
+  return Array.from(new Set(Array.from(value.matchAll(new RegExp(`\\[(${prefix}\\d{3})\\]`, "g"))).map((match) => match[1])));
 }
 
 function sectionText(markdown, heading) {

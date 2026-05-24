@@ -141,14 +141,15 @@ Latest remote verification:
 - Report section structure verification: Worker version `ddd1cf68-6b63-41a3-ba58-5bbcf0164b73` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-6adf8f19-8f60-4b7b-8b51-67389ccce188`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, and `Organization and Operations Signals` is split into topical paragraphs for public product/business detail, public business/product content, content detail map, content surface map, organization-facing DNS, RDAP/WHOIS-lite, and Wayback evidence without duplicate empty labels. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T10-53-35-568Z.json` and `.md`.
 - Cross-section density cleanup verification: Worker version `d3800e63-316a-4192-9a9c-5c6a958d763f` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-943b691b-35eb-4d69-b060-365fd9435be2`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, and `Executive Summary`, `Technology Stack`, `API and Protocol Surface`, and `Security Posture` are split into topical paragraphs without duplicated `Key evidence`, `Technology evidence`, `API/protocol evidence`, or `Security evidence` labels. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T11-05-32-339Z.json` and `.md`.
 - Remaining-section density cleanup verification: Worker version `cc5844ae-a087-4dc2-ad74-c9c56ed29ed8` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-2fe36322-9799-4fdd-a4bf-3dd917b0175d`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, split remaining dense sections, and sanitized `Boundaries` text without fact-like evidence or placeholder limitations. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T12-21-47-194Z.json` and `.md`.
+- Evidence ref prioritization verification: Worker version `f294e9bc-6728-4005-b978-e6f487252d45` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-f437606f-7a46-48a8-9b61-59d09ead1e8c`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, section-level citation caps, fewer distinct Markdown refs, and no raw JSON-like forced fact append in topical prose. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T13-48-53-237Z.json` and `.md`.
 
 Current parity progress:
 
 - Overall target: close the poixe target-report parity gap without using the reference report as evidence.
 - Current gap ledger item: `G2 evidence_selection`.
-- Current subtask: `G2.1 Evidence Ref Prioritization and Citation Trim`.
-- Last completed subtask: `G1.5 Remaining Section Density Cleanup`.
-- Next engineering focus: reduce over-broad refs, duplicate topical facts, and low-value citations while keeping the canonical 10-section report and validated refs.
+- Current subtask: `G2.2 Section Fact Ownership and Missing-Data Placement`.
+- Last completed subtask: `G2.1 Evidence Ref Prioritization and Citation Trim`.
+- Next engineering focus: reduce duplicated cross-section facts and move generic missing-data prose out of topical sections while keeping the canonical 10-section report and validated refs.
 
 ## Current Features
 
