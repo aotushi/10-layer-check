@@ -31,6 +31,9 @@ try {
   const { createAnalysisReport } = await server.ssrLoadModule("/src/reporters/analysis.ts");
   const { createReportBrief } = await server.ssrLoadModule("/src/reporters/brief.ts");
   const { createAiNarrativeReportContract } = await server.ssrLoadModule("/src/providers/narrative-report/contract.ts");
+  const { runWorkerAiNarrativeReportProvider } = await server.ssrLoadModule(
+    "/src/providers/narrative-report/worker-adapter.ts",
+  );
 
   globalThis.fetch = async (request) => {
     const url = new URL(String(request));
@@ -186,6 +189,24 @@ try {
     "Organization operations facts should preserve readable public detail page evidence.",
   );
 
+  const shapedReport = await runWorkerAiNarrativeReportProvider(
+    narrativeContract,
+    { AI_PROVIDER_API_KEY: "test-key", AI_PROVIDER_MODEL: "test-model" },
+    { modelClient: async () => createSparseModelOutput(narrativeContract) },
+  );
+  assert.equal(shapedReport.ok, true);
+  const shapedOrgOps = shapedReport.result.sections.find((section) => section.id === "organization_operations");
+  assert.ok(shapedOrgOps?.content.includes("Public product/business detail:"), "Organization operations content should include product/business detail facts.");
+  assert.ok(shapedOrgOps?.content.includes("\n\nPublic content detail map:"), "Organization operations content should be split into topical paragraphs.");
+  assert.ok(
+    !shapedOrgOps?.content.includes("Public operations evidence: Collected organization-facing DNS"),
+    "Organization operations content should avoid duplicating generic organization-facing DNS facts.",
+  );
+  assert.ok(
+    !shapedOrgOps?.content.includes("Public operations evidence:\n\n"),
+    "Organization operations content should not keep an empty public-operations label.",
+  );
+
   console.log("public content detail probe module check passed.");
 } finally {
   globalThis.fetch = originalFetch;
@@ -197,4 +218,22 @@ function html(body) {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8" },
   });
+}
+
+function createSparseModelOutput(contract) {
+  const evidenceRef = contract.input.brief.evidence_index[0]?.id ?? "E001";
+  const missingRef = contract.input.brief.missing_data[0]?.id;
+  return {
+    sections: [
+      {
+        id: "summary",
+        title: "Summary",
+        content: "The fixture collected bounded public content detail evidence.",
+        evidence_refs: [evidenceRef],
+        missing_data_refs: missingRef ? [missingRef] : [],
+        limitations: ["Generated from bounded fixture evidence."],
+      },
+    ],
+    markdown: "",
+  };
 }

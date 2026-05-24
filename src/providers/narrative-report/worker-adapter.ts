@@ -321,6 +321,7 @@ function completeRequiredSections(
   return orderSections(contract, result).map((section) => ({
     ...section,
     title: getCanonicalSectionTitle(contract, section),
+    content: shapeSectionContent(section.id, section.content),
   }));
 }
 
@@ -388,10 +389,12 @@ function enrichSectionContentWithFacts(
   const factHints = uniqueStrings([
     ...(guidance?.fact_hints ?? []),
     ...createForcedSectionFactHints(contract, section.id),
-  ]).slice(0, section.id === "summary" ? 4 : section.id === "missing_data_next_steps" ? 8 : 7);
+  ]).slice(0, createSectionFactLimit(section.id));
   const groupSummary = section.id === "missing_data_next_steps" ? createMissingDataGroupSummary(contract.input.brief) : "";
   if (factHints.length === 0 && !groupSummary) return section;
-  const missingFactHints = factHints.filter((hint) => !section.content.includes(hint));
+  const missingFactHints = factHints.filter(
+    (hint) => !section.content.includes(hint) && !isRedundantSectionFact(section.id, section.content, hint),
+  );
   if (missingFactHints.length === 0 && (!groupSummary || section.content.includes(groupSummary))) {
     return section;
   }
@@ -405,6 +408,25 @@ function enrichSectionContentWithFacts(
     ...section,
     content: truncate(content, 3000),
   };
+}
+
+function createSectionFactLimit(sectionId: string): number {
+  const limits: Record<string, number> = {
+    summary: 4,
+    organization_operations: 7,
+    missing_data_next_steps: 8,
+  };
+  return limits[sectionId] ?? 7;
+}
+
+function isRedundantSectionFact(sectionId: string, content: string, hint: string): boolean {
+  if (sectionId !== "organization_operations") return false;
+  const normalizedContent = content.toLowerCase();
+  const normalizedHint = hint.toLowerCase();
+  return (
+    normalizedContent.includes("organization-facing dns") &&
+    normalizedHint.includes("organization-facing dns")
+  );
 }
 
 function createForcedSectionFactHints(contract: AiNarrativeReportContract, sectionId: string): string[] {
@@ -586,6 +608,59 @@ function createSectionFactAppendLabel(sectionId: string): string {
     missing_data_next_steps: "Gap examples:",
   };
   return labels[sectionId] ?? "Evidence highlights:";
+}
+
+function shapeSectionContent(sectionId: string, content: string): string {
+  if (sectionId !== "organization_operations") return content;
+  return shapeOrganizationOperationsContent(content);
+}
+
+function shapeOrganizationOperationsContent(content: string): string {
+  const normalized = content
+    .replace(/\s+/g, " ")
+    .replace(/ Public operations evidence:\s*/g, "\n\nPublic operations evidence: ")
+    .replace(/ Public business\/product content:\s*/g, "\n\nPublic business/product content: ")
+    .replace(/ Public product\/business detail:\s*/g, "\n\nPublic product/business detail: ")
+    .replace(/ Public content detail map:\s*/g, "\n\nPublic content detail map: ")
+    .replace(/ Public content surface map:\s*/g, "\n\nPublic content surface map: ")
+    .replace(/ Collected RDAP \/ WHOIS-lite/g, "\n\nCollected RDAP / WHOIS-lite")
+    .replace(/ Collected Wayback/g, "\n\nCollected Wayback")
+    .trim();
+
+  return collapseExcessParagraphs(normalized)
+    .map(trimOrganizationParagraph)
+    .filter(Boolean)
+    .sort((left, right) => scoreOrganizationParagraph(left) - scoreOrganizationParagraph(right))
+    .join("\n\n");
+}
+
+function collapseExcessParagraphs(value: string): string[] {
+  return value
+    .split(/\n{2,}/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function trimOrganizationParagraph(value: string): string {
+  if (value === "Public operations evidence:") return "";
+  if (value.startsWith("Public operations evidence: ")) {
+    const trimmed = value.replace(/^Public operations evidence:\s*/, "");
+    if (/^Collected organization-facing DNS/i.test(trimmed)) return "";
+    return `Public operations evidence: ${trimmed}`;
+  }
+  return value;
+}
+
+function scoreOrganizationParagraph(value: string): number {
+  if (value.startsWith("Public product/business detail:")) return 10;
+  if (value.startsWith("Public business/product content:")) return 20;
+  if (value.startsWith("Public content detail map:")) return 30;
+  if (value.startsWith("Public content surface map:")) return 40;
+  if (/organization-facing DNS/i.test(value)) return 50;
+  if (/RDAP \/ WHOIS-lite/i.test(value)) return 60;
+  if (/Wayback/i.test(value)) return 70;
+  if (/Remaining gaps:/i.test(value)) return 90;
+  return 80;
 }
 
 function createMissingDataGroupSummary(brief: ReportBrief): string {
