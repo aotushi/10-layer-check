@@ -139,6 +139,14 @@ Latest remote verification:
 - Paid Workers verification: after the account was upgraded, `wrangler.toml` was deployed with `[limits] subrequests = 1000` and Cloudflare accepted the limits configuration. Worker version `a85c7e90-3dbc-4fe5-a30c-dd2dfe9c247d` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-09662574-b3a1-4647-b239-35859649f631`, 43 records covering Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, AI report HTTP 200, canonical 10-section Markdown, exact JSON/direct Markdown match, and no unknown refs. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-23T10-08-49-143Z.json` and `.md`.
 - Report synthesis detail formatting verification: Worker version `2f5751d3-3b06-44bc-aafd-cd483dddb097` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-b2fc14b3-2693-4953-ab3a-501ddefd80a9`, 57 records, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, no repeated `Current evidence highlights`, and `Organization and Operations Signals` now summarizes public business evidence as supplier/vendor onboarding, payouts/withdrawals, provider routing, platform overview, cost reduction content, and vendor/product pages. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-24T10-21-48-777Z.json` and `.md`.
 
+Current parity progress:
+
+- Overall target: close the poixe target-report parity gap without using the reference report as evidence.
+- Current gap ledger item: `G1 report_synthesis`.
+- Current subtask: `G1.3 Report Section Structure Pass`.
+- Last completed subtask: `G1.2 Business Detail Fact Formatting`.
+- Next engineering focus: split dense generated fact-pack paragraphs, starting with `Organization and Operations Signals`, while keeping the canonical 10-section report and validated refs.
+
 ## Current Features
 
 - Target list and draft run creation.
