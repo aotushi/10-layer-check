@@ -118,6 +118,7 @@ The smoke commands post to `https://probe.9shi.cc` by default, read `PROBE_API_K
 
 Latest remote verification:
 
+- Route alias evidence contract verification: Worker version `cef2d454-ee66-4bb3-b2f9-0a5756072e06` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-6c9af205-66cd-4ac9-958a-a8fb43017036`, 57 records, Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, explicit `Derivation` column in the SPA route candidate table, `/vendor/revenue` rendered only as `derived alias: vendor route + revenue API path; payout docs topic`, unsupported `/vendor/log` and `/model?tab=model-load` kept out of the route table, and 0 raw inline `Evidence: key=value` prose lines. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-25T03-09-02-881Z.json` and `.md`.
 - Public route hint derivation verification: Worker version `d1321f00-67e8-4010-b323-a09c99198244` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-0da1fb55-47d9-4c56-af64-dba4fd3b50c2`, 57 records, Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, compact section-specific tables, public business and SPA route rows retained after brief compaction, `/products/vendor/application`, `/products/vendor`, `/vendor`, `/setting/payment`, and `/signup` present in the SPA route candidate table, `/products/vendor/application` and `/products/vendor` present in the Public business page table, low-signal/API-like table rows filtered, no `Do not infer` / `Do not place` prompt guidance in `Boundaries`, and 0 raw inline `Evidence: key=value` prose lines. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-25T02-48-04-308Z.json` and `.md`.
 - Worker version: `92f852eb-db6e-41e6-a28c-5d1361c7cea2`
 - Target: `https://example.com`
@@ -150,9 +151,9 @@ Current parity progress:
 
 - Overall target: close the poixe target-report parity gap without using the reference report as evidence.
 - Current gap ledger item: `G3 new_provider`.
-- Current subtask: `G3.1 Public Route Hint Derivation`.
-- Last completed subtask: `G2.4 ReportBrief High-Value Row Retention`.
-- Next engineering focus: derive missing public route hints such as `/signup`, `/vendor`, `/vendor/log`, `/vendor/revenue`, `/setting/payment`, and `/model?tab=model-load` only when current public docs/content/bundle evidence supports them, while preserving G2.4 brief retention, G2.3 ranking, G1.8 filtering, G1.9 boundary cleanup, raw evidence-prose compression, G2.2 section ownership, and validated refs.
+- Current subtask: `G3.3 Remaining Route Gap Triage`.
+- Last completed subtask: `G3.2 Route Alias Evidence Contract`.
+- Next engineering focus: decide whether `/vendor/log` and `/model?tab=model-load` can be closed by another bounded public evidence class, or should stay classified gaps, while preserving G2.4 brief retention, G2.3 ranking, G1.8 filtering, G1.9 boundary cleanup, raw evidence-prose compression, G2.2 section ownership, and validated refs.
 
 ## Current Features
 

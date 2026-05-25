@@ -427,7 +427,11 @@ function compactTableRowsForEvidenceItem(item: Evidence): unknown[] | null {
   }
 
   if (name === "route_candidates") {
-    return rankBriefRows(rows.map(compactRouteCandidateRow).filter(isReportableRouteCandidateRow), scoreRouteCandidateRow);
+    const compactRows = rows.map(compactRouteCandidateRow);
+    return rankBriefRows(
+      [...compactRows.filter(isReportableRouteCandidateRow), ...deriveRouteAliasRows(compactRows)],
+      scoreRouteCandidateRow,
+    );
   }
 
   return null;
@@ -447,7 +451,40 @@ function compactRouteCandidateRow(row: Record<string, unknown>): Record<string, 
     route_candidate: stringField(row, "route_candidate") ?? stringField(row, "value"),
     source_asset: stringField(row, "source_asset"),
     confidence: stringField(row, "confidence"),
+    derivation: stringField(row, "derivation"),
+    basis: stringField(row, "basis"),
   });
+}
+
+function deriveRouteAliasRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  if (rows.some((row) => (stringField(row, "route_candidate") ?? "").toLowerCase() === "/vendor/revenue")) {
+    return [];
+  }
+
+  const hasVendorRoute = rows.some((row) => (stringField(row, "route_candidate") ?? "").toLowerCase() === "/vendor");
+  const revenueRows = rows.filter((row) => {
+    const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
+    const sourceAsset = (stringField(row, "source_asset") ?? "").toLowerCase();
+    return /^\/(?:agent\/revenue|affiliate\/earning)\//.test(route) || sourceAsset.includes("revenue");
+  });
+  const hasRevenueApiPath = revenueRows.some((row) =>
+    /^\/(?:agent\/revenue|affiliate\/earning)\//.test((stringField(row, "route_candidate") ?? "").toLowerCase()),
+  );
+  const revenueSourceAsset = revenueRows.map((row) => stringField(row, "source_asset")).find((value): value is string =>
+    Boolean(value),
+  );
+
+  if (!hasVendorRoute || !hasRevenueApiPath || !revenueSourceAsset) return [];
+
+  return [
+    {
+      route_candidate: "/vendor/revenue",
+      source_asset: revenueSourceAsset,
+      confidence: "low",
+      derivation: "derived_alias",
+      basis: "vendor route + revenue API path",
+    },
+  ];
 }
 
 function rankBriefRows(
@@ -487,6 +524,7 @@ function scoreRouteCandidateRow(row: Record<string, unknown>): number {
   else if (/^\/products\/vendor$/.test(route)) score += 36;
   else if (/^\/vendor\/(revenue|log)$/.test(route)) score += 32;
   else if (/^\/vendor$/.test(route)) score += 28;
+  if (stringField(row, "derivation") === "derived_alias") score += 8;
   if (/^\/setting\/payment$/.test(route)) score += 30;
   if (/^\/(pricing|model)$/.test(route)) score += 24;
   if (/^\/(login|signup)$/.test(route)) score += 24;
@@ -569,6 +607,8 @@ function compactBriefJsonValue(value: unknown): unknown {
     "detail_kind",
     "source_asset",
     "route_candidate",
+    "derivation",
+    "basis",
     "component_candidate",
     "signals",
     "parsed",

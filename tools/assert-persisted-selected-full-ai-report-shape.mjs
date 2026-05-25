@@ -543,12 +543,24 @@ function assertSectionSpecificTables(markdown) {
     security.includes("wordpress_test_cookie=path,secure,httponly"),
     "Cookie table should preserve parsed cookie attributes from stronger observations.",
   );
-  assert.ok(publicIa.includes("| /products/vendor/application | index-abcd.js | medium |"), "SPA route table should retain the late product/vendor application route.");
-  assert.ok(publicIa.includes("| /products/vendor | index-abcd.js | medium |"), "SPA route table should retain the late product/vendor route.");
-  assert.ok(publicIa.includes("| /pricing | index-abcd.js | medium |"), "SPA route table should include the pricing route.");
   assert.ok(
-    publicIa.indexOf("| /products/vendor/application | index-abcd.js | medium |") <
-      publicIa.indexOf("| /pricing | index-abcd.js | medium |"),
+    publicIa.includes("| /products/vendor/application | index-abcd.js | medium | direct |"),
+    "SPA route table should retain the late product/vendor application route.",
+  );
+  assert.ok(
+    publicIa.includes("| /products/vendor | index-abcd.js | medium | direct |"),
+    "SPA route table should retain the late product/vendor route.",
+  );
+  assert.ok(
+    publicIa.includes(
+      "| /vendor/revenue | revenue-abcd.js | low | derived alias: vendor route + revenue API path; payout docs topic |",
+    ),
+    "SPA route table should expose supported route aliases as explicit derived aliases.",
+  );
+  assert.ok(publicIa.includes("| /pricing | index-abcd.js | medium | direct |"), "SPA route table should include the pricing route.");
+  assert.ok(
+    publicIa.indexOf("| /products/vendor/application | index-abcd.js | medium | direct |") <
+      publicIa.indexOf("| /pricing | index-abcd.js | medium | direct |"),
     "SPA route table should prioritize high-value product/vendor routes over generic product routes.",
   );
   assert.ok(
@@ -845,6 +857,8 @@ function createFullSelectedFixtureRun() {
               { route_candidate: "/products/free", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/products/user", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/token", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/agent/revenue/basic_info", source_asset: "/assets/revenue-abcd.js", confidence: "low" },
               { route_candidate: "/products/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/products/vendor/application", source_asset: "/assets/index-abcd.js", confidence: "medium" },
             ],

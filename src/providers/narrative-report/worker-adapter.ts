@@ -699,7 +699,9 @@ function createPublicContentDetailTable(contract: AiNarrativeReportContract): st
 
 function createSpaRouteCandidateTable(contract: AiNarrativeReportContract): string {
   const rows = rankRows(
-    evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"]).filter(isReportableSpaRouteCandidateRow),
+    evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"])
+      .map((row) => enrichDerivedSpaRouteAliasRow(contract, row))
+      .filter((row) => isReportableSpaRouteCandidateRow(row) && hasRequiredDerivedSpaRouteAliasSupport(contract, row)),
     scoreSpaRouteCandidateRow,
   )
     .slice(0, 8)
@@ -707,8 +709,9 @@ function createSpaRouteCandidateTable(contract: AiNarrativeReportContract): stri
       stringField(row, "route_candidate") ?? "",
       basenameFromPath(stringField(row, "source_asset") ?? ""),
       stringField(row, "confidence") ?? "",
+      spaRouteDerivationLabel(row),
     ]);
-  return markdownTable("SPA route candidate table:", ["Candidate", "Source asset", "Confidence"], rows);
+  return markdownTable("SPA route candidate table:", ["Candidate", "Source asset", "Confidence", "Derivation"], rows);
 }
 
 function isReportableSpaRouteCandidateRow(row: Record<string, unknown>): boolean {
@@ -717,6 +720,48 @@ function isReportableSpaRouteCandidateRow(row: Record<string, unknown>): boolean
   if (/^\/(?:admin|api|auth|tool|agent|affiliate)\//.test(route)) return false;
   if (/^\/setting\/payment\/.+/.test(route)) return false;
   return route.split("/").filter(Boolean).length <= 3;
+}
+
+function enrichDerivedSpaRouteAliasRow(
+  contract: AiNarrativeReportContract,
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  if (stringField(row, "derivation") !== "derived_alias") return row;
+  const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
+  if (route !== "/vendor/revenue") return row;
+
+  const contentBasis = vendorRevenueAliasContentBasis(contract);
+  const basis = stringField(row, "basis") ?? "derived alias";
+  return {
+    ...row,
+    basis: contentBasis && !basis.includes(contentBasis) ? `${basis}; ${contentBasis}` : basis,
+  };
+}
+
+function hasRequiredDerivedSpaRouteAliasSupport(
+  contract: AiNarrativeReportContract,
+  row: Record<string, unknown>,
+): boolean {
+  if (stringField(row, "derivation") !== "derived_alias") return true;
+  const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
+  return route === "/vendor/revenue" && Boolean(vendorRevenueAliasContentBasis(contract));
+}
+
+function vendorRevenueAliasContentBasis(contract: AiNarrativeReportContract): string | null {
+  const rows = [
+    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
+    ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
+  ];
+  const hasPayoutTopic = rows.some((row) => {
+    const text = rowSearchText(row);
+    return /vendor|supplier/.test(text) && /payout|withdraw|withdrawal|settled revenue|revenue/.test(text);
+  });
+  return hasPayoutTopic ? "payout docs topic" : null;
+}
+
+function spaRouteDerivationLabel(row: Record<string, unknown>): string {
+  if (stringField(row, "derivation") !== "derived_alias") return "direct";
+  return `derived alias: ${stringField(row, "basis") ?? "multiple public evidence signals"}`;
 }
 
 function createSpaSignalTable(contract: AiNarrativeReportContract): string {
