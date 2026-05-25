@@ -110,6 +110,7 @@ function createSparseModelOutput(contract) {
         missing_data_refs: [],
         limitations: [
           "Do not place CORS, cookie, API error-surface, or CMS metadata details here; use the API, Technology, Subdomain, or Security sections.",
+          "Do not infer ownership, business model, or related-domain conclusions from technical evidence alone.",
         ],
       },
     ],
@@ -426,7 +427,7 @@ function assertSectionDensityShape(markdown) {
   assert.ok(!missingData.includes("Gap examples:"), "Missing-data section should not keep dense Gap examples labels.");
   assert.ok(!/Boundaries:[^\n]*(Evidence:|status_code=|metric\(s\)|certificate\(s\))/i.test(markdown), "Boundaries should not contain fact-like evidence prose.");
   assert.ok(
-    !/^Boundaries:.*(?:Do not place|section_guidance|write one section|cite only|do not invent|keep markdown)/gim.test(markdown),
+    !/^Boundaries:.*(?:Do not place|Do not infer|section_guidance|write one section|cite only|do not invent|keep markdown)/gim.test(markdown),
     "Boundaries should not contain prompt or editorial guidance text.",
   );
   assert.ok(
@@ -541,6 +542,26 @@ function assertSectionSpecificTables(markdown) {
   assert.ok(
     security.includes("wordpress_test_cookie=path,secure,httponly"),
     "Cookie table should preserve parsed cookie attributes from stronger observations.",
+  );
+  assert.ok(publicIa.includes("| /products/vendor | index-abcd.js | medium |"), "SPA route table should include the product/vendor route.");
+  assert.ok(publicIa.includes("| /products | index-abcd.js | medium |"), "SPA route table should include the product route.");
+  assert.ok(
+    publicIa.indexOf("| /products/vendor | index-abcd.js | medium |") <
+      publicIa.indexOf("| /products | index-abcd.js | medium |"),
+    "SPA route table should prioritize high-value product/vendor routes over generic product routes.",
+  );
+  assert.ok(
+    organization.includes("| product | product | /products/vendor/application | Supplier onboarding |"),
+    "Business table should include the supplier onboarding product row.",
+  );
+  assert.ok(
+    organization.includes("| docs | technical_documentation | /docs/get-started/overview | Generic overview |"),
+    "Business table fixture should include the generic docs overview row for ordering checks.",
+  );
+  assert.ok(
+    organization.indexOf("| product | product | /products/vendor/application | Supplier onboarding |") <
+      organization.indexOf("| docs | technical_documentation | /docs/get-started/overview | Generic overview |"),
+    "Business table should prioritize product/business operation rows over generic docs overview rows.",
   );
 }
 
@@ -813,7 +834,9 @@ function createFullSelectedFixtureRun() {
             type: "spa_route_candidate",
             name: "route_candidates",
             value: [
+              { route_candidate: "/billing", source_asset: "/assets/index-abcd.js", confidence: "low" },
               { route_candidate: "/products", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/log", source_asset: "/assets/index-abcd.js", confidence: "low" },
               { route_candidate: "/products/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
             ],
           },
@@ -1158,6 +1181,14 @@ function createFullSelectedFixtureRun() {
             type: "public_product_business_detail",
             name: "product_business_detail_snippets",
             value: [
+              {
+                host: "docs.poixe.example",
+                path: "/docs/get-started/overview",
+                title: "Generic overview",
+                detail_kind: "docs",
+                controlled_hint: "technical_documentation",
+                snippets: ["General documentation overview."],
+              },
               {
                 host: "docs.poixe.example",
                 path: "/products/vendor/application",

@@ -201,8 +201,8 @@ try {
   if (shapedSummaryLimitations.some((item) => item.includes("Evidence:") || item.includes("status_code="))) {
     throw new Error("Fact-like limitations should be removed from rendered boundaries.");
   }
-  if (!shapedSummaryLimitations.includes("Do not infer business model or ownership from technical evidence alone.")) {
-    throw new Error("Removed fact-like limitations should fall back to the section guidance boundary.");
+  if (!shapedSummaryLimitations.includes("Technical evidence alone does not prove business model or ownership.")) {
+    throw new Error("Removed fact-like limitations should fall back to a readable section guidance boundary.");
   }
   if (
     shaped.result.sections.some((section) =>

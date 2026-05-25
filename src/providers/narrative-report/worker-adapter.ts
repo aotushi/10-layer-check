@@ -698,7 +698,10 @@ function createPublicContentDetailTable(contract: AiNarrativeReportContract): st
 }
 
 function createSpaRouteCandidateTable(contract: AiNarrativeReportContract): string {
-  const rows = evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"])
+  const rows = rankRows(
+    evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"]),
+    scoreSpaRouteCandidateRow,
+  )
     .slice(0, 6)
     .map((row) => [
       stringField(row, "route_candidate") ?? "",
@@ -721,7 +724,10 @@ function createSpaSignalTable(contract: AiNarrativeReportContract): string {
 }
 
 function createSpaAssetPreviewTable(contract: AiNarrativeReportContract): string {
-  const rows = evidenceRows(contract, "public_spa_asset_metadata_probe", ["asset_previews"])
+  const rows = rankRows(
+    evidenceRows(contract, "public_spa_asset_metadata_probe", ["asset_previews"]),
+    scoreSpaAssetPreviewRow,
+  )
     .slice(0, 5)
     .map((row) => [
       stringField(row, "kind") ?? "",
@@ -793,7 +799,7 @@ function createPublicBusinessPageTable(contract: AiNarrativeReportContract): str
     ...detailRows,
     ...(detailRows.length > 0 ? contentRows.filter((row) => !isGenericHomepageBusinessRow(row)) : contentRows),
   ];
-  const rows = sourceRows
+  const rows = rankRows(sourceRows, scorePublicBusinessPageRow)
     .slice(0, 6)
     .map((row) => [
       stringField(row, "detail_kind") ?? classificationLabel(row),
@@ -869,6 +875,103 @@ function preferRowsWithObservationText(rows: Record<string, unknown>[]): Record<
     || stringField(row, "value") !== null
   );
   return signalRows.length > 0 ? signalRows : rows;
+}
+
+function rankRows(
+  rows: Record<string, unknown>[],
+  scoreRow: (row: Record<string, unknown>) => number,
+): Record<string, unknown>[] {
+  return rows
+    .map((row, index) => ({ row, index, score: scoreRow(row) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((item) => item.row);
+}
+
+function scorePublicBusinessPageRow(row: Record<string, unknown>): number {
+  const text = rowSearchText(row);
+  const path = stringField(row, "path") ?? "";
+  const hint = classificationLabel(row).toLowerCase();
+  let score = 0;
+
+  if (stringField(row, "detail_kind")) score += 18;
+  if (/product|commercial|business/.test(hint)) score += 18;
+  if (/article/.test(hint)) score += 8;
+  if (/technical_documentation|docs|news|blog/.test(hint)) score -= 4;
+  if (/community|status|unknown/.test(hint)) score -= 12;
+  if (isGenericHomepageBusinessRow(row)) score -= 30;
+
+  score += businessOperationScore(text);
+  if (path && path !== "/") score += Math.min(12, path.split("/").filter(Boolean).length * 3);
+  if (/\/products\/vendor\/application/i.test(path)) score += 30;
+  else if (/\/products\/vendor/i.test(path)) score += 24;
+  if (/\/cn\/docs\/get-started\/overview/i.test(path)) score -= 18;
+  if (asStringArray(row.evidence_snippets ?? row.snippets).length > 0) score += 6;
+
+  return score;
+}
+
+function scoreSpaRouteCandidateRow(row: Record<string, unknown>): number {
+  const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
+  let score = confidenceScore(stringField(row, "confidence")) + businessOperationScore(route);
+
+  if (/^\/products\/vendor\/application$/.test(route)) score += 38;
+  else if (/^\/products\/vendor$/.test(route)) score += 34;
+  else if (/^\/vendor\/(revenue|log)$/.test(route)) score += 32;
+  else if (/^\/vendor$/.test(route)) score += 28;
+  if (/^\/setting\/payment$/.test(route)) score += 30;
+  if (/^\/(pricing|model)$/.test(route)) score += 24;
+  if (/^\/(login|signup)$/.test(route)) score += 18;
+  if (/^\/(dashboard|billing|wallet)$/.test(route)) score += 14;
+  if (/^\/log$/.test(route)) score += 8;
+  if (route === "/" || route.includes("*")) score -= 20;
+  if (/\.(js|css|svg|png|jpg|webp)$/i.test(route)) score -= 40;
+
+  return score;
+}
+
+function scoreSpaAssetPreviewRow(row: Record<string, unknown>): number {
+  const text = rowSearchText(row);
+  let score = 0;
+  if (stringField(row, "kind") === "script") score += 18;
+  if (/entry|main|bundle/.test((stringField(row, "role") ?? "").toLowerCase())) score += 24;
+  if (/route|router|lazy|chunk|vendor|profile|dashboard|billing/.test(text)) score += 16;
+  if (compactSignals(row.signals).length > 0) score += 10;
+  return score;
+}
+
+function confidenceScore(value: string | null): number {
+  const normalized = (value ?? "").toLowerCase();
+  if (normalized === "confirmed" || normalized === "high") return 30;
+  if (normalized === "likely" || normalized === "medium") return 20;
+  if (normalized === "possible" || normalized === "low") return 6;
+  return 0;
+}
+
+function businessOperationScore(text: string): number {
+  let score = 0;
+  if (/supplier|vendor|onboarding|入驻/.test(text)) score += 28;
+  if (/payout|withdraw|withdrawal|settlement|收益|提现/.test(text)) score += 26;
+  if (/routing|provider|厂商|路由/.test(text)) score += 24;
+  if (/pricing|price|cost|discount|成本|降|价格/.test(text)) score += 18;
+  if (/token|recharge|billing|payment|wallet|log|model|令牌|充值|账单|日志|模型/.test(text)) score += 16;
+  if (/about|platform|关于|平台/.test(text)) score += 8;
+  return score;
+}
+
+function rowSearchText(row: Record<string, unknown>): string {
+  const parts = [
+    stringField(row, "title"),
+    stringField(row, "label"),
+    stringField(row, "path"),
+    stringField(row, "detail_kind"),
+    stringField(row, "controlled_hint"),
+    stringField(row, "route_candidate"),
+    stringField(row, "source_asset"),
+    stringField(row, "role"),
+    compactSignals(row.signals),
+    ...asStringArray(row.evidence_snippets ?? row.snippets),
+  ];
+  return parts.filter((part): part is string => Boolean(part)).join(" ").toLowerCase();
 }
 
 function publicHostObservedHint(row: Record<string, unknown>): string {
@@ -1327,10 +1430,15 @@ function sanitizeSectionLimitations(
 }
 
 function cleanSectionLimitation(value: string): string {
+  const trimmed = value.trim();
+  if (/^Do not infer business model or ownership from technical evidence alone\.$/i.test(trimmed)) {
+    return "Technical evidence alone does not prove business model or ownership.";
+  }
   return value
     .trim()
     .replace(/;?\s*Do not place CORS,[\s\S]*$/i, "")
     .replace(/;?\s*Do not add generic Missing data[\s\S]*$/i, "")
+    .replace(/;?\s*Do not infer ownership,[\s\S]*$/i, "")
     .replace(/;?\s*Use each section_guidance[\s\S]*$/i, "")
     .replace(/\s{2,}/g, " ")
     .trim();
@@ -1342,6 +1450,7 @@ function isInvalidSectionLimitation(value: string): boolean {
     normalized.includes(" evidence:") ||
     normalized.includes("generated from bounded reportbrief") ||
     normalized.includes("do not place ") ||
+    normalized.includes("do not infer ") ||
     normalized.includes("use the api, technology") ||
     normalized.includes("section_guidance") ||
     normalized.includes("write one section") ||
