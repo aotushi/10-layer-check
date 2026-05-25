@@ -77,7 +77,8 @@ try {
       return html(`
         <title>Base URL - Example Docs</title>
         <h1>Base URL</h1>
-        <p>The public API base URL is https://api.example.com and OpenAI-compatible requests use /v1/chat/completions.</p>
+        <p>The public API base URL is https://api.example.com/ and OpenAI-compatible requests use /v1/chat/completions.</p>
+        <p>Regional fallback endpoints include https://api-eu-central-1-dc8.example.com and https://api-eu-central-1-dc15.example.com for long-running requests.</p>
       `);
     }
 
@@ -204,6 +205,7 @@ try {
   assert.ok(apiCompatibilityRecord.risk.summary.includes("API compatibility detail snippets"));
   assert.ok(JSON.stringify(productRecord.evidence).includes("vendor platform"));
   assert.ok(JSON.stringify(apiCompatibilityRecord.evidence).includes("OpenAI Chat Completions-compatible path"));
+  assert.ok(JSON.stringify(apiCompatibilityRecord.evidence).includes("https://api-eu-central-1-dc8.example.com"));
 
   const run = {
     id: "public-content-detail-fixture",
@@ -242,7 +244,9 @@ try {
   const shapedApi = shapedReport.result.sections.find((section) => section.id === "api_protocol_surface");
   assert.ok(shapedOrgOps?.content.includes("Public product/business detail:"), "Organization operations content should include product/business detail facts.");
   assert.ok(shapedApi?.content.includes("Public API compatibility detail:"), "API section should include public API compatibility detail facts.");
+  assert.ok(shapedApi?.content.includes("API base URL table:"), "API section should include public API base URL table.");
   assert.ok(shapedApi?.content.includes("API compatibility evidence table:"), "API section should include public API compatibility evidence table.");
+  assert.match(shapedApi?.content ?? "", /api-eu-central-1-dc8/i, "API section should preserve regional base URL evidence.");
   assert.match(shapedApi?.content ?? "", /OpenAI|Chat Completions|\/v1\/chat/i, "API section should preserve OpenAI-compatible path evidence.");
   assert.ok(
     !shapedOrgOps?.content.includes("Public operations evidence: Collected organization-facing DNS"),

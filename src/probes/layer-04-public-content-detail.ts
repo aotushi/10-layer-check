@@ -230,6 +230,7 @@ function summarizeApiCompatibilitySnippets(pages: PublicContentDetailPage[]) {
     confidence: page.classification.confidence,
     basis: page.classification.basis,
     compatibility_signals: inferApiCompatibilitySignals(page),
+    api_base_urls: extractApiBaseUrls(page),
     headings: page.headings.slice(0, 5),
     meta_description: page.meta_description,
     snippets: page.evidence_snippets.slice(0, 6),
@@ -277,8 +278,36 @@ function inferApiCompatibilitySignals(page: PublicContentDetailPage): string[] {
   if (/model[-_/ ]?naming|模型命名|provider\/<base_model>|provider[-_/ ]?routing|模型厂商|路由/.test(text)) {
     signals.push("model naming/provider routing documentation");
   }
-  if (/us-east|regional|直连/.test(text)) signals.push("regional endpoint documentation");
+  if (/us-east|regional|api-eu|副接口|直连|无\s*cdn/.test(text)) signals.push("regional endpoint documentation");
   return uniqueStrings(signals).slice(0, 8);
+}
+
+function extractApiBaseUrls(page: PublicContentDetailPage): string[] {
+  const text = [
+    page.url,
+    page.final_url,
+    page.path,
+    page.title,
+    page.meta_description,
+    ...page.headings,
+    ...(page.evidence_snippets ?? []),
+    page.excerpt,
+  ].filter(Boolean).join(" ");
+  const urls = Array.from(text.matchAll(/https?:\/\/[a-z0-9.-]*api[a-z0-9.-]*\.[a-z0-9.-]+(?::\d+)?\/?/gi))
+    .map((match) => normalizeApiBaseUrl(match[0]))
+    .filter((value): value is string => Boolean(value));
+  return uniqueStrings(urls).slice(0, 6);
+}
+
+function normalizeApiBaseUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (!/api/i.test(url.hostname)) return null;
+    const path = url.pathname === "/" ? "/" : "";
+    return `${url.protocol}//${url.host}${path}`;
+  } catch {
+    return null;
+  }
 }
 
 function uniqueStrings(values: string[]): string[] {

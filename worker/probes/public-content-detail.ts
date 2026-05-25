@@ -257,7 +257,7 @@ async function fetchDetailPage(
       classification,
       link_context: sources,
       excerpt,
-      evidence_snippets: createEvidenceSnippets({ title, metaDescription, headings, excerpt }),
+      evidence_snippets: createEvidenceSnippets({ title, metaDescription, headings, excerpt, content: readableContent }),
       error: isSameRootHost(host, rootHost) ? null : "Final URL left the submitted target host scope.",
       limitations: [
         "Only a bounded public HTML detail preview was read.",
@@ -492,11 +492,12 @@ function scoreCandidateRetention(candidate: CandidateUrl): number {
   const sourceBonus = sourceScore(candidate);
   const businessBonus = scoreBusinessDetailSignal(text);
   const apiCompatibilityBonus = scoreApiCompatibilitySignal(text);
+  const apiBaseUrlBonus = scoreApiBaseUrlCandidate(text);
   const contentBonus = /(docs?|documentation|guide|quickstart|blog|article|post|community|support|help|product|pricing|vendor|marketplace|api)/i.test(text)
     ? 30
     : 0;
   const hostRootPenalty = url.pathname === "/" ? 12 : 0;
-  return sourceBonus + businessBonus + apiCompatibilityBonus + contentBonus - hostRootPenalty;
+  return sourceBonus + businessBonus + apiCompatibilityBonus + apiBaseUrlBonus + contentBonus - hostRootPenalty;
 }
 
 function scoreLinkCandidateRetention(candidate: LinkCandidate): number {
@@ -504,7 +505,7 @@ function scoreLinkCandidateRetention(candidate: LinkCandidate): number {
   const labelText = candidate.label?.toLowerCase() ?? "";
   const sourceBonus = candidate.source === "llms_txt" || candidate.source === "wordpress_rest" ? 20 : 0;
   const text = `${urlText} ${labelText}`;
-  return sourceBonus + scoreBusinessDetailSignal(text) + scoreApiCompatibilitySignal(text);
+  return sourceBonus + scoreBusinessDetailSignal(text) + scoreApiCompatibilitySignal(text) + scoreApiBaseUrlCandidate(text);
 }
 
 function scoreSeedCandidate(candidate: CandidateUrl): number {
@@ -530,6 +531,7 @@ function scoreDetailCandidate(candidate: CandidateUrl): number {
     : 0;
   const businessDetailScore = scoreBusinessDetailSignal(text);
   const apiCompatibilityScore = scoreApiCompatibilitySignal(text);
+  const apiBaseUrlScore = scoreApiBaseUrlCandidate(text);
   const genericApiPenalty = /\b(api[-_/ ]?reference|reference|api)\b/i.test(text)
     && !/(compatib|openai|anthropic|model|provider|vendor|marketplace|platform|pricing|billing|settlement|route|routing|quickstart|recharge|log|兼容|模型|供应|供应商|市场|平台|价格|计费|结算|路由|充值|日志)/i.test(text)
     ? 18
@@ -537,7 +539,7 @@ function scoreDetailCandidate(candidate: CandidateUrl): number {
   const depth = path.split("/").filter(Boolean).length;
   const depthScore = depth >= 2 ? 20 : depth === 1 ? 8 : -10;
   const sourceBonus = sourceScore(candidate);
-  return detailScore + businessDetailScore + apiCompatibilityScore + depthScore + sourceBonus - genericApiPenalty;
+  return detailScore + businessDetailScore + apiCompatibilityScore + apiBaseUrlScore + depthScore + sourceBonus - genericApiPenalty;
 }
 
 function scoreBusinessDetailSignal(text: string): number {
@@ -591,6 +593,15 @@ function scoreApiCompatibilitySignal(text: string): number {
   return Math.min(score, 130);
 }
 
+function scoreApiBaseUrlCandidate(text: string): number {
+  const normalized = text.toLowerCase();
+  let score = 0;
+  if (/\/base-url(?:\.md)?(?:$|[?#\s])/.test(normalized)) score += 120;
+  if (/\bbase[-_/ ]?url\b|接口地址/.test(normalized)) score += 80;
+  if (/api-eu|regional|副接口|直连|无\s*cdn|长连接/.test(normalized)) score += 42;
+  return score;
+}
+
 function sourceScore(candidate: CandidateUrl): number {
   return candidate.sources.reduce((score, source) => {
     if (source.source === "html_link") return Math.max(score, 35);
@@ -618,8 +629,13 @@ function selectDiverseDetailCandidates(candidates: CandidateUrl[], maxDetailPage
     return true;
   };
 
+  for (const candidate of candidates.filter(isApiBaseUrlCandidate)) {
+    if (selected.length >= Math.min(2, maxDetailPages)) break;
+    addIfAllowed(candidate, 8, 8);
+  }
   for (const candidate of candidates.filter(isApiCompatibilityCandidate)) {
     if (selected.length >= Math.min(8, maxDetailPages)) break;
+    if (selected.some((item) => item.url === candidate.url)) continue;
     addIfAllowed(candidate, 8, 8);
   }
   for (const candidate of candidates) {
@@ -640,6 +656,13 @@ function isApiCompatibilityCandidate(candidate: CandidateUrl): boolean {
   const labelText = candidate.sources.map((source) => source.label).filter(Boolean).join(" ");
   const text = `${url.hostname} ${url.pathname} ${labelText}`;
   return scoreApiCompatibilitySignal(text) >= 30;
+}
+
+function isApiBaseUrlCandidate(candidate: CandidateUrl): boolean {
+  const url = new URL(candidate.url);
+  const labelText = candidate.sources.map((source) => source.label).filter(Boolean).join(" ");
+  const text = `${url.hostname} ${url.pathname} ${labelText}`;
+  return scoreApiBaseUrlCandidate(text) >= 80;
 }
 
 function looksLikeDetailCandidate(value: string, sources: DiscoverySource[]): boolean {
@@ -917,13 +940,22 @@ function createEvidenceSnippets(input: {
   metaDescription: string | null;
   headings: string[];
   excerpt: string | null;
+  content: string;
 }): string[] {
   return uniqueStrings([
     input.title ?? "",
     input.metaDescription ?? "",
     ...input.headings.slice(0, 5),
+    ...extractUrlSnippets(input.content),
     ...(input.excerpt ? input.excerpt.split(/(?<=[.!?。！？])\s+/).slice(0, 4) : []),
   ]).map((snippet) => snippet.slice(0, 300)).filter((snippet) => snippet.length >= 12).slice(0, 8);
+}
+
+function extractUrlSnippets(value: string): string[] {
+  return Array.from(value.matchAll(/https?:\/\/[^\s"'`<>)\]}]+/gi))
+    .map((match) => match[0].replace(/[.,;:!?。！？、，；：]+$/g, ""))
+    .filter((url) => /api|\/v1\//i.test(url))
+    .slice(0, 6);
 }
 
 function stripTags(value: string): string {

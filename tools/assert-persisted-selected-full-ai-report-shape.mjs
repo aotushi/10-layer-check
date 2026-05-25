@@ -519,9 +519,14 @@ function assertSectionSpecificTables(markdown) {
   for (const expected of ["SPA signal table:", "SPA asset preview table:", "Public app marker table:"]) {
     assert.ok(technology.includes(expected), `Technology section should include ${expected}`);
   }
-  for (const expected of ["API compatibility evidence table:", "API endpoint table:", "CORS observation table:"]) {
+  for (const expected of ["API base URL table:", "API compatibility evidence table:", "API endpoint table:", "CORS observation table:"]) {
     assert.ok(api.includes(expected), `API section should include ${expected}`);
   }
+  assert.match(
+    api,
+    /\| Base URL \| https:\/\/api\.poixe\.example\/ \| base URL documentation; regional endpoint documentation \| Public API base URLs include https:\/\/api\.poixe\.example[\s\S]*\| Base URL \| https:\/\/api-eu-central-1-dc8\.poixe\.example\/ \| base URL documentation; regional endpoint documentation \| Public API base URLs include https:\/\/api\.poixe\.example/,
+    "API base URL table should preserve compact public-doc base URL evidence without truncating regional endpoints.",
+  );
   assert.match(
     api,
     /\| Base URL \| \/docs\/base-url \| base URL documentation; regional endpoint documentation \| Public API base URLs include https:\/\/api\.poixe\.example/,
@@ -1384,6 +1389,7 @@ function createFullSelectedFixtureRun() {
                 controlled_hint: "technical_documentation",
                 confidence: "medium",
                 compatibility_signals: ["base URL documentation", "regional endpoint documentation"],
+                api_base_urls: ["https://api.poixe.example/", "https://api-eu-central-1-dc8.poixe.example/"],
                 snippets: ["Public API base URLs include https://api.poixe.example and https://api-eu-central-1-dc8.poixe.example."],
               },
               {

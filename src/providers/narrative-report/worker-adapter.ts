@@ -637,6 +637,7 @@ function createApiCompatibilityEvidenceFact(item: ReportBrief["evidence_index"][
   const signals = uniqueStrings(
     rows.flatMap((row) => arrayField(row, "compatibility_signals")),
   );
+  const apiBaseUrls = uniqueStrings(rows.flatMap((row) => arrayField(row, "api_base_urls")));
   const pages = rows
     .map((row) => {
       const title = stringField(row, "title") ?? stringField(row, "path");
@@ -645,10 +646,11 @@ function createApiCompatibilityEvidenceFact(item: ReportBrief["evidence_index"][
     })
     .filter(Boolean);
   const signalText = signals.length > 0 ? ` Public-doc signals: ${signals.slice(0, 6).join(", ")}.` : "";
+  const baseUrlText = apiBaseUrls.length > 0 ? ` Public API base URLs: ${apiBaseUrls.slice(0, 5).join(", ")}.` : "";
   const pageText = pages.length > 0
     ? ` Evidence pages: ${pages.slice(0, 4).join("; ")}${pages.length > 4 ? `; +${pages.length - 4} more` : ""}.`
     : "";
-  return truncate(`Public API compatibility detail: ${item.summary}.${signalText}${pageText}`, 820);
+  return truncate(`Public API compatibility detail: ${item.summary}.${signalText}${baseUrlText}${pageText}`, 820);
 }
 
 function createSpaOperationEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
@@ -748,6 +750,7 @@ function createSectionTables(contract: AiNarrativeReportContract, sectionId: str
   }
   if (sectionId === "api_protocol_surface") {
     return [
+      createApiBaseUrlTable(contract),
       createApiCompatibilityTable(contract),
       createApiEndpointTable(contract),
       createCorsObservationTable(contract),
@@ -928,6 +931,23 @@ function createApiCompatibilityTable(contract: AiNarrativeReportContract): strin
       summarizeApiCompatibilitySnippet(row),
     ]);
   return markdownTable("API compatibility evidence table:", ["Page", "Path", "Signals", "Snippet"], rows);
+}
+
+function createApiBaseUrlTable(contract: AiNarrativeReportContract): string {
+  const rows = rankRows(
+    evidenceRows(contract, "public_api_compatibility_detail_probe", ["api_compatibility_snippets"])
+      .filter((row) => arrayField(row, "api_base_urls").length > 0),
+    scoreApiCompatibilityRow,
+  )
+    .slice(0, 4)
+    .flatMap((row) => arrayField(row, "api_base_urls").slice(0, 4).map((apiBaseUrl) => [
+      stringField(row, "title") ?? stringField(row, "path") ?? "",
+      apiBaseUrl,
+      summarizeApiCompatibilitySignals(arrayField(row, "compatibility_signals")),
+      summarizeApiCompatibilitySnippet(row),
+    ]))
+    .slice(0, 8);
+  return markdownTable("API base URL table:", ["Page", "Base URL", "Signals", "Snippet"], rows);
 }
 
 function createCorsObservationTable(contract: AiNarrativeReportContract): string {
@@ -1265,13 +1285,20 @@ function scoreSpaOperationEvidenceRow(row: Record<string, unknown>): number {
 function scoreApiCompatibilityRow(row: Record<string, unknown>): number {
   const text = rowSearchText(row);
   const path = (stringField(row, "path") ?? "").toLowerCase();
+  const apiBaseUrls = arrayField(row, "api_base_urls");
+  const apiBaseUrlText = apiBaseUrls.join(" ").toLowerCase();
   let score = confidenceScore(stringField(row, "confidence"));
   if (/\/base-url(?:\.md)?$/.test(path)) score += 90;
   if (/\/openai-completions\//.test(path)) score += 78;
   if (/\/anthropic-messages\//.test(path)) score += 72;
   if (/\/model-naming(?:\.md)?$|provider-routing/.test(path)) score += 66;
   if (/prompt-caching/.test(path)) score -= 24;
+  if (apiBaseUrls.length > 0) score += 80;
+  if (apiBaseUrls.length > 1) score += 90;
+  if (/api-eu|regional|副接口|直连|无\s*cdn/.test(apiBaseUrlText)) score += 60;
   if (/base url|接口地址/.test(text)) score += 36;
+  if (/api-eu|regional|副接口|直连|无\s*cdn/.test(text)) score += 32;
+  if (/https?:\/\/[a-z0-9.-]*api[a-z0-9.-]*\./.test(text)) score += 30;
   if (/chat completions|\/v1\/chat\/completions/.test(text)) score += 36;
   if (/responses|\/v1\/responses/.test(text)) score += 28;
   if (/anthropic|messages|\/v1\/messages/.test(text)) score += 30;
@@ -1432,7 +1459,11 @@ function summarizeApiCompatibilitySignals(values: string[]): string {
 function summarizeApiCompatibilitySnippet(row: Record<string, unknown>): string {
   const snippets = arrayField(row, "snippets");
   const excerpt = stringField(row, "excerpt");
-  return truncate((snippets[0] ?? excerpt ?? "").replace(/\s+/g, " "), 120);
+  const preferred = snippets.find((snippet) => /https?:\/\/|api-eu|\/v1\/(?:chat\/completions|messages|responses)/i.test(snippet))
+    ?? excerpt
+    ?? snippets[0]
+    ?? "";
+  return truncate(preferred.replace(/\s+/g, " "), 120);
 }
 
 function arrayField(value: Record<string, unknown>, key: string): string[] {

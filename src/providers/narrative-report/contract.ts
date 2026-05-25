@@ -331,15 +331,22 @@ function createPublicProductBusinessDetailFactHint(item: ReportBrief["evidence_i
 }
 
 function createPublicApiCompatibilityDetailFactHint(item: ReportBrief["evidence_index"][number]): string {
-  const pages = extractStructuredEvidencePages(item.evidence_items)
+  const structuredPages = extractStructuredEvidencePages(item.evidence_items);
+  const pages = structuredPages
     .map(formatApiCompatibilityEvidenceLabel)
     .filter(Boolean);
   const signals = extractApiCompatibilityLabels([...pages, item.summary]);
+  const apiBaseUrls = uniqueStrings(structuredPages.flatMap((page) => formatSnippetList(page.api_base_urls)
+    .replace(/^snippets=/, "")
+    .replace(/\s+\+\d+ more$/, "")
+    .split(", ")
+    .filter(Boolean)));
   const signalText = signals.length > 0 ? ` Supported public-doc signals: ${signals.join(", ")}.` : "";
+  const baseUrlText = apiBaseUrls.length > 0 ? ` Public API base URLs: ${apiBaseUrls.slice(0, 5).join(", ")}.` : "";
   const pageText = pages.length > 0
     ? ` Evidence pages: ${pages.slice(0, 5).join("; ")}${pages.length > 5 ? `; +${pages.length - 5} more` : ""}.`
     : "";
-  return truncateFactHint(`Public API compatibility detail: ${normalizeFactText(item.summary)}${signalText}${pageText}`);
+  return truncateFactHint(`Public API compatibility detail: ${normalizeFactText(item.summary)}${signalText}${baseUrlText}${pageText}`);
 }
 
 function createPublicSpaRouteMetadataFactHint(item: ReportBrief["evidence_index"][number]): string {
@@ -397,13 +404,17 @@ function formatApiCompatibilityEvidenceLabel(value: Record<string, unknown>): st
   const signals = formatSnippetList(value.compatibility_signals)
     .replace(/^snippets=/, "")
     .replace(/\s+\+\d+ more$/, "");
+  const apiBaseUrls = formatSnippetList(value.api_base_urls)
+    .replace(/^snippets=/, "")
+    .replace(/\s+\+\d+ more$/, "");
   const snippets = formatSnippetList(value.evidence_snippets ?? value.snippets)
     .replace(/^snippets=/, "")
     .replace(/\s+\+\d+ more$/, "");
   const location = path && title !== path ? `(${path})` : "";
   const signalText = signals ? ` - ${signals}` : "";
+  const baseUrlText = apiBaseUrls ? ` - base_urls=${apiBaseUrls}` : "";
   const snippetText = snippets ? ` - ${truncateFactValue(snippets)}` : "";
-  return [title, location].filter(Boolean).join(" ").trim() + signalText + snippetText;
+  return [title, location].filter(Boolean).join(" ").trim() + signalText + baseUrlText + snippetText;
 }
 
 function extractBusinessOperationLabels(values: string[]): string[] {
@@ -431,7 +442,7 @@ function extractApiCompatibilityLabels(values: string[]): string[] {
   if (/model naming|模型命名|provider\/<base_model>|provider routing|模型厂商|路由/.test(text)) {
     labels.push("model naming/provider routing");
   }
-  if (/us-east|regional|直连/.test(text)) labels.push("regional endpoint docs");
+  if (/us-east|regional|api-eu|副接口|直连/.test(text)) labels.push("regional endpoint docs");
   return uniqueStrings(labels).slice(0, 8);
 }
 

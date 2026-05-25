@@ -479,6 +479,8 @@ function compactApiCompatibilityDetailRow(row: Record<string, unknown>): Record<
     confidence: stringField(row, "confidence"),
     compatibility_signals: arrayField(row, "compatibility_signals").slice(0, 3)
       .map((value) => truncateBriefField(value, 54)).filter((value): value is string => Boolean(value)),
+    api_base_urls: arrayField(row, "api_base_urls").slice(0, 4)
+      .map((value) => truncateBriefField(value, 80)).filter((value): value is string => Boolean(value)),
     snippets: compactApiCompatibilitySnippets(row),
   });
 }
@@ -487,7 +489,7 @@ function compactApiCompatibilitySnippets(row: Record<string, unknown>): string[]
   const snippets = arrayField(row, "snippets");
   const excerpt = stringField(row, "excerpt");
   const candidates = [
-    ...snippets.filter((value) => /https?:\/\/|\/v1\/(?:chat\/completions|messages|responses)/i.test(value)),
+    ...snippets.filter((value) => /https?:\/\/|api-eu|\/v1\/(?:chat\/completions|messages|responses)/i.test(value)),
     ...(excerpt ? [excerpt] : []),
     ...snippets,
   ];
@@ -648,12 +650,17 @@ function scorePublicBusinessDetailRow(row: Record<string, unknown>): number {
 function scoreApiCompatibilityDetailRow(row: Record<string, unknown>): number {
   const text = rowSearchText(row);
   const path = (stringField(row, "path") ?? "").toLowerCase();
+  const apiBaseUrls = arrayField(row, "api_base_urls");
+  const apiBaseUrlText = apiBaseUrls.join(" ").toLowerCase();
   let score = confidenceScore(stringField(row, "confidence"));
   if (/\/base-url(?:\.md)?$/.test(path)) score += 90;
   if (/\/openai-completions\//.test(path)) score += 78;
   if (/\/anthropic-messages\//.test(path)) score += 72;
   if (/\/model-naming(?:\.md)?$|provider-routing/.test(path)) score += 66;
   if (/prompt-caching/.test(path)) score -= 24;
+  if (apiBaseUrls.length > 0) score += 80;
+  if (apiBaseUrls.length > 1) score += 90;
+  if (/api-eu|regional|副接口|直连|无\s*cdn/.test(apiBaseUrlText)) score += 60;
   if (/base url|接口地址|api[-./\w]*poixe/.test(text)) score += 50;
   if (/chat completions|\/v1\/chat\/completions/.test(text)) score += 42;
   if (/anthropic|messages|\/v1\/messages/.test(text)) score += 34;
@@ -779,6 +786,7 @@ function compactBriefJsonValue(value: unknown): unknown {
     "confidence",
     "title",
     "detail_kind",
+    "api_base_urls",
     "source_asset",
     "route_candidate",
     "operation",
