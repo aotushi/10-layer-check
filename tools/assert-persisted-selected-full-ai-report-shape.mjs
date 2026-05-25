@@ -523,13 +523,29 @@ function assertSectionSpecificTables(markdown) {
 
   assert.ok(!publicIa.includes("CORS observation table:"), "Public IA should not own API/CORS tables.");
   assert.ok(!organization.includes("Public content surface table:"), "Organization should not duplicate public content map tables.");
-  assert.ok(
-    organization.includes("| model-load/provider routing | /dash/model/model_load_stats | SPA asset string + public docs + public API endpoint | medium |"),
+  assert.match(
+    organization,
+    /\| model-load\/provider routing \| \/dash\/model\/model_load_stats(?: \(\+\d+ related signals?\))? \| SPA asset string \+ public docs \+ public API endpoint \| medium \|/,
     "Organization section should summarize model-load/provider-routing as operation evidence, not an exact route.",
   );
-  assert.ok(
-    organization.includes("| log-management | /channel/manage/log | SPA asset string | low |"),
+  assert.match(
+    organization,
+    /\| log-management \| \/channel\/manage\/log(?: \(\+\d+ related signals?\))? \| SPA asset string \| low \|/,
     "Organization section should keep log-related SPA strings as low-confidence operation hints.",
+  );
+  assert.match(
+    organization,
+    /\| vendor revenue\/payout \| \/setting\/payment(?: \(\+\d+ related signals?\))? \|/,
+    "Organization section should keep one compact vendor revenue/payout operation row.",
+  );
+  assert.equal(
+    (organization.match(/\| vendor revenue\/payout \|/g) ?? []).length,
+    1,
+    "Organization operation table should deduplicate sibling vendor revenue/payout paths.",
+  );
+  assert.ok(
+    !organization.includes("Public operations evidence: Public SPA operation evidence"),
+    "Organization prose should not stack operation evidence lead-in labels.",
   );
   assert.ok(
     !api.includes("| poixe.example | GET | / | 200 |  |"),
@@ -871,6 +887,9 @@ function createFullSelectedFixtureRun() {
               { route_candidate: "/products/user", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/token", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/setting/payment", source_asset: "/assets/withdrawal_method-abcd.js", confidence: "medium" },
+              { route_candidate: "/setting/payment/update_usdt_address", source_asset: "/assets/withdrawal_method-abcd.js", confidence: "low" },
+              { route_candidate: "/setting/payment/withdraw_methods", source_asset: "/assets/withdrawal_method-abcd.js", confidence: "low" },
               { route_candidate: "/dash/model/model_load_stats", source_asset: "/assets/model-abcd.js", confidence: "low" },
               { route_candidate: "/dash/model/system_model_stat", source_asset: "/assets/model-abcd.js", confidence: "low" },
               { route_candidate: "/channel/manage/log", source_asset: "/assets/channel_manage_log-abcd.js", confidence: "low" },

@@ -624,17 +624,23 @@ function createSpaOperationEvidenceFact(item: ReportBrief["evidence_index"][numb
     .flatMap((evidence) => parseEvidenceArray(evidence.value))
     .filter(isRecord);
   const operations = uniqueStrings(rows.map((row) => stringField(row, "operation")).filter((value): value is string => Boolean(value)));
-  const signals = rows
-    .map((row) => {
-      const operation = stringField(row, "operation");
-      const signal = stringField(row, "signal");
-      return operation && signal ? `${operation}: ${signal}` : "";
-    })
-    .filter(Boolean)
-    .slice(0, 5);
+  const signals = compactOperationSignalFacts(rows);
   const operationText = operations.length > 0 ? ` Operation hints: ${operations.join(", ")}.` : "";
   const signalText = signals.length > 0 ? ` Signals: ${signals.join("; ")}.` : "";
-  return truncate(`Public SPA operation evidence: ${item.summary}.${operationText}${signalText}`, 800);
+  return truncate(`SPA operation hints: ${item.summary}.${operationText}${signalText}`, 800);
+}
+
+function compactOperationSignalFacts(rows: Record<string, unknown>[]): string[] {
+  const byOperation = new Map<string, string[]>();
+  for (const row of rows) {
+    const operation = stringField(row, "operation");
+    const signal = stringField(row, "signal");
+    if (!operation || !signal) continue;
+    byOperation.set(operation, uniqueStrings([...(byOperation.get(operation) ?? []), signal]));
+  }
+  return Array.from(byOperation.entries())
+    .map(([operation, signals]) => `${operation}: ${summarizeOperationSignals(signals)}`)
+    .slice(0, 5);
 }
 
 function extractDetailPageLabelsFromSummary(value: string): string[] {
@@ -898,9 +904,12 @@ function createPublicBusinessPageTable(contract: AiNarrativeReportContract): str
 
 function createSpaOperationEvidenceTable(contract: AiNarrativeReportContract): string {
   const spaRows = evidenceRows(contract, "public_spa_route_metadata_probe", ["spa_operation_hints"]);
-  const rows = rankRows(
-    [...spaRows, ...deriveCrossSourceOperationEvidenceRows(contract, spaRows)],
-    scoreSpaOperationEvidenceRow,
+  const rows = compactSpaOperationEvidenceRows(
+    contract,
+    rankRows(
+      [...spaRows, ...deriveCrossSourceOperationEvidenceRows(contract, spaRows)],
+      scoreSpaOperationEvidenceRow,
+    ),
   )
     .slice(0, 6)
     .map((row) => [
@@ -910,6 +919,40 @@ function createSpaOperationEvidenceTable(contract: AiNarrativeReportContract): s
       operationConfidenceLabel(contract, row),
     ]);
   return markdownTable("SPA operation evidence table:", ["Operation", "Signal", "Support", "Confidence"], rows);
+}
+
+function compactSpaOperationEvidenceRows(
+  contract: AiNarrativeReportContract,
+  rankedRows: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const grouped = new Map<string, { row: Record<string, unknown>; signals: string[] }>();
+  for (const row of rankedRows) {
+    const operation = stringField(row, "operation");
+    const signal = stringField(row, "signal");
+    if (!operation || !signal) continue;
+    const key = [
+      operation,
+      operationSupportLabel(contract, row),
+      operationConfidenceLabel(contract, row),
+    ].join("::");
+    const current = grouped.get(key);
+    if (!current) {
+      grouped.set(key, { row, signals: [signal] });
+      continue;
+    }
+    current.signals = uniqueStrings([...current.signals, signal]);
+  }
+
+  return Array.from(grouped.values()).map(({ row, signals }) => ({
+    ...row,
+    signal: summarizeOperationSignals(signals),
+  }));
+}
+
+function summarizeOperationSignals(signals: string[]): string {
+  const unique = uniqueStrings(signals);
+  if (unique.length <= 1) return unique[0] ?? "";
+  return `${unique[0]} (+${unique.length - 1} related signal${unique.length > 2 ? "s" : ""})`;
 }
 
 function deriveCrossSourceOperationEvidenceRows(
@@ -1682,6 +1725,9 @@ function trimOrganizationParagraph(value: string): string {
   if (value.startsWith("Public operations evidence: ")) {
     const trimmed = value.replace(/^Public operations evidence:\s*/, "");
     if (/^Collected organization-facing DNS/i.test(trimmed)) return "";
+    if (/^Public SPA operation evidence:/i.test(trimmed)) {
+      return `Public operations evidence: ${trimmed.replace(/^Public SPA operation evidence:\s*/i, "SPA operation hints: ")}`;
+    }
     return `Public operations evidence: ${trimmed}`;
   }
   return value;
