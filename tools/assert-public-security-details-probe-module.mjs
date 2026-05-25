@@ -47,8 +47,26 @@ try {
     }
 
     if (url === "https://api.example.com/v1/models") {
-      return new Response(JSON.stringify({ error: "missing_api_key", request_id: "req_models" }), {
-        status: method === "OPTIONS" ? 204 : 401,
+      if (method === "OPTIONS") {
+        return new Response("", {
+          status: 204,
+          headers: {
+            "content-type": "application/json",
+            "access-control-allow-origin": "https://site-10-layer-check.invalid",
+            "access-control-allow-credentials": "true",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        object: "list",
+        data: [
+          { id: "gpt-4o-mini", object: "model" },
+          { id: "claude-3-5-sonnet", object: "model" },
+          { id: "deepseek-chat", object: "model" },
+        ],
+        request_id: "req_models",
+      }), {
+        status: 200,
         headers: {
           "content-type": "application/json",
           "access-control-allow-origin": "https://site-10-layer-check.invalid",
@@ -118,6 +136,10 @@ try {
   assert.equal(result.provider_id, "cloudflare_worker_public_security_details");
   assert.ok(result.checks.some((check) => check.kind === "cors" && check.signals.includes("cors_allow_credentials:true")));
   assert.ok(result.checks.some((check) => check.kind === "api_endpoint" && check.parsed.api_request_id === "req_models"));
+  assert.ok(result.checks.some((check) => check.kind === "api_endpoint" && check.path === "/v1/models" && check.parsed.model_count === 3));
+  assert.ok(result.checks.some((check) => check.path === "/v1/models" && check.parsed.model_sample?.includes("gpt-4o-mini")));
+  assert.ok(result.checks.some((check) => check.path === "/v1/models" && check.signals.includes("public_model_list_observed")));
+  assert.ok(result.checks.some((check) => check.path === "/v1/models" && check.body_preview_truncated === false));
   assert.ok(result.checks.some((check) => check.kind === "cms_metadata" && check.parsed.wordpress_timezone === "Asia/Shanghai"));
   assert.ok(result.checks.some((check) => check.kind === "forum_metadata" && check.signals.includes("discourse_header_observed")));
   assert.ok(result.checks.some((check) => check.host === "docs.example.com" && check.signals.includes("mintlify_header_observed")));
@@ -166,6 +188,8 @@ try {
 
   const endpointInventory = records.find((record) => record.probe === "bounded_public_api_endpoint_inventory_probe");
   assert.ok(endpointInventory?.risk.summary.includes("/v1/models"));
+  assert.ok(JSON.stringify(endpointInventory?.evidence).includes("\"model_count\":3"));
+  assert.ok(JSON.stringify(endpointInventory?.evidence).includes("gpt-4o-mini"));
   const appHeaders = records.find((record) => record.probe === "bounded_public_app_header_metadata_probe");
   assert.ok(JSON.stringify(appHeaders?.evidence).includes("mintlify_client_version"));
   assert.ok(JSON.stringify(appHeaders?.evidence).includes("wordpress_asset_versions"));

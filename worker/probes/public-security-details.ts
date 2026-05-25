@@ -27,6 +27,7 @@ const MAX_REQUESTS_PER_HOST = 5;
 const MAX_CONCURRENCY = 3;
 const TIMEOUT_MS = 10_000;
 const PREVIEW_BYTES = 1_200;
+const MODEL_LIST_PREVIEW_BYTES = 64_000;
 
 export async function publicSecurityDetailsProbe(
   target: string,
@@ -51,12 +52,14 @@ export async function publicSecurityDetailsProbe(
       max_concurrency: MAX_CONCURRENCY,
       timeout_ms: TIMEOUT_MS,
       preview_bytes: PREVIEW_BYTES,
+      model_list_preview_bytes: MODEL_LIST_PREVIEW_BYTES,
     },
     coverage: {
       collected: [
         "bounded_cors_header_validation",
         "bounded_cookie_attribute_observation",
         "bounded_public_api_error_surface",
+        "bounded_public_api_model_list_metadata",
         "bounded_public_cms_metadata",
       ],
       missing: [
@@ -129,6 +132,12 @@ function createPreflightHeaders(): Record<string, string> {
   };
 }
 
+function previewBytesForPlan(plan: PlannedCheck): number {
+  return plan.kind === "api_endpoint" && plan.method === "GET" && plan.path === "/v1/models"
+    ? MODEL_LIST_PREVIEW_BYTES
+    : PREVIEW_BYTES;
+}
+
 async function runPlannedCheck(plan: PlannedCheck): Promise<PublicSecurityCheck> {
   const url = `https://${plan.host}${plan.path}`;
   const controller = new AbortController();
@@ -145,7 +154,8 @@ async function runPlannedCheck(plan: PlannedCheck): Promise<PublicSecurityCheck>
       },
     });
     const contentType = response.headers.get("content-type");
-    const bodyPreview = plan.method === "HEAD" ? null : await readLimitedText(response, PREVIEW_BYTES);
+    const bodyPreview = plan.method === "HEAD" ? null : await readLimitedText(response, previewBytesForPlan(plan));
+    const bodyPreviewText = bodyPreview?.text ?? null;
     const headers = readHeaders(response.headers);
     return {
       host: plan.host,
@@ -158,9 +168,11 @@ async function runPlannedCheck(plan: PlannedCheck): Promise<PublicSecurityCheck>
       redirected_to: response.headers.get("location"),
       content_type: contentType,
       headers,
-      body_preview: bodyPreview,
-      parsed: parsePublicBody(plan, bodyPreview, headers),
-      signals: detectSignals(plan, response.status, headers, bodyPreview),
+      body_preview: bodyPreviewText,
+      body_preview_bytes: bodyPreview?.bytes ?? null,
+      body_preview_truncated: bodyPreview?.truncated ?? false,
+      parsed: parsePublicBody(plan, bodyPreviewText, headers),
+      signals: detectSignals(plan, response.status, headers, bodyPreviewText),
       error: null,
     };
   } catch (error) {
@@ -176,6 +188,8 @@ async function runPlannedCheck(plan: PlannedCheck): Promise<PublicSecurityCheck>
       content_type: null,
       headers: emptyHeaders(),
       body_preview: null,
+      body_preview_bytes: null,
+      body_preview_truncated: false,
       parsed: {},
       signals: [],
       error: error instanceof Error ? error.message : String(error),
@@ -229,6 +243,11 @@ function parsePublicBody(plan: PlannedCheck, bodyPreview: string | null, headers
     parsed.api_message = readString(json, "message");
     parsed.api_request_id = readString(json, "request_id");
     parsed.api_type = readString(json, "type");
+    if (plan.path === "/v1/models") Object.assign(parsed, extractModelListMetadata(json));
+  }
+  if (!json && plan.kind === "api_endpoint" && plan.path === "/v1/models") {
+    const sample = extractModelSampleFromText(bodyPreview).slice(0, 8);
+    if (sample.length > 0) parsed.model_sample = sample;
   }
   if (json && plan.kind === "forum_metadata") {
     parsed.discourse_latest_topics_visible = Array.isArray((json as Record<string, unknown>).topic_list);
@@ -266,6 +285,9 @@ function detectSignals(
   if (headers.link && /llms\.txt/i.test(headers.link)) signals.push("llms_txt_link_observed");
   if (plan.kind === "api_endpoint" && statusCode >= 400 && /request[_-]?id|error|message/i.test(bodyPreview ?? "")) {
     signals.push("api_error_preview_observed");
+  }
+  if (plan.kind === "api_endpoint" && plan.path === "/v1/models" && /"data"|"models"|"id"/i.test(bodyPreview ?? "")) {
+    signals.push("public_model_list_observed");
   }
   if (plan.kind === "cms_metadata" && /"namespaces"|"timezone_string"|"gmt_offset"/i.test(bodyPreview ?? "")) {
     signals.push("wordpress_public_metadata_observed");
@@ -347,11 +369,18 @@ function summarizeCsp(value: string): Record<string, boolean> {
   };
 }
 
-async function readLimitedText(response: Response, maxBytes: number): Promise<string> {
-  if (!response.body) return "";
+type LimitedText = {
+  text: string;
+  bytes: number;
+  truncated: boolean;
+};
+
+async function readLimitedText(response: Response, maxBytes: number): Promise<LimitedText> {
+  if (!response.body) return { text: "", bytes: 0, truncated: false };
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let truncated = false;
   try {
     while (total < maxBytes) {
       const { done, value } = await reader.read();
@@ -360,7 +389,10 @@ async function readLimitedText(response: Response, maxBytes: number): Promise<st
       const chunk = value.byteLength > remaining ? value.slice(0, remaining) : value;
       chunks.push(chunk);
       total += chunk.byteLength;
-      if (value.byteLength > remaining) break;
+      if (value.byteLength > remaining) {
+        truncated = true;
+        break;
+      }
     }
   } finally {
     reader.releaseLock();
@@ -371,7 +403,11 @@ async function readLimitedText(response: Response, maxBytes: number): Promise<st
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(bytes);
+  const contentLength = response.headers.get("content-length");
+  const declaredBytes = contentLength ? Number.parseInt(contentLength, 10) : Number.NaN;
+  if (Number.isFinite(declaredBytes) && declaredBytes > total) truncated = true;
+  if (total >= maxBytes) truncated = true;
+  return { text: new TextDecoder().decode(bytes), bytes: total, truncated };
 }
 
 function tryParseJson(value: string): Record<string, unknown> | null {
@@ -381,6 +417,49 @@ function tryParseJson(value: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+function extractModelListMetadata(json: Record<string, unknown>): Record<string, unknown> {
+  const models = modelRowsFromJson(json);
+  if (models.length === 0) return {};
+  const modelSample = models
+    .map(modelIdentifier)
+    .filter((value): value is string => Boolean(value))
+    .slice(0, 8);
+
+  return {
+    model_count: models.length,
+    ...(modelSample.length > 0 ? { model_sample: modelSample } : {}),
+    ...(readString(json, "object") ? { model_object: readString(json, "object") } : {}),
+  };
+}
+
+function modelRowsFromJson(json: Record<string, unknown>): Record<string, unknown>[] {
+  const directData = recordArray(json.data);
+  if (directData.length > 0) return directData;
+  const directModels = recordArray(json.models);
+  if (directModels.length > 0) return directModels;
+  const data = isRecord(json.data) ? json.data : null;
+  return data ? recordArray(data.models) : [];
+}
+
+function recordArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function modelIdentifier(value: Record<string, unknown>): string | null {
+  return readString(value, "id") ?? readString(value, "name") ?? readString(value, "model");
+}
+
+function extractModelSampleFromText(value: string): string[] {
+  const matches = Array.from(value.matchAll(/"(?:id|name|model)"\s*:\s*"([^"]+)"/gi))
+    .map((match) => match[1])
+    .filter((item) => item && !/^(list|model)$/i.test(item));
+  return Array.from(new Set(matches));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function runWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {

@@ -36,6 +36,8 @@ export type PublicSecurityCheck = {
   content_type: string | null;
   headers: PublicSecurityHeaderMap;
   body_preview: string | null;
+  body_preview_bytes: number | null;
+  body_preview_truncated: boolean;
   parsed: Record<string, unknown>;
   signals: string[];
   error: string | null;
@@ -52,6 +54,7 @@ export type PublicSecurityDetailsResult = {
     max_concurrency: number;
     timeout_ms: number;
     preview_bytes: number;
+    model_list_preview_bytes: number;
   };
   coverage: {
     collected: string[];

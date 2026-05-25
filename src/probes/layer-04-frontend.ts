@@ -365,7 +365,7 @@ function buildEvidencePack(fetchResult: RemoteFetchResult): FrontendEvidencePack
     stylesheets: extractStylesheets(html, fetchResult.final_url, origin),
     images: extractResources(html, /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, "image", fetchResult.final_url, origin),
     preload_hints: extractPreloadHints(html, fetchResult.final_url, origin),
-    markers: extractMarkers(html),
+    markers: Array.from(new Set([...extractMarkers(html), ...extractInlineAnalyticsMarkers(html)])),
     headers: {
       server: getHeader(fetchResult, "server"),
       "x-powered-by": getHeader(fetchResult, "x-powered-by"),
@@ -434,6 +434,13 @@ function detectTechnologySignals(pack: FrontendEvidencePack): TechnologySignal[]
     category: "analytics",
     confidence: "confirmed",
     evidence_refs: refsFor(pack, /google-analytics\.com|gtag\/js/i),
+  });
+
+  addSignalIf(signals, pack.markers.some((marker) => /^matomo(?:$|:)/i.test(marker)), {
+    technology: "Matomo",
+    category: "analytics",
+    confidence: "confirmed",
+    evidence_refs: refsFor(pack, /matomo/i),
   });
 
   return signals.map((signal) => ({ ...signal, source: "deterministic_rule" }));
@@ -536,6 +543,20 @@ function extractMarkers(html: string): string[] {
 
   for (const [name, pattern] of checks) {
     if (pattern.test(html)) markers.add(name);
+  }
+
+  return Array.from(markers);
+}
+
+function extractInlineAnalyticsMarkers(html: string): string[] {
+  const markers = new Set<string>();
+  if (/_paq|setTrackerUrl|matomo\.(?:php|js)/i.test(html)) {
+    markers.add("matomo");
+  }
+
+  for (const match of html.matchAll(/(?:https?:)?\/\/([a-z0-9.-]*matomo[a-z0-9.-]*)\//gi)) {
+    const host = match[1]?.toLowerCase();
+    if (host) markers.add(`matomo-host:${host}`);
   }
 
   return Array.from(markers);

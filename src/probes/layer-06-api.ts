@@ -472,6 +472,11 @@ function summarizePublicApiEndpoints(checks: PublicSecurityDetailsResult["checks
     api_message: stringField(check.parsed, "api_message"),
     api_request_id: stringField(check.parsed, "api_request_id"),
     api_type: stringField(check.parsed, "api_type"),
+    model_count: numberField(check.parsed, "model_count"),
+    model_sample: arrayField(check.parsed, "model_sample"),
+    model_object: stringField(check.parsed, "model_object"),
+    body_preview_bytes: check.body_preview_bytes,
+    body_preview_truncated: check.body_preview_truncated,
     signals: check.signals,
     error: check.error,
   }));
@@ -558,6 +563,16 @@ function hasPublicAppHeaderMetadata(check: PublicSecurityDetailsResult["checks"]
 function stringField(value: Record<string, unknown>, key: string): string | null {
   const field = value[key];
   return typeof field === "string" && field.length > 0 ? field : null;
+}
+
+function numberField(value: Record<string, unknown>, key: string): number | null {
+  const field = value[key];
+  return typeof field === "number" && Number.isFinite(field) ? field : null;
+}
+
+function arrayField(value: Record<string, unknown>, key: string): string[] {
+  const field = value[key];
+  return Array.isArray(field) ? field.filter((item): item is string => typeof item === "string" && item.length > 0) : [];
 }
 
 function summarizeSecurityChecks(checks: PublicSecurityDetailsResult["checks"]) {
