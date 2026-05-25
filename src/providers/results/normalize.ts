@@ -425,6 +425,9 @@ function isPublicSpaMetadataResult(value: unknown): value is PublicSpaMetadataRe
     typeof limits?.max_declared_assets === "number" &&
     typeof limits?.max_asset_previews === "number" &&
     typeof limits?.max_asset_preview_bytes === "number" &&
+    typeof limits?.max_entry_asset_preview_bytes === "number" &&
+    typeof limits?.max_referenced_asset_previews === "number" &&
+    typeof limits?.max_referenced_asset_preview_bytes === "number" &&
     typeof limits?.max_route_candidates === "number" &&
     typeof limits?.max_component_candidates === "number" &&
     typeof limits?.timeout_ms === "number" &&

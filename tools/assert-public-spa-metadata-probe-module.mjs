@@ -47,12 +47,20 @@ try {
 
     if (url.pathname === "/assets/index-AbCdEf12.js") {
       return javascript(`
-        const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/vendor-Qwer1234.js","assets/ProfilePage-AaBb.js","assets/VendorPanel-CcDd.js"])))=>i.map(i=>d[i]);
+        const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/vendor-Qwer1234.js","assets/ProfilePage-AaBb.js","assets/VendorPanel-CcDd.js","assets/settings-payment-Zz99.js"])))=>i.map(i=>d[i]);
         Symbol.for("react.element"); Symbol.for("react.fragment");
         import("/assets/ProfilePage-AaBb.js");
+        import("/assets/settings-payment-Zz99.js");
         const routes=[{path:"/login",element:"LoginPage"},{path:"/signup",element:"SignupPage"},{path:"/pricing",element:"PricingPage"},{path:"/vendor/revenue",element:"VendorRevenuePage"}];
         function DashboardPanel(){} function VendorPanel(){} function Terms(){} function Privacy(){}
         const BrowserRouter = "react-router BrowserRouter useNavigate";
+      `);
+    }
+
+    if (url.pathname === "/assets/settings-payment-Zz99.js") {
+      return javascript(`
+        export const routes=[{path:"/setting",element:"SettingPage"}];
+        const api="/setting/payment/withdraw_methods";
       `);
     }
 
@@ -69,6 +77,7 @@ try {
   const result = await publicSpaMetadataProbe("https://example.com", { maxAssetPreviews: 3 });
   assert.equal(result.provider_id, "cloudflare_worker_public_spa_metadata");
   assert.equal(result.limits.max_asset_previews, 3);
+  assert.equal(result.limits.max_referenced_asset_previews, 40);
   assert.ok(result.html_shell.root_containers.includes("root"));
   assert.equal(result.html_shell.rendering_assessment.mode, "csr_candidate");
   assert.ok(result.declared_assets.some((asset) => asset.path === "/assets/index-AbCdEf12.js"));
@@ -77,6 +86,14 @@ try {
   assert.ok(result.detected_signals.some((signal) => signal.label.includes("Vite")));
   assert.ok(result.detected_signals.some((signal) => signal.label.includes("React Router")));
   assert.ok(result.route_candidates.some((route) => route.value === "/vendor/revenue"));
+  assert.ok(
+    result.route_candidates.some((route) => route.value === "/setting/payment"),
+    "public SPA metadata should derive bounded parent route hints from same-origin chunk API-like paths.",
+  );
+  assert.ok(
+    result.fetched_asset_previews.some((preview) => preview.path === "/assets/settings-payment-Zz99.js"),
+    "public SPA metadata should preview selected same-origin referenced chunks.",
+  );
   assert.ok(result.component_candidates.some((component) => component.value === "DashboardPanel"));
 
   const records = normalizeSiteScanProviderResults({

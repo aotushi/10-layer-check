@@ -699,16 +699,24 @@ function createPublicContentDetailTable(contract: AiNarrativeReportContract): st
 
 function createSpaRouteCandidateTable(contract: AiNarrativeReportContract): string {
   const rows = rankRows(
-    evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"]),
+    evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"]).filter(isReportableSpaRouteCandidateRow),
     scoreSpaRouteCandidateRow,
   )
-    .slice(0, 6)
+    .slice(0, 8)
     .map((row) => [
       stringField(row, "route_candidate") ?? "",
       basenameFromPath(stringField(row, "source_asset") ?? ""),
       stringField(row, "confidence") ?? "",
     ]);
   return markdownTable("SPA route candidate table:", ["Candidate", "Source asset", "Confidence"], rows);
+}
+
+function isReportableSpaRouteCandidateRow(row: Record<string, unknown>): boolean {
+  const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
+  if (!route) return false;
+  if (/^\/(?:admin|api|auth|tool|agent|affiliate)\//.test(route)) return false;
+  if (/^\/setting\/payment\/.+/.test(route)) return false;
+  return route.split("/").filter(Boolean).length <= 3;
 }
 
 function createSpaSignalTable(contract: AiNarrativeReportContract): string {
@@ -920,9 +928,10 @@ function scoreSpaRouteCandidateRow(row: Record<string, unknown>): number {
   else if (/^\/vendor$/.test(route)) score += 28;
   if (/^\/setting\/payment$/.test(route)) score += 30;
   if (/^\/(pricing|model)$/.test(route)) score += 24;
-  if (/^\/(login|signup)$/.test(route)) score += 18;
+  if (/^\/(login|signup)$/.test(route)) score += 24;
   if (/^\/(dashboard|billing|wallet)$/.test(route)) score += 14;
   if (/^\/log$/.test(route)) score += 8;
+  if (/^\/(?:admin|api|auth|tool|agent|affiliate)\//.test(route)) score -= 50;
   if (route === "/" || route.includes("*")) score -= 20;
   if (/\.(js|css|svg|png|jpg|webp)$/i.test(route)) score -= 40;
 

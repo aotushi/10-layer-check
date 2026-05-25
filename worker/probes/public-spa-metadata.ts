@@ -13,8 +13,12 @@ export type PublicSpaMetadataOptions = {
 
 const DEFAULT_MAX_DECLARED_ASSETS = 80;
 const DEFAULT_MAX_ASSET_PREVIEWS = 6;
+const DEFAULT_MAX_REFERENCED_ASSET_PREVIEWS = 40;
 const MAX_ALLOWED_ASSET_PREVIEWS = 10;
 const MAX_ASSET_PREVIEW_BYTES = 768_000;
+const MAX_ENTRY_ASSET_PREVIEW_BYTES = 1_800_000;
+const MAX_REFERENCED_ASSET_PREVIEW_BYTES = 128_000;
+const MAX_REFERENCED_ASSET_CANDIDATES = 160;
 const MAX_ROUTE_CANDIDATES = 60;
 const MAX_COMPONENT_CANDIDATES = 60;
 const TIMEOUT_MS = 10_000;
@@ -32,7 +36,26 @@ export async function publicSpaMetadataProbe(
   const html = root.text;
   const declaredAssets = extractDeclaredAssets(html, finalUrl, rootHost).slice(0, DEFAULT_MAX_DECLARED_ASSETS);
   const selectedAssets = selectPreviewAssets(declaredAssets, maxAssetPreviews);
-  const fetchedAssetPreviews = await Promise.all(selectedAssets.map((asset) => fetchAssetPreview(asset, rootHost)));
+  const declaredAssetPreviews = await Promise.all(
+    selectedAssets.map((asset) =>
+      fetchAssetPreview(
+        asset,
+        rootHost,
+        asset.role === "entry_bundle" ? MAX_ENTRY_ASSET_PREVIEW_BYTES : MAX_ASSET_PREVIEW_BYTES,
+      ),
+    ),
+  );
+  const referencedAssets = selectReferencedPreviewAssets(
+    declaredAssetPreviews,
+    finalUrl,
+    rootHost,
+    selectedAssets,
+    DEFAULT_MAX_REFERENCED_ASSET_PREVIEWS,
+  );
+  const referencedAssetPreviews = await Promise.all(
+    referencedAssets.map((asset) => fetchAssetPreview(asset, rootHost, MAX_REFERENCED_ASSET_PREVIEW_BYTES)),
+  );
+  const fetchedAssetPreviews = [...declaredAssetPreviews, ...referencedAssetPreviews];
   const routeCandidates = collectRouteCandidates(fetchedAssetPreviews);
   const componentCandidates = collectComponentCandidates(fetchedAssetPreviews);
   const htmlShell = {
@@ -73,6 +96,9 @@ export async function publicSpaMetadataProbe(
       max_declared_assets: DEFAULT_MAX_DECLARED_ASSETS,
       max_asset_previews: maxAssetPreviews,
       max_asset_preview_bytes: MAX_ASSET_PREVIEW_BYTES,
+      max_entry_asset_preview_bytes: MAX_ENTRY_ASSET_PREVIEW_BYTES,
+      max_referenced_asset_previews: DEFAULT_MAX_REFERENCED_ASSET_PREVIEWS,
+      max_referenced_asset_preview_bytes: MAX_REFERENCED_ASSET_PREVIEW_BYTES,
       max_route_candidates: MAX_ROUTE_CANDIDATES,
       max_component_candidates: MAX_COMPONENT_CANDIDATES,
       timeout_ms: TIMEOUT_MS,
@@ -82,6 +108,7 @@ export async function publicSpaMetadataProbe(
         "public_html_shell_markers",
         "declared_public_spa_assets",
         "bounded_js_css_asset_previews",
+        "bounded_referenced_js_chunk_previews",
         "framework_build_router_string_signals",
         "route_like_string_candidates",
         "component_like_symbol_candidates",
@@ -93,7 +120,7 @@ export async function publicSpaMetadataProbe(
         "runtime_router_state",
       ],
       limitations: [
-        "This provider reads a bounded public HTML document and a small number of same-site JS/CSS previews.",
+        "This provider reads a bounded public HTML document, a small number of same-site JS/CSS previews, and a scored subset of same-site referenced JS chunks.",
         "Route candidates are string-level evidence only; they do not prove route reachability, permissions, or business workflow behavior.",
         "Minification, obfuscation, server rendering, and runtime-generated routes can hide or distort framework and route signals.",
       ],
@@ -104,7 +131,7 @@ export async function publicSpaMetadataProbe(
   };
 }
 
-async function fetchAssetPreview(asset: PublicSpaDeclaredAsset, rootHost: string): Promise<PublicSpaAssetPreview> {
+async function fetchAssetPreview(asset: PublicSpaDeclaredAsset, rootHost: string, maxBytes: number): Promise<PublicSpaAssetPreview> {
   if (!asset.same_origin && !asset.host.endsWith(`.${rootHost}`)) {
     return {
       ...asset,
@@ -121,7 +148,7 @@ async function fetchAssetPreview(asset: PublicSpaDeclaredAsset, rootHost: string
   }
 
   try {
-    const response = await fetchText(asset.url, MAX_ASSET_PREVIEW_BYTES, acceptForAsset(asset));
+    const response = await fetchText(asset.url, maxBytes, acceptForAsset(asset));
     const text = response.text;
     return {
       ...asset,
@@ -130,7 +157,7 @@ async function fetchAssetPreview(asset: PublicSpaDeclaredAsset, rootHost: string
       content_type: response.contentType,
       bytes_read: new TextEncoder().encode(text).length,
       signals: extractAssetSignals(text, asset),
-      referenced_assets: extractReferencedAssets(text, asset.url).slice(0, 40),
+      referenced_assets: extractReferencedAssets(text, asset.url).slice(0, MAX_REFERENCED_ASSET_CANDIDATES),
       route_candidates: extractRouteLikeStrings(text).slice(0, MAX_ROUTE_CANDIDATES),
       component_candidates: extractComponentLikeSymbols(text).slice(0, MAX_COMPONENT_CANDIDATES),
       error: null,
@@ -210,6 +237,66 @@ function selectPreviewAssets(assets: PublicSpaDeclaredAsset[], limit: number): P
     .slice(0, limit);
 }
 
+function selectReferencedPreviewAssets(
+  previews: PublicSpaAssetPreview[],
+  baseUrl: string,
+  rootHost: string,
+  alreadySelected: PublicSpaDeclaredAsset[],
+  limit: number,
+): PublicSpaDeclaredAsset[] {
+  const selectedUrls = new Set(alreadySelected.map((asset) => asset.url));
+  const candidates = new Map<string, { asset: PublicSpaDeclaredAsset; index: number; sourceSignals: string[] }>();
+  let index = 0;
+
+  for (const preview of previews) {
+    const previewBaseUrl = preview.final_url ?? preview.url ?? baseUrl;
+    for (const referenced of preview.referenced_assets) {
+      const asset = createReferencedAsset(referenced, previewBaseUrl, rootHost);
+      if (!asset || selectedUrls.has(asset.url)) {
+        index += 1;
+        continue;
+      }
+      const current = candidates.get(asset.url);
+      if (!current) {
+        candidates.set(asset.url, { asset, index, sourceSignals: preview.signals });
+      }
+      index += 1;
+    }
+  }
+
+  return Array.from(candidates.values())
+    .filter(({ asset }) => asset.same_origin && /\.(?:js|mjs)(?:$|\?)/i.test(asset.path))
+    .sort((left, right) =>
+      scoreReferencedPreviewAsset(right.asset, right.index, right.sourceSignals)
+      - scoreReferencedPreviewAsset(left.asset, left.index, left.sourceSignals)
+      || left.index - right.index
+      || left.asset.path.localeCompare(right.asset.path),
+    )
+    .slice(0, limit)
+    .map(({ asset }) => asset);
+}
+
+function createReferencedAsset(value: string, baseUrl: string, rootHost: string): PublicSpaDeclaredAsset | null {
+  try {
+    let normalized = value.trim();
+    if (!normalized) return null;
+    if (/^(?:assets|static)\//i.test(normalized)) normalized = `/${normalized}`;
+    const url = new URL(normalized, baseUrl);
+    return {
+      url: url.toString(),
+      host: url.hostname.toLowerCase(),
+      path: url.pathname,
+      kind: "script",
+      role: "lazy_chunk",
+      rel: "referenced",
+      as: "script",
+      same_origin: url.hostname.toLowerCase() === rootHost,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function scorePreviewAsset(asset: PublicSpaDeclaredAsset): number {
   let score = 0;
   if (asset.same_origin) score += 50;
@@ -220,6 +307,18 @@ function scorePreviewAsset(asset: PublicSpaDeclaredAsset): number {
   if (/\/assets\/|\/static\/|\/_next\/static\//i.test(asset.path)) score += 15;
   if (asset.kind === "stylesheet") score += 5;
   return score;
+}
+
+function scoreReferencedPreviewAsset(asset: PublicSpaDeclaredAsset, index: number, sourceSignals: string[]): number {
+  const text = asset.path.toLowerCase();
+  let score = 0;
+  if (/vendor|revenue|payment|withdraw|wallet|setting|model|billing|log|usage|token|dashboard|pricing|signup|auth|channel|tiers|user/.test(text)) {
+    score += 100;
+  }
+  if (/form|application|rate|stat|earning|profile|security/.test(text)) score += 20;
+  if (/\/index-[^/]+\.m?js$/i.test(asset.path)) score += 18;
+  if (sourceSignals.includes("vite_map_deps") || sourceSignals.includes("lazy_chunk_ref")) score += 10;
+  return score - index * 0.01;
 }
 
 function inferScriptRole(src: string, type: string | null): PublicSpaAssetRole {
@@ -344,10 +443,11 @@ function collectRouteCandidates(previews: PublicSpaAssetPreview[]): PublicSpaMet
         source_asset: preview.path,
         confidence: /(?:login|signup|pricing|model|vendor|setting|dashboard|account|products)/i.test(value) ? "medium" : "low",
       });
-      if (candidates.length >= MAX_ROUTE_CANDIDATES) return candidates;
     }
   }
-  return candidates;
+  return candidates
+    .sort((left, right) => scoreRouteCandidate(right.value) - scoreRouteCandidate(left.value) || left.value.localeCompare(right.value))
+    .slice(0, MAX_ROUTE_CANDIDATES);
 }
 
 function collectComponentCandidates(previews: PublicSpaAssetPreview[]): PublicSpaMetadataResult["component_candidates"] {
@@ -373,8 +473,8 @@ function extractRouteLikeStrings(text: string): string[] {
   for (const match of text.matchAll(/["'`]((?:\/[A-Za-z0-9][A-Za-z0-9/_:.-]{0,120})(?:\?[^"'`]{0,80})?)["'`]/g)) {
     const value = normalizeRouteCandidate(match[1]);
     if (!value) continue;
-    values.push(value);
-    if (values.length >= MAX_ROUTE_CANDIDATES * 2) break;
+    values.push(value, ...deriveRouteCandidateAliases(value));
+    if (values.length >= MAX_ROUTE_CANDIDATES * 3) break;
   }
   return uniqueStrings(values)
     .sort((left, right) => scoreRouteCandidate(right) - scoreRouteCandidate(left) || left.localeCompare(right))
@@ -387,6 +487,13 @@ function normalizeRouteCandidate(value: string): string | null {
   if (/\.(?:js|mjs|css|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|pdf|zip)(?:$|\?)/i.test(value)) return null;
   if (value.length < 2 || value.length > 140) return null;
   return value.replace(/\/+$/, "") || "/";
+}
+
+function deriveRouteCandidateAliases(value: string): string[] {
+  const aliases: string[] = [];
+  const settingsParent = value.match(/^\/setting\/(payment|profile|security|notification|data|system)\//i)?.[1];
+  if (settingsParent) aliases.push(`/setting/${settingsParent.toLowerCase()}`);
+  return aliases;
 }
 
 function scoreRouteCandidate(value: string): number {
@@ -425,7 +532,7 @@ function extractReferencedAssets(text: string, baseUrl: string): string[] {
     if (!/[A-Za-z0-9_-]{6,}\.(?:js|mjs|css)$/i.test(value)) continue;
     values.push(value);
   }
-  return uniqueStrings(values).slice(0, 80);
+  return uniqueStrings(values).slice(0, MAX_REFERENCED_ASSET_CANDIDATES);
 }
 
 async function fetchText(url: string, maxBytes: number, accept: string): Promise<{

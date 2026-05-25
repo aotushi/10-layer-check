@@ -88,6 +88,9 @@ export type PublicSpaMetadataResult = {
     max_declared_assets: number;
     max_asset_previews: number;
     max_asset_preview_bytes: number;
+    max_entry_asset_preview_bytes: number;
+    max_referenced_asset_previews: number;
+    max_referenced_asset_preview_bytes: number;
     max_route_candidates: number;
     max_component_candidates: number;
     timeout_ms: number;
