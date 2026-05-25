@@ -297,6 +297,9 @@ function createEvidenceFactHint(item: ReportBrief["evidence_index"][number]): st
   if (item.probe === "public_product_business_detail_probe") {
     return createPublicProductBusinessDetailFactHint(item);
   }
+  if (item.probe === "public_api_compatibility_detail_probe") {
+    return createPublicApiCompatibilityDetailFactHint(item);
+  }
   if (item.probe === "public_spa_route_metadata_probe") {
     return createPublicSpaRouteMetadataFactHint(item);
   }
@@ -325,6 +328,18 @@ function createPublicProductBusinessDetailFactHint(item: ReportBrief["evidence_i
     ? ` Evidence pages: ${pages.slice(0, 6).join("; ")}${pages.length > 6 ? `; +${pages.length - 6} more` : ""}.`
     : "";
   return truncateFactHint(`Public product/business detail: ${normalizeFactText(item.summary)}${operationText}${pageText}`);
+}
+
+function createPublicApiCompatibilityDetailFactHint(item: ReportBrief["evidence_index"][number]): string {
+  const pages = extractStructuredEvidencePages(item.evidence_items)
+    .map(formatApiCompatibilityEvidenceLabel)
+    .filter(Boolean);
+  const signals = extractApiCompatibilityLabels([...pages, item.summary]);
+  const signalText = signals.length > 0 ? ` Supported public-doc signals: ${signals.join(", ")}.` : "";
+  const pageText = pages.length > 0
+    ? ` Evidence pages: ${pages.slice(0, 5).join("; ")}${pages.length > 5 ? `; +${pages.length - 5} more` : ""}.`
+    : "";
+  return truncateFactHint(`Public API compatibility detail: ${normalizeFactText(item.summary)}${signalText}${pageText}`);
 }
 
 function createPublicSpaRouteMetadataFactHint(item: ReportBrief["evidence_index"][number]): string {
@@ -376,6 +391,21 @@ function formatPublicDetailPageEvidenceLabel(value: Record<string, unknown>): st
   return [prefix, title, location].filter(Boolean).join(" ").trim() + snippetText;
 }
 
+function formatApiCompatibilityEvidenceLabel(value: Record<string, unknown>): string {
+  const title = stringField(value, "title") ?? stringField(value, "path");
+  const path = stringField(value, "path");
+  const signals = formatSnippetList(value.compatibility_signals)
+    .replace(/^snippets=/, "")
+    .replace(/\s+\+\d+ more$/, "");
+  const snippets = formatSnippetList(value.evidence_snippets ?? value.snippets)
+    .replace(/^snippets=/, "")
+    .replace(/\s+\+\d+ more$/, "");
+  const location = path && title !== path ? `(${path})` : "";
+  const signalText = signals ? ` - ${signals}` : "";
+  const snippetText = snippets ? ` - ${truncateFactValue(snippets)}` : "";
+  return [title, location].filter(Boolean).join(" ").trim() + signalText + snippetText;
+}
+
 function extractBusinessOperationLabels(values: string[]): string[] {
   const text = values.join(" ").toLowerCase();
   const labels: string[] = [];
@@ -389,12 +419,29 @@ function extractBusinessOperationLabels(values: string[]): string[] {
   return uniqueStrings(labels).slice(0, 6);
 }
 
+function extractApiCompatibilityLabels(values: string[]): string[] {
+  const text = values.join(" ").toLowerCase();
+  const labels: string[] = [];
+  if (/base url|接口地址/.test(text)) labels.push("base URL documentation");
+  if (/chat completions|\/v1\/chat\/completions/.test(text)) labels.push("OpenAI Chat Completions path");
+  if (/responses|\/v1\/responses/.test(text)) labels.push("OpenAI Responses path");
+  if (/anthropic|messages|\/v1\/messages/.test(text)) labels.push("Anthropic Messages surface");
+  if (/openai|chatgpt|gpt-/.test(text)) labels.push("OpenAI-compatible model/API reference");
+  if (/compatib|兼容|差异说明/.test(text)) labels.push("compatibility/difference docs");
+  if (/model naming|模型命名|provider\/<base_model>|provider routing|模型厂商|路由/.test(text)) {
+    labels.push("model naming/provider routing");
+  }
+  if (/us-east|regional|直连/.test(text)) labels.push("regional endpoint docs");
+  return uniqueStrings(labels).slice(0, 8);
+}
+
 function createEvidenceFactPrefix(item: ReportBrief["evidence_index"][number]): string {
   const prefixes: Record<string, string> = {
     subdomain_attack_surface_probe: "Subdomain/reachability matrix: ",
     bounded_cors_header_validation_probe: "Bounded public CORS check: ",
     bounded_public_api_error_surface_probe: "Bounded public API check: ",
     bounded_public_api_endpoint_inventory_probe: "Bounded public API endpoint inventory: ",
+    public_api_compatibility_detail_probe: "Public API compatibility detail: ",
     bounded_public_metadata_probe: "Bounded public metadata check: ",
     bounded_public_app_header_metadata_probe: "Bounded public app header metadata: ",
     public_content_surface_probe: "Public content surface map: ",
@@ -1125,8 +1172,9 @@ const SECTION_EVIDENCE_SELECTION: Record<
       "bounded_cors_header_validation_probe",
       "bounded_public_api_error_surface_probe",
       "bounded_public_api_endpoint_inventory_probe",
+      "public_api_compatibility_detail_probe",
     ],
-    items: ["api", "protocol", "endpoint", "error", "cors", "bounded_public_api"],
+    items: ["api", "protocol", "endpoint", "error", "cors", "bounded_public_api", "api_compatibility"],
   },
   subdomain_attack_surface: {
     layers: [7],

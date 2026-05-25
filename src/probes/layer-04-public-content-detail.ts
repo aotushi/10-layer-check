@@ -11,6 +11,7 @@ export function createPublicContentDetailLayerRecords(
     ["business_overview", "product", "commercial", "technical_documentation", "news", "community"].includes(page.classification.controlled_hint)
     || page.evidence_snippets.length > 0,
   );
+  const apiCompatibilityPages = usablePages.filter(hasApiCompatibilityEvidence);
   const detailKinds = uniqueStrings(usablePages.map((page) => page.detail_kind).filter((kind) => kind !== "unknown"));
   const labels = uniqueStrings(usablePages.map((page) => page.classification.label));
   const hints = uniqueStrings(usablePages.map((page) => page.classification.controlled_hint).filter((hint) => hint !== "unknown"));
@@ -53,6 +54,62 @@ export function createPublicContentDetailLayerRecords(
         role: "derived",
         method: "fetch",
         limitations: result.coverage.limitations,
+      },
+      duration_ms: result.duration_ms,
+    },
+    {
+      target: context.target,
+      normalized_target: context.normalizedTarget,
+      snapshot_at: context.snapshotAt,
+      probe: "public_api_compatibility_detail_probe",
+      layer: 6,
+      item: "public_api_compatibility_detail",
+      probe_type: "active_request",
+      source: result.source,
+      status: apiCompatibilityPages.length > 0 ? "ok" : "skipped",
+      value: {
+        host: result.host,
+        snippet_count: apiCompatibilityPages.length,
+        snippets: summarizeApiCompatibilitySnippets(apiCompatibilityPages),
+        limits: result.limits,
+        coverage: {
+          collected: [
+            "public_api_compatibility_docs",
+            "public_base_url_docs",
+            "public_model_protocol_docs",
+            "public_api_reference_link_context",
+          ],
+          missing: [
+            "authenticated_api_key_validation",
+            "state_changing_api_calls",
+            "complete_api_reference_corpus",
+            "runtime_api_compatibility_execution",
+          ],
+          limitations: [
+            ...result.coverage.limitations,
+            "API compatibility details are public documentation evidence only; this provider does not execute API calls, use credentials, or validate live model behavior.",
+          ],
+        },
+      },
+      risk: {
+        level: "info",
+        summary:
+          apiCompatibilityPages.length > 0
+            ? `Collected public API compatibility detail snippets from ${apiCompatibilityPages.length} bounded page(s): ${summarizeApiCompatibilityHints(apiCompatibilityPages)}.`
+            : "No public API compatibility detail snippets were collected.",
+      },
+      evidence: [
+        { type: "public_api_compatibility_detail", name: "api_compatibility_snippets", value: summarizeApiCompatibilitySnippets(apiCompatibilityPages) },
+        { type: "limit", name: "public_content_detail_limits", value: result.limits },
+      ],
+      evidence_metadata: {
+        origin: "direct_observation",
+        role: "derived",
+        method: "fetch",
+        limitations: [
+          ...result.coverage.limitations,
+          "Report synthesis may describe API compatibility only from collected public documentation snippets and must not treat it as live authenticated API validation.",
+        ],
       },
       duration_ms: result.duration_ms,
     },
@@ -159,6 +216,69 @@ function summarizeBusinessHints(pages: PublicContentDetailPage[]): string {
       [page.detail_kind, page.classification.label, page.classification.controlled_hint, page.title].filter(Boolean).join(" / "),
     ),
   ).slice(0, 5).join("; ");
+}
+
+function summarizeApiCompatibilitySnippets(pages: PublicContentDetailPage[]) {
+  return pages.map((page) => ({
+    url: page.final_url ?? page.url,
+    host: page.host,
+    path: page.path,
+    title: page.title,
+    detail_kind: page.detail_kind,
+    label: page.classification.label,
+    controlled_hint: page.classification.controlled_hint,
+    confidence: page.classification.confidence,
+    basis: page.classification.basis,
+    compatibility_signals: inferApiCompatibilitySignals(page),
+    headings: page.headings.slice(0, 5),
+    meta_description: page.meta_description,
+    snippets: page.evidence_snippets.slice(0, 6),
+    excerpt: page.excerpt,
+  }));
+}
+
+function summarizeApiCompatibilityHints(pages: PublicContentDetailPage[]): string {
+  return uniqueStrings(
+    pages.map((page) =>
+      [
+        page.title || page.path,
+        inferApiCompatibilitySignals(page).join(", "),
+      ].filter(Boolean).join(" / "),
+    ),
+  ).slice(0, 5).join("; ");
+}
+
+function hasApiCompatibilityEvidence(page: PublicContentDetailPage): boolean {
+  return inferApiCompatibilitySignals(page).length > 0;
+}
+
+function inferApiCompatibilitySignals(page: PublicContentDetailPage): string[] {
+  const text = [
+    page.url,
+    page.final_url,
+    page.path,
+    page.title,
+    page.meta_description,
+    ...page.headings,
+    ...(page.evidence_snippets ?? []),
+    page.excerpt,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const signals: string[] = [];
+  if (/base[-_/ ]?url|接口地址/.test(text)) signals.push("base URL documentation");
+  if (/\/v1\/chat\/completions|chat[-_/ ]?completions/.test(text)) {
+    signals.push("OpenAI Chat Completions-compatible path (/v1/chat/completions)");
+  }
+  if (/\/v1\/responses|\bresponses\b/.test(text)) signals.push("OpenAI Responses-compatible path (/v1/responses)");
+  if (/\/v1\/messages|\banthropic\b|\bmessages\b/.test(text)) {
+    signals.push("Anthropic Messages-compatible surface (/v1/messages)");
+  }
+  if (/\bopenai\b|chatgpt|gpt-/.test(text)) signals.push("OpenAI-compatible model/API reference");
+  if (/\bcompatib|兼容|差异说明/.test(text)) signals.push("compatibility/difference documentation");
+  if (/model[-_/ ]?naming|模型命名|provider\/<base_model>|provider[-_/ ]?routing|模型厂商|路由/.test(text)) {
+    signals.push("model naming/provider routing documentation");
+  }
+  if (/us-east|regional|直连/.test(text)) signals.push("regional endpoint documentation");
+  return uniqueStrings(signals).slice(0, 8);
 }
 
 function uniqueStrings(values: string[]): string[] {

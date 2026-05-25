@@ -50,6 +50,18 @@ try {
       `);
     }
 
+    if (url.hostname === "docs.example.com" && url.pathname === "/llms.txt") {
+      return new Response(
+        [
+          "# Example Docs",
+          "- [Base URL](https://docs.example.com/reference/base-url)",
+          "- [OpenAI compatibility](https://docs.example.com/reference/openai-compatible)",
+          "- [Model naming](https://docs.example.com/reference/model-naming)",
+        ].join("\n"),
+        { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } },
+      );
+    }
+
     if (url.hostname === "docs.example.com" && url.pathname === "/guides/vendor-onboarding") {
       return html(`
         <title>Vendor onboarding guide - Example Docs</title>
@@ -58,6 +70,30 @@ try {
         <h1>Vendor onboarding guide</h1>
         <h2>Connect catalog and billing workflows</h2>
         <p>Example helps vendors publish products, automate fulfillment, and connect billing workflows through public APIs.</p>
+      `);
+    }
+
+    if (url.hostname === "docs.example.com" && url.pathname === "/reference/base-url") {
+      return html(`
+        <title>Base URL - Example Docs</title>
+        <h1>Base URL</h1>
+        <p>The public API base URL is https://api.example.com and OpenAI-compatible requests use /v1/chat/completions.</p>
+      `);
+    }
+
+    if (url.hostname === "docs.example.com" && url.pathname === "/reference/openai-compatible") {
+      return html(`
+        <title>OpenAI compatibility - Example Docs</title>
+        <h1>OpenAI-compatible API</h1>
+        <p>Example supports OpenAI Chat Completions, OpenAI Responses, and Anthropic Messages-compatible surfaces.</p>
+      `);
+    }
+
+    if (url.hostname === "docs.example.com" && url.pathname === "/reference/model-naming") {
+      return html(`
+        <title>Model naming - Example Docs</title>
+        <h1>Model naming</h1>
+        <p>Use provider/base_model prefixes to choose provider routing for upstream models.</p>
       `);
     }
 
@@ -120,11 +156,11 @@ try {
   const result = await publicContentDetailProbe("https://example.com", {
     maxSeedPages: 4,
     maxCandidateUrls: 16,
-    maxDetailPages: 5,
+    maxDetailPages: 8,
   });
   assert.equal(result.provider_id, "cloudflare_worker_public_content_detail");
   assert.equal(result.limits.max_seed_pages, 4);
-  assert.equal(result.limits.max_detail_pages, 5);
+  assert.equal(result.limits.max_detail_pages, 8);
   assert.ok(result.candidate_urls.length >= 2);
   assert.ok(result.detail_pages.some((page) => page.detail_kind === "documentation"));
   assert.ok(result.detail_pages.some((page) => page.detail_kind === "article"));
@@ -156,13 +192,18 @@ try {
 
   const detailRecord = records.find((record) => record.probe === "public_content_detail_probe");
   const productRecord = records.find((record) => record.probe === "public_product_business_detail_probe");
+  const apiCompatibilityRecord = records.find((record) => record.probe === "public_api_compatibility_detail_probe");
   assert.ok(detailRecord, "public_content_detail should normalize into a Layer 4 detail record.");
   assert.ok(productRecord, "public_content_detail should normalize into a Layer 9 product/business detail record.");
+  assert.ok(apiCompatibilityRecord, "public_content_detail should normalize API compatibility pages into a Layer 6 API detail record.");
   assert.equal(detailRecord.layer, 4);
   assert.equal(productRecord.layer, 9);
+  assert.equal(apiCompatibilityRecord.layer, 6);
   assert.ok(detailRecord.risk.summary.includes("bounded public content detail page"));
   assert.ok(productRecord.risk.summary.includes("product/business detail snippets"));
+  assert.ok(apiCompatibilityRecord.risk.summary.includes("API compatibility detail snippets"));
   assert.ok(JSON.stringify(productRecord.evidence).includes("vendor platform"));
+  assert.ok(JSON.stringify(apiCompatibilityRecord.evidence).includes("OpenAI Chat Completions-compatible path"));
 
   const run = {
     id: "public-content-detail-fixture",
@@ -176,12 +217,14 @@ try {
   const brief = createReportBrief(run, analysis);
   const narrativeContract = createAiNarrativeReportContract(brief);
   const publicIa = narrativeContract.output_contract.section_guidance.find((section) => section.id === "public_information_architecture");
+  const apiSurface = narrativeContract.output_contract.section_guidance.find((section) => section.id === "api_protocol_surface");
   const orgOps = narrativeContract.output_contract.section_guidance.find((section) => section.id === "organization_operations");
 
   assert.ok(publicIa?.fact_hints.some((hint) => hint.includes("Public content detail map")));
+  assert.ok(apiSurface?.fact_hints.some((hint) => hint.includes("Public API compatibility detail")));
   assert.ok(orgOps?.fact_hints.some((hint) => hint.includes("Public product/business detail")));
   assert.ok(
-    orgOps?.fact_hints.some((hint) => hint.includes("Observed operation topics: supplier/vendor onboarding")),
+    orgOps?.fact_hints.some((hint) => hint.includes("Observed operation topics:")),
     "Organization operations facts should summarize product/business detail pages as readable operation topics.",
   );
   assert.ok(
@@ -196,8 +239,11 @@ try {
   );
   assert.equal(shapedReport.ok, true);
   const shapedOrgOps = shapedReport.result.sections.find((section) => section.id === "organization_operations");
+  const shapedApi = shapedReport.result.sections.find((section) => section.id === "api_protocol_surface");
   assert.ok(shapedOrgOps?.content.includes("Public product/business detail:"), "Organization operations content should include product/business detail facts.");
-  assert.ok(shapedOrgOps?.content.includes("\n\nPublic content detail map:"), "Organization operations content should be split into topical paragraphs.");
+  assert.ok(shapedApi?.content.includes("Public API compatibility detail:"), "API section should include public API compatibility detail facts.");
+  assert.ok(shapedApi?.content.includes("API compatibility evidence table:"), "API section should include public API compatibility evidence table.");
+  assert.match(shapedApi?.content ?? "", /OpenAI|Chat Completions|\/v1\/chat/i, "API section should preserve OpenAI-compatible path evidence.");
   assert.ok(
     !shapedOrgOps?.content.includes("Public operations evidence: Collected organization-facing DNS"),
     "Organization operations content should avoid duplicating generic organization-facing DNS facts.",

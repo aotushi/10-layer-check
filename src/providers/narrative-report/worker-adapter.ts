@@ -514,6 +514,7 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
       "bounded_cors_header_validation_probe",
       "bounded_public_api_error_surface_probe",
       "bounded_public_api_endpoint_inventory_probe",
+      "public_api_compatibility_detail_probe",
     ],
     technology_stack: ["bounded_public_metadata_probe", "bounded_public_app_header_metadata_probe", "public_spa_asset_metadata_probe"],
     public_information_architecture: ["public_content_surface_probe", "public_content_detail_probe", "public_spa_route_metadata_probe"],
@@ -546,6 +547,9 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
 function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
   if (item.probe === "public_product_business_detail_probe") {
     return createBusinessOperationEvidenceFact(item);
+  }
+  if (item.probe === "public_api_compatibility_detail_probe") {
+    return createApiCompatibilityEvidenceFact(item);
   }
   if (item.probe === "public_spa_route_metadata_probe") {
     return createSpaOperationEvidenceFact(item);
@@ -623,6 +627,28 @@ function createBusinessOperationEvidenceFact(item: ReportBrief["evidence_index"]
     ? ` Evidence pages: ${pages.slice(0, 5).join("; ")}${pages.length > 5 ? `; +${pages.length - 5} more` : ""}.`
     : "";
   return truncate(`Public product/business detail: ${item.summary}.${operationText}${pageText}`, 800);
+}
+
+function createApiCompatibilityEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const rows = item.evidence_items
+    .filter((evidence) => (evidence.name ?? evidence.type) === "api_compatibility_snippets")
+    .flatMap((evidence) => parseEvidenceArray(evidence.value))
+    .filter(isRecord);
+  const signals = uniqueStrings(
+    rows.flatMap((row) => arrayField(row, "compatibility_signals")),
+  );
+  const pages = rows
+    .map((row) => {
+      const title = stringField(row, "title") ?? stringField(row, "path");
+      const path = stringField(row, "path");
+      return [title, path && title !== path ? `(${path})` : ""].filter(Boolean).join(" ");
+    })
+    .filter(Boolean);
+  const signalText = signals.length > 0 ? ` Public-doc signals: ${signals.slice(0, 6).join(", ")}.` : "";
+  const pageText = pages.length > 0
+    ? ` Evidence pages: ${pages.slice(0, 4).join("; ")}${pages.length > 4 ? `; +${pages.length - 4} more` : ""}.`
+    : "";
+  return truncate(`Public API compatibility detail: ${item.summary}.${signalText}${pageText}`, 820);
 }
 
 function createSpaOperationEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
@@ -722,6 +748,7 @@ function createSectionTables(contract: AiNarrativeReportContract, sectionId: str
   }
   if (sectionId === "api_protocol_surface") {
     return [
+      createApiCompatibilityTable(contract),
       createApiEndpointTable(contract),
       createCorsObservationTable(contract),
     ].filter(hasText);
@@ -888,6 +915,21 @@ function createApiEndpointTable(contract: AiNarrativeReportContract): string {
   return markdownTable("API endpoint table:", ["Host", "Method", "Path", "Status", "Signals"], rows);
 }
 
+function createApiCompatibilityTable(contract: AiNarrativeReportContract): string {
+  const rows = rankRows(
+    evidenceRows(contract, "public_api_compatibility_detail_probe", ["api_compatibility_snippets"]),
+    scoreApiCompatibilityRow,
+  )
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "title") ?? stringField(row, "path") ?? "",
+      stringField(row, "path") ?? "",
+      summarizeApiCompatibilitySignals(arrayField(row, "compatibility_signals")),
+      summarizeApiCompatibilitySnippet(row),
+    ]);
+  return markdownTable("API compatibility evidence table:", ["Page", "Path", "Signals", "Snippet"], rows);
+}
+
 function createCorsObservationTable(contract: AiNarrativeReportContract): string {
   const sourceRows = preferRowsWithSignalText(
     evidenceRows(contract, "bounded_cors_header_validation_probe", ["bounded_cors_checks"]),
@@ -1036,7 +1078,8 @@ function hasProviderRoutingPublicDocs(contract: AiNarrativeReportContract): bool
   return [
     ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
     ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
-  ].some((row) => /provider|routing|厂商|路由|model/.test(rowSearchText(row)));
+    ...evidenceRows(contract, "public_api_compatibility_detail_probe", ["api_compatibility_snippets"]),
+  ].some((row) => /provider|routing|厂商|路由|model|模型命名|provider\/<base_model>/.test(rowSearchText(row)));
 }
 
 function hasPublicModelsApiEndpoint(contract: AiNarrativeReportContract): boolean {
@@ -1219,6 +1262,27 @@ function scoreSpaOperationEvidenceRow(row: Record<string, unknown>): number {
   return score;
 }
 
+function scoreApiCompatibilityRow(row: Record<string, unknown>): number {
+  const text = rowSearchText(row);
+  const path = (stringField(row, "path") ?? "").toLowerCase();
+  let score = confidenceScore(stringField(row, "confidence"));
+  if (/\/base-url(?:\.md)?$/.test(path)) score += 90;
+  if (/\/openai-completions\//.test(path)) score += 78;
+  if (/\/anthropic-messages\//.test(path)) score += 72;
+  if (/\/model-naming(?:\.md)?$|provider-routing/.test(path)) score += 66;
+  if (/prompt-caching/.test(path)) score -= 24;
+  if (/base url|接口地址/.test(text)) score += 36;
+  if (/chat completions|\/v1\/chat\/completions/.test(text)) score += 36;
+  if (/responses|\/v1\/responses/.test(text)) score += 28;
+  if (/anthropic|messages|\/v1\/messages/.test(text)) score += 30;
+  if (/openai|chatgpt|gpt-/.test(text)) score += 28;
+  if (/compatib|兼容|差异说明/.test(text)) score += 28;
+  if (/model naming|模型命名|provider\/<base_model>|provider routing|模型厂商|路由/.test(text)) score += 34;
+  if (/us-east|regional|直连/.test(text)) score += 20;
+  if (stringField(row, "path")) score += 8;
+  return score;
+}
+
 function confidenceScore(value: string | null): number {
   const normalized = (value ?? "").toLowerCase();
   if (normalized === "confirmed" || normalized === "high") return 30;
@@ -1359,6 +1423,22 @@ function extractBusinessOperationTopics(values: string[]): string[] {
   if (/cost|成本|降/.test(text)) labels.push("cost-reduction content");
   if (/product|products|商品|产品/.test(text)) labels.push("vendor/product pages");
   return uniqueStrings(labels).slice(0, 6);
+}
+
+function summarizeApiCompatibilitySignals(values: string[]): string {
+  return uniqueStrings(values).slice(0, 3).join("; ");
+}
+
+function summarizeApiCompatibilitySnippet(row: Record<string, unknown>): string {
+  const snippets = arrayField(row, "snippets");
+  const excerpt = stringField(row, "excerpt");
+  return truncate((snippets[0] ?? excerpt ?? "").replace(/\s+/g, " "), 120);
+}
+
+function arrayField(value: Record<string, unknown>, key: string): string[] {
+  const field = value[key];
+  if (!Array.isArray(field)) return [];
+  return field.filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
 function stringField(value: Record<string, unknown>, key: string): string | null {

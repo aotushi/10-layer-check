@@ -519,9 +519,14 @@ function assertSectionSpecificTables(markdown) {
   for (const expected of ["SPA signal table:", "SPA asset preview table:", "Public app marker table:"]) {
     assert.ok(technology.includes(expected), `Technology section should include ${expected}`);
   }
-  for (const expected of ["API endpoint table:", "CORS observation table:"]) {
+  for (const expected of ["API compatibility evidence table:", "API endpoint table:", "CORS observation table:"]) {
     assert.ok(api.includes(expected), `API section should include ${expected}`);
   }
+  assert.match(
+    api,
+    /\| Base URL \| \/docs\/base-url \| base URL documentation; regional endpoint documentation \| Public API base URLs include https:\/\/api\.poixe\.example/,
+    "API compatibility table should preserve compact public-doc signals and snippets.",
+  );
   assert.ok(subdomains.includes("Public host table:"), "Subdomain section should include public host table.");
   assert.ok(organization.includes("Public business page table:"), "Organization section should include public business page table.");
   assert.ok(organization.includes("SPA operation evidence table:"), "Organization section should include SPA operation evidence table.");
@@ -1348,6 +1353,52 @@ function createFullSelectedFixtureRun() {
                 controlled_hint: "news",
                 classification: { controlled_hint: "news", label: "news" },
                 snippets: ["Generic homepage copy."],
+              },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 6,
+        probe: "public_api_compatibility_detail_probe",
+        item: "public_api_compatibility_detail",
+        source: "cloudflare_worker_public_content_detail",
+        summary: "Collected public API compatibility detail snippets from Base URL and OpenAI compatibility pages.",
+        value: {
+          snippets: [
+            { title: "Base URL", path: "/docs/base-url" },
+            { title: "OpenAI compatibility", path: "/docs/openai-compatible" },
+          ],
+          coverage: { collected: ["public_api_compatibility_docs"], missing: ["authenticated_api_key_validation"] },
+        },
+        evidence: [
+          {
+            type: "public_api_compatibility_detail",
+            name: "api_compatibility_snippets",
+            value: [
+              {
+                host: "docs.poixe.example",
+                path: "/docs/base-url",
+                title: "Base URL",
+                detail_kind: "docs",
+                controlled_hint: "technical_documentation",
+                confidence: "medium",
+                compatibility_signals: ["base URL documentation", "regional endpoint documentation"],
+                snippets: ["Public API base URLs include https://api.poixe.example and https://api-eu-central-1-dc8.poixe.example."],
+              },
+              {
+                host: "docs.poixe.example",
+                path: "/docs/openai-compatible",
+                title: "OpenAI compatibility",
+                detail_kind: "docs",
+                controlled_hint: "technical_documentation",
+                confidence: "medium",
+                compatibility_signals: [
+                  "OpenAI Chat Completions-compatible path",
+                  "Anthropic Messages-compatible surface",
+                  "model naming/provider routing documentation",
+                ],
+                snippets: ["Use /v1/chat/completions for OpenAI-compatible requests and provider/<base_model> model naming for routing."],
               },
             ],
           },

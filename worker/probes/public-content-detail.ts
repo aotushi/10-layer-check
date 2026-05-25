@@ -45,7 +45,7 @@ const DEFAULT_MAX_SEED_PAGES = 5;
 const MAX_ALLOWED_SEED_PAGES = 8;
 const DEFAULT_MAX_CANDIDATE_URLS = 36;
 const MAX_ALLOWED_CANDIDATE_URLS = 60;
-const DEFAULT_MAX_DETAIL_PAGES = 8;
+const DEFAULT_MAX_DETAIL_PAGES = 12;
 const MAX_ALLOWED_DETAIL_PAGES = 12;
 const MAX_CONCURRENCY = 3;
 const TIMEOUT_MS = 10_000;
@@ -491,18 +491,20 @@ function scoreCandidateRetention(candidate: CandidateUrl): number {
   const text = `${url.hostname} ${url.pathname} ${labelText}`;
   const sourceBonus = sourceScore(candidate);
   const businessBonus = scoreBusinessDetailSignal(text);
+  const apiCompatibilityBonus = scoreApiCompatibilitySignal(text);
   const contentBonus = /(docs?|documentation|guide|quickstart|blog|article|post|community|support|help|product|pricing|vendor|marketplace|api)/i.test(text)
     ? 30
     : 0;
   const hostRootPenalty = url.pathname === "/" ? 12 : 0;
-  return sourceBonus + businessBonus + contentBonus - hostRootPenalty;
+  return sourceBonus + businessBonus + apiCompatibilityBonus + contentBonus - hostRootPenalty;
 }
 
 function scoreLinkCandidateRetention(candidate: LinkCandidate): number {
   const urlText = candidate.url.toLowerCase();
   const labelText = candidate.label?.toLowerCase() ?? "";
   const sourceBonus = candidate.source === "llms_txt" || candidate.source === "wordpress_rest" ? 20 : 0;
-  return sourceBonus + scoreBusinessDetailSignal(`${urlText} ${labelText}`);
+  const text = `${urlText} ${labelText}`;
+  return sourceBonus + scoreBusinessDetailSignal(text) + scoreApiCompatibilitySignal(text);
 }
 
 function scoreSeedCandidate(candidate: CandidateUrl): number {
@@ -527,6 +529,7 @@ function scoreDetailCandidate(candidate: CandidateUrl): number {
     ? 80
     : 0;
   const businessDetailScore = scoreBusinessDetailSignal(text);
+  const apiCompatibilityScore = scoreApiCompatibilitySignal(text);
   const genericApiPenalty = /\b(api[-_/ ]?reference|reference|api)\b/i.test(text)
     && !/(compatib|openai|anthropic|model|provider|vendor|marketplace|platform|pricing|billing|settlement|route|routing|quickstart|recharge|log|兼容|模型|供应|供应商|市场|平台|价格|计费|结算|路由|充值|日志)/i.test(text)
     ? 18
@@ -534,7 +537,7 @@ function scoreDetailCandidate(candidate: CandidateUrl): number {
   const depth = path.split("/").filter(Boolean).length;
   const depthScore = depth >= 2 ? 20 : depth === 1 ? 8 : -10;
   const sourceBonus = sourceScore(candidate);
-  return detailScore + businessDetailScore + depthScore + sourceBonus - genericApiPenalty;
+  return detailScore + businessDetailScore + apiCompatibilityScore + depthScore + sourceBonus - genericApiPenalty;
 }
 
 function scoreBusinessDetailSignal(text: string): number {
@@ -567,6 +570,27 @@ function scoreBusinessDetailSignal(text: string): number {
   return Math.min(score, 120);
 }
 
+function scoreApiCompatibilitySignal(text: string): number {
+  let score = 0;
+  const normalized = text.toLowerCase();
+  const weightedSignals: Array<[RegExp, number]> = [
+    [/\bbase[-_/ ]?url\b|接口地址/, 52],
+    [/\bchat[-_/ ]?completions\b|\/v1\/chat\/completions/i, 36],
+    [/\bcompatib(?:le|ility)\b|兼容|差异说明/, 34],
+    [/\banthropic\b|\bmessages\b|\/v1\/messages/i, 30],
+    [/\bopenai\b|\bresponses\b|\/v1\/responses/i, 30],
+    [/\bgemini\b|\bcontent\b/, 20],
+    [/\bapi[-_/ ]?keys?\b|api 密钥|令牌/, 18],
+    [/\bmodel[-_/ ]?naming\b|模型命名|provider[-_/ ]?routing|模型厂商|路由/, 58],
+    [/\bquick[-_/ ]?start\b|\bget[-_/ ]?started\b|入门指南|快速开始/, 16],
+    [/\bregional\b|\bus-east\b|api-eu|直连|副接口/, 40],
+  ];
+  for (const [pattern, weight] of weightedSignals) {
+    if (pattern.test(normalized)) score += weight;
+  }
+  return Math.min(score, 130);
+}
+
 function sourceScore(candidate: CandidateUrl): number {
   return candidate.sources.reduce((score, source) => {
     if (source.source === "html_link") return Math.max(score, 35);
@@ -594,8 +618,13 @@ function selectDiverseDetailCandidates(candidates: CandidateUrl[], maxDetailPage
     return true;
   };
 
+  for (const candidate of candidates.filter(isApiCompatibilityCandidate)) {
+    if (selected.length >= Math.min(8, maxDetailPages)) break;
+    addIfAllowed(candidate, 8, 8);
+  }
   for (const candidate of candidates) {
     if (selected.length >= maxDetailPages) break;
+    if (selected.some((item) => item.url === candidate.url)) continue;
     addIfAllowed(candidate, 4, 4);
   }
   for (const candidate of candidates) {
@@ -604,6 +633,13 @@ function selectDiverseDetailCandidates(candidates: CandidateUrl[], maxDetailPage
     addIfAllowed(candidate, maxDetailPages, maxDetailPages);
   }
   return selected;
+}
+
+function isApiCompatibilityCandidate(candidate: CandidateUrl): boolean {
+  const url = new URL(candidate.url);
+  const labelText = candidate.sources.map((source) => source.label).filter(Boolean).join(" ");
+  const text = `${url.hostname} ${url.pathname} ${labelText}`;
+  return scoreApiCompatibilitySignal(text) >= 30;
 }
 
 function looksLikeDetailCandidate(value: string, sources: DiscoverySource[]): boolean {

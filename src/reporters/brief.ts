@@ -448,6 +448,10 @@ function compactTableRowsForEvidenceItem(item: Evidence): unknown[] | null {
     return rankBriefRows(rows.map(compactPublicBusinessDetailRow), scorePublicBusinessDetailRow);
   }
 
+  if (name === "api_compatibility_snippets") {
+    return rankBriefRows(rows.map(compactApiCompatibilityDetailRow), scoreApiCompatibilityDetailRow);
+  }
+
   if (name === "route_candidates") {
     const compactRows = rows.map(compactRouteCandidateRow);
     return rankBriefRows(
@@ -466,6 +470,31 @@ function compactPublicBusinessDetailRow(row: Record<string, unknown>): Record<st
     detail_kind: stringField(row, "detail_kind"),
     controlled_hint: stringField(row, "controlled_hint"),
   });
+}
+
+function compactApiCompatibilityDetailRow(row: Record<string, unknown>): Record<string, unknown> {
+  return removeEmptyFields({
+    path: stringField(row, "path"),
+    title: stringField(row, "title") ?? stringField(row, "label"),
+    confidence: stringField(row, "confidence"),
+    compatibility_signals: arrayField(row, "compatibility_signals").slice(0, 3)
+      .map((value) => truncateBriefField(value, 54)).filter((value): value is string => Boolean(value)),
+    snippets: compactApiCompatibilitySnippets(row),
+  });
+}
+
+function compactApiCompatibilitySnippets(row: Record<string, unknown>): string[] {
+  const snippets = arrayField(row, "snippets");
+  const excerpt = stringField(row, "excerpt");
+  const candidates = [
+    ...snippets.filter((value) => /https?:\/\/|\/v1\/(?:chat\/completions|messages|responses)/i.test(value)),
+    ...(excerpt ? [excerpt] : []),
+    ...snippets,
+  ];
+  return uniqueStrings(candidates)
+    .slice(0, 1)
+    .map((value) => truncateBriefField(value, 150))
+    .filter((value): value is string => Boolean(value));
 }
 
 function compactRouteCandidateRow(row: Record<string, unknown>): Record<string, unknown> {
@@ -616,6 +645,26 @@ function scorePublicBusinessDetailRow(row: Record<string, unknown>): number {
   return score;
 }
 
+function scoreApiCompatibilityDetailRow(row: Record<string, unknown>): number {
+  const text = rowSearchText(row);
+  const path = (stringField(row, "path") ?? "").toLowerCase();
+  let score = confidenceScore(stringField(row, "confidence"));
+  if (/\/base-url(?:\.md)?$/.test(path)) score += 90;
+  if (/\/openai-completions\//.test(path)) score += 78;
+  if (/\/anthropic-messages\//.test(path)) score += 72;
+  if (/\/model-naming(?:\.md)?$|provider-routing/.test(path)) score += 66;
+  if (/prompt-caching/.test(path)) score -= 24;
+  if (/base url|接口地址|api[-./\w]*poixe/.test(text)) score += 50;
+  if (/chat completions|\/v1\/chat\/completions/.test(text)) score += 42;
+  if (/anthropic|messages|\/v1\/messages/.test(text)) score += 34;
+  if (/responses|\/v1\/responses/.test(text)) score += 30;
+  if (/openai|chatgpt|gpt-/.test(text)) score += 30;
+  if (/compatib|兼容|差异说明/.test(text)) score += 28;
+  if (/model naming|模型命名|provider\/<base_model>|provider routing|模型厂商|路由/.test(text)) score += 34;
+  if (/regional|us-east|api-eu|直连|副接口/.test(text)) score += 22;
+  return score;
+}
+
 function scoreRouteCandidateRow(row: Record<string, unknown>): number {
   const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
   let score = confidenceScore(stringField(row, "confidence")) + businessRowSignalScore(route);
@@ -663,9 +712,7 @@ function confidenceScore(value: string | null): number {
 }
 
 function rowSearchText(row: Record<string, unknown>): string {
-  return Object.values(row)
-    .filter((value): value is string => typeof value === "string")
-    .join(" ")
+  return flattenSearchValues(Object.values(row))
     .toLowerCase();
 }
 
@@ -674,16 +721,39 @@ function stringField(value: Record<string, unknown>, key: string): string | null
   return typeof child === "string" && child.trim() ? child : null;
 }
 
-function removeEmptyFields(value: Record<string, string | null>): Record<string, string> {
-  const result: Record<string, string> = {};
+function arrayField(value: Record<string, unknown>, key: string): string[] {
+  const child = value[key];
+  return Array.isArray(child) ? child.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function truncateBriefField(value: string | null, maxLength: number): string | null {
+  if (!value) return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+}
+
+function removeEmptyFields(value: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value)) {
-    if (child) result[key] = child;
+    if (typeof child === "string" && child.length > 0) result[key] = child;
+    else if (Array.isArray(child) && child.length > 0) result[key] = child;
+    else if (typeof child === "number" || typeof child === "boolean") result[key] = child;
   }
   return result;
 }
 
 function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function flattenSearchValues(values: unknown[]): string {
+  const parts: string[] = [];
+  for (const value of values) {
+    if (typeof value === "string") parts.push(value);
+    else if (Array.isArray(value)) parts.push(flattenSearchValues(value));
+    else if (isRecord(value)) parts.push(flattenSearchValues(Object.values(value)));
+  }
+  return parts.join(" ");
 }
 
 function compactBriefJsonValue(value: unknown): unknown {
@@ -715,6 +785,9 @@ function compactBriefJsonValue(value: unknown): unknown {
     "signal",
     "derivation",
     "basis",
+    "compatibility_signals",
+    "snippets",
+    "excerpt",
     "component_candidate",
     "signals",
     "parsed",
