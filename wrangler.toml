@@ -1,6 +1,7 @@
 name = "site-10-layer-check-remote-fetch"
 main = "worker/remote-fetch.ts"
 compatibility_date = "2026-05-19"
+account_id = "eff602d8715ddb9bcf1b4ba8b2ca0788"
 
 workers_dev = true
 
@@ -12,6 +13,7 @@ custom_domain = true
 enabled = true
 
 [limits]
+cpu_ms = 50000
 subrequests = 1000
 
 [ai]

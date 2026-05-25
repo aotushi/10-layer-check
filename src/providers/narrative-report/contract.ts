@@ -81,7 +81,7 @@ export const AI_NARRATIVE_REPORT_SECTION_GUIDANCE = [
   {
     id: "technology_stack",
     title: "Technology Stack",
-    focus: "Combine frontend, app fingerprint, resource, runtime, and public application metadata clues into technology candidates, including WordPress, Discourse, Mintlify, and wp-json when directly observed.",
+    focus: "Combine frontend, app fingerprint, resource, runtime, and public application metadata clues into technology candidates. When CMS, framework, or CDN signals are directly observed in the evidence, name them specifically.",
     boundary: "Static and heuristic technology evidence is candidate evidence unless directly corroborated.",
   },
   {
@@ -139,7 +139,7 @@ export function createAiNarrativeReportContract(brief: ReportBrief): AiNarrative
     input: {
       brief,
       instruction:
-        "Write a poixe-style technical site analysis report from the supplied ReportBrief. Do not write one section per raw layer; merge evidence into topical sections from output_contract.section_guidance. Cite only evidence_refs and missing_data_refs present in the input. Keep unsupported ownership, business-model, related-domain, and vulnerability conclusions provisional or mark them as missing/manual review.",
+        "Write a technical site analysis report from the supplied ReportBrief. Do not write one section per raw layer; merge evidence into topical sections from output_contract.section_guidance. Cite only evidence_refs and missing_data_refs present in the input. Keep unsupported ownership, business-model, related-domain, and vulnerability conclusions provisional or mark them as missing/manual review.",
     },
     output_contract: {
       required_fields: ["sections", "markdown"],
@@ -165,7 +165,7 @@ export function createAiNarrativeReportContract(brief: ReportBrief): AiNarrative
         "Use each section_guidance item evidence_ref_hints as the primary refs for that section.",
         "Use each section_guidance item fact_hints as concrete facts before writing generic layer-count prose.",
         "Keep CORS, Access-Control, public API endpoint, and API error-surface facts in API and Security sections, not Public Information Architecture.",
-        "Keep WordPress, Discourse, Mintlify, wp-json, and public application metadata facts in Technology Stack or Subdomains sections, not Public Information Architecture.",
+        "Keep CMS-specific, framework-specific, and public application metadata facts in Technology Stack or Subdomains sections, not Public Information Architecture.",
       ],
       section_guidance: sectionGuidance,
       required_section_ids: sectionGuidance
@@ -284,13 +284,8 @@ function selectFactHints(brief: ReportBrief, sectionId: string, evidenceRefs: st
     .slice(0, factHintLimitForSection(sectionId));
 }
 
-function isSummaryDetailInventoryFact(value: string): boolean {
-  return (
-    value.startsWith("Public product/business detail:") ||
-    value.startsWith("Public business/product content:") ||
-    value.startsWith("Public SPA route metadata:") ||
-    value.startsWith("Bounded public API endpoint inventory:")
-  );
+function isSummaryDetailInventoryFact(_value: string): boolean {
+  return false;
 }
 
 function createEvidenceFactHint(item: ReportBrief["evidence_index"][number]): string {
@@ -320,14 +315,10 @@ function createPublicProductBusinessDetailFactHint(item: ReportBrief["evidence_i
       .filter(Boolean),
     ...extractDetailPageLabelsFromSummary(item.summary),
   ]);
-  const operations = extractBusinessOperationLabels([...pages, item.summary]);
-  const operationText = operations.length > 0
-    ? ` Observed operation topics: ${operations.join(", ")}.`
-    : "";
   const pageText = pages.length > 0
     ? ` Evidence pages: ${pages.slice(0, 6).join("; ")}${pages.length > 6 ? `; +${pages.length - 6} more` : ""}.`
     : "";
-  return truncateFactHint(`Public product/business detail: ${normalizeFactText(item.summary)}${operationText}${pageText}`);
+  return truncateFactHint(`Public product/business detail: ${normalizeFactText(item.summary)}${pageText}`);
 }
 
 function createPublicApiCompatibilityDetailFactHint(item: ReportBrief["evidence_index"][number]): string {
@@ -335,18 +326,16 @@ function createPublicApiCompatibilityDetailFactHint(item: ReportBrief["evidence_
   const pages = structuredPages
     .map(formatApiCompatibilityEvidenceLabel)
     .filter(Boolean);
-  const signals = extractApiCompatibilityLabels([...pages, item.summary]);
   const apiBaseUrls = uniqueStrings(structuredPages.flatMap((page) => formatSnippetList(page.api_base_urls)
     .replace(/^snippets=/, "")
     .replace(/\s+\+\d+ more$/, "")
     .split(", ")
     .filter(Boolean)));
-  const signalText = signals.length > 0 ? ` Supported public-doc signals: ${signals.join(", ")}.` : "";
   const baseUrlText = apiBaseUrls.length > 0 ? ` Public API base URLs: ${apiBaseUrls.slice(0, 5).join(", ")}.` : "";
   const pageText = pages.length > 0
     ? ` Evidence pages: ${pages.slice(0, 5).join("; ")}${pages.length > 5 ? `; +${pages.length - 5} more` : ""}.`
     : "";
-  return truncateFactHint(`Public API compatibility detail: ${normalizeFactText(item.summary)}${signalText}${baseUrlText}${pageText}`);
+  return truncateFactHint(`Public API compatibility detail: ${normalizeFactText(item.summary)}${baseUrlText}${pageText}`);
 }
 
 function createPublicSpaRouteMetadataFactHint(item: ReportBrief["evidence_index"][number]): string {
@@ -417,35 +406,6 @@ function formatApiCompatibilityEvidenceLabel(value: Record<string, unknown>): st
   return [title, location].filter(Boolean).join(" ").trim() + signalText + baseUrlText + snippetText;
 }
 
-function extractBusinessOperationLabels(values: string[]): string[] {
-  const text = values.join(" ").toLowerCase();
-  const labels: string[] = [];
-  if (/supplier|vendor|onboarding|入驻/.test(text)) labels.push("supplier/vendor onboarding");
-  if (/payout|withdraw|withdrawal|提现|settlement/.test(text)) labels.push("payouts/withdrawals");
-  if (/model[_/-]?load|model[_/-]?stat|\/v1\/models|\/dash\/model/.test(text)) labels.push("model-load/provider routing");
-  if (/routing|provider|厂商|路由/.test(text)) labels.push("provider routing");
-  if (/about|platform|关于|平台/.test(text)) labels.push("platform overview");
-  if (/cost|成本|降/.test(text)) labels.push("cost reduction content");
-  if (/product|products|商品|产品/.test(text)) labels.push("vendor/product pages");
-  return uniqueStrings(labels).slice(0, 6);
-}
-
-function extractApiCompatibilityLabels(values: string[]): string[] {
-  const text = values.join(" ").toLowerCase();
-  const labels: string[] = [];
-  if (/base url|接口地址/.test(text)) labels.push("base URL documentation");
-  if (/chat completions|\/v1\/chat\/completions/.test(text)) labels.push("OpenAI Chat Completions path");
-  if (/responses|\/v1\/responses/.test(text)) labels.push("OpenAI Responses path");
-  if (/anthropic|messages|\/v1\/messages/.test(text)) labels.push("Anthropic Messages surface");
-  if (/openai|chatgpt|gpt-/.test(text)) labels.push("OpenAI-compatible model/API reference");
-  if (/compatib|兼容|差异说明/.test(text)) labels.push("compatibility/difference docs");
-  if (/model naming|模型命名|provider\/<base_model>|provider routing|模型厂商|路由/.test(text)) {
-    labels.push("model naming/provider routing");
-  }
-  if (/us-east|regional|api-eu|副接口|直连/.test(text)) labels.push("regional endpoint docs");
-  return uniqueStrings(labels).slice(0, 8);
-}
-
 function createEvidenceFactPrefix(item: ReportBrief["evidence_index"][number]): string {
   const prefixes: Record<string, string> = {
     subdomain_attack_surface_probe: "Subdomain/reachability matrix: ",
@@ -483,10 +443,9 @@ function scoreFactHint(sectionId: string, value: string): number {
   }
 
   if (sectionId === "organization_operations") {
-    if (/spa operation evidence|model-load\/provider routing|log-management/.test(normalized)) score += 95;
     if (/public product\/business detail|public business\/product content|business\/product text|public content detail|public content|content surface|product|pricing|platform|solution|documentation|detail snippets/.test(normalized)) score += 85;
-    if (/larksuite|onlarksuite|mx\d|spf|txt=/.test(normalized)) score += 80;
-    if (/rdap|whois|namesilo|registrar/.test(normalized)) score += 60;
+    if (/mx\d|spf|txt=|email/.test(normalized)) score += 80;
+    if (/rdap|whois|registrar/.test(normalized)) score += 60;
     if (/wayback|archive/.test(normalized)) score += 50;
   }
 
@@ -496,7 +455,7 @@ function scoreFactHint(sectionId: string, value: string): number {
     if (/public content detail|detail page|public content surface|content surface|homepage|heading|meta_description|classification/.test(normalized)) score += 75;
     if (/public spa route metadata|route-like string|route candidate|component\/page-like|client routing/.test(normalized)) score += 85;
     if (/robots|sitemap|rendered-page|browser runtime loaded|scripts|stylesheets|images/.test(normalized)) score += 55;
-    if (/cors|cross-origin|access-control|set-cookie|cookie|wordpress|discourse|mintlify|wp-json/.test(normalized)) score -= 200;
+    if (/cors|cross-origin|access-control|set-cookie|cookie/.test(normalized)) score -= 200;
   }
 
   if (sectionId === "subdomain_attack_surface") {
@@ -506,7 +465,7 @@ function scoreFactHint(sectionId: string, value: string): number {
   }
 
   if (sectionId === "technology_stack") {
-    if (/mintlify|wordpress|discourse|wp-json|public app marker|app header metadata|wordpress_public_metadata|discourse_header|mintlify_header|vercel|next_rsc|llms|timezone|namespace/.test(normalized)) score += 90;
+    if (/public app marker|app header metadata|framework|cms|platform/.test(normalized)) score += 90;
     if (/public spa asset metadata|react|vite|csr|bundle|chunk|code splitting|frontend_framework|build_tool|rendering_mode/.test(normalized)) score += 95;
   }
 
@@ -593,23 +552,10 @@ function formatPublicMetadataArrayItemLabel(value: unknown): string {
 }
 
 function formatPrimaryParsedEvidencePair(value: Record<string, unknown>): string {
-  const keys = [
-    "wordpress_name",
-    "wordpress_timezone",
-    "wordpress_namespaces",
-    "wordpress_test_cookie",
-    "x_discourse_route",
-    "x_discourse_cached",
-    "x_mintlify_client_version",
-    "x_mint_proxy_version",
-  ];
-
-  for (const key of keys) {
-    if (!(key in value)) continue;
-    const formatted = formatNestedEvidenceScalar(value[key]);
+  for (const [key, child] of Object.entries(value)) {
+    const formatted = formatNestedEvidenceScalar(child);
     if (formatted) return `${normalizeFactLabel(key)}=${formatted}`;
   }
-
   return "";
 }
 
@@ -695,29 +641,7 @@ function formatSnippetList(value: unknown): string {
 
 function formatParsedEvidenceSummary(value: Record<string, unknown>): string {
   const parts: string[] = [];
-  const keys = [
-    "wordpress_name",
-    "wordpress_description",
-    "wordpress_timezone",
-    "wordpress_gmt_offset",
-    "wordpress_namespaces",
-    "wordpress_test_cookie",
-    "x_discourse_route",
-    "x_discourse_cached",
-    "x_mint_proxy_version",
-    "x_mintlify_client_version",
-    "discourse_route",
-    "discourse_cached",
-    "discourse_runtime",
-    "mint_proxy_version",
-    "mintlify_client_version",
-    "vercel_cache",
-    "vercel_id",
-    "vercel_served_version",
-    "vercel_project_id",
-    "next_rsc_vary",
-    "llms_txt_link",
-    "wordpress_asset_versions",
+  const preferredKeys = [
     "controlled_hint",
     "detail_kind",
     "label",
@@ -732,11 +656,19 @@ function formatParsedEvidenceSummary(value: Record<string, unknown>): string {
     "detected_signals",
   ];
 
-  for (const key of keys) {
+  for (const key of preferredKeys) {
     if (!(key in value)) continue;
     const formatted = formatNestedEvidenceScalar(value[key]);
     if (formatted) parts.push(`${normalizeFactLabel(key)}=${formatted}`);
     if (parts.length >= 4) break;
+  }
+
+  if (parts.length === 0) {
+    for (const [key, child] of Object.entries(value)) {
+      const formatted = formatNestedEvidenceScalar(child);
+      if (formatted) parts.push(`${normalizeFactLabel(key)}=${formatted}`);
+      if (parts.length >= 4) break;
+    }
   }
 
   return parts.length > 0 ? parts.join(",") : "";
@@ -813,22 +745,8 @@ function summarizeJsonLikeEvidenceText(value: string): string {
   const ratings = extractJsonLikeStrings(value, "rating");
   const issuers = extractJsonLikeStrings(value, "issuer_friendly_name");
   const paths = extractJsonLikeStrings(value, "path");
-  const wordpressNames = extractJsonLikeStrings(value, "wordpress_name");
-  const wordpressTimezones = extractJsonLikeStrings(value, "wordpress_timezone");
-  const discourseRoutes = extractJsonLikeStrings(value, "x_discourse_route");
-  const mintlifyVersions = extractJsonLikeStrings(value, "x_mintlify_client_version");
-  const wordpressCookies = extractJsonLikeStrings(value, "wordpress_test_cookie");
   const dnsNames = extractJsonLikeArrayStrings(value, "dns_names");
   const statusCodes = extractJsonLikeNumbers(value, "status_code");
-
-  const publicMetadata = [
-    ...wordpressNames.map((item) => `wordpress_name=${item}`),
-    ...wordpressTimezones.map((item) => `wordpress_timezone=${item}`),
-    ...discourseRoutes.map((item) => `x_discourse_route=${item}`),
-    ...mintlifyVersions.map((item) => `x_mintlify_client_version=${item}`),
-    ...wordpressCookies.map((item) => `wordpress_test_cookie=${item}`),
-  ];
-  if (publicMetadata.length > 0) return formatJsonLikeList("metadata", publicMetadata, objectCount || publicMetadata.length);
 
   if (routeCandidates.length > 0) {
     const sourceAssets = extractJsonLikeStrings(value, "source_asset");
@@ -997,34 +915,19 @@ function selectSummaryEvidenceRefs(brief: ReportBrief): string[] {
 }
 
 function selectSummaryBusinessSurfaceEvidenceRefs(brief: ReportBrief): string[] {
-  const priority = new Map([
-    ["public_product_business_detail_probe", 0],
-    ["bounded_public_api_endpoint_inventory_probe", 1],
-    ["public_spa_route_metadata_probe", 2],
-    ["public_business_content_probe", 3],
-  ]);
-  return brief.evidence_index
-    .map((item, index) => ({ item, index, priority: priority.get(item.probe) ?? Number.MAX_SAFE_INTEGER }))
-    .filter(({ priority }) => priority < Number.MAX_SAFE_INTEGER)
-    .sort((left, right) => left.priority - right.priority || left.index - right.index)
-    .slice(0, 3)
-    .map(({ item }) => item.id);
+  const seenLayers = new Set<number>();
+  const selected: string[] = [];
+  for (const item of brief.evidence_index) {
+    if (!seenLayers.has(item.layer)) {
+      seenLayers.add(item.layer);
+      selected.push(item.id);
+    }
+    if (selected.length >= 4) break;
+  }
+  return selected;
 }
 
-const SUMMARY_DETAIL_PROBES = new Set([
-  "bounded_cors_header_validation_probe",
-  "bounded_public_api_error_surface_probe",
-  "bounded_public_api_endpoint_inventory_probe",
-  "bounded_public_metadata_probe",
-  "bounded_public_app_header_metadata_probe",
-  "public_content_surface_probe",
-  "public_business_content_probe",
-  "public_content_detail_probe",
-  "public_product_business_detail_probe",
-  "public_spa_asset_metadata_probe",
-  "public_spa_route_metadata_probe",
-  "bounded_cookie_attribute_observation_probe",
-]);
+const SUMMARY_DETAIL_PROBES = new Set<string>();
 
 function selectMissingDataRefHints(brief: ReportBrief, sectionId: string): string[] {
   if (sectionId === "summary") return brief.missing_data.slice(0, 4).map((item) => item.id);
@@ -1217,9 +1120,11 @@ const SECTION_EVIDENCE_SELECTION: Record<
       "runtime_security_events_probe",
       "cookie_security_probe",
       "bounded_cookie_attribute_observation_probe",
+      "bounded_cors_header_validation_probe",
+      "bounded_public_api_endpoint_inventory_probe",
     ],
-    exclude_probes: ["cors_policy_probe", "bounded_cors_header_validation_probe"],
-    items: ["security", "headers", "iframe", "mixed_content", "leakage", "cookie"],
+    exclude_probes: ["cors_policy_probe"],
+    items: ["security", "headers", "iframe", "mixed_content", "leakage", "cookie", "cors", "endpoint", "bounded_public_api"],
   },
 };
 

@@ -508,6 +508,8 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
       "tls_live_certificate_probe",
       "performance_probe",
       "http_headers_probe",
+      "cache_policy_probe",
+      "runtime_asset_cache_policy_probe",
     ],
     api_protocol_surface: [
       "cors_policy_probe",
@@ -516,7 +518,13 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
       "bounded_public_api_endpoint_inventory_probe",
       "public_api_compatibility_detail_probe",
     ],
-    technology_stack: ["bounded_public_metadata_probe", "bounded_public_app_header_metadata_probe", "public_spa_asset_metadata_probe"],
+    technology_stack: [
+      "frontend_technology_probe",
+      "runtime_third_party_resources_probe",
+      "bounded_public_metadata_probe",
+      "bounded_public_app_header_metadata_probe",
+      "public_spa_asset_metadata_probe",
+    ],
     public_information_architecture: ["public_content_surface_probe", "public_content_detail_probe", "public_spa_route_metadata_probe"],
     organization_operations: [
       "public_business_content_probe",
@@ -529,6 +537,8 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
       "cookie_security_probe",
       "security_headers_probe",
       "bounded_cookie_attribute_observation_probe",
+      "bounded_cors_header_validation_probe",
+      "bounded_public_api_endpoint_inventory_probe",
     ],
   };
   const probes = probesBySection[sectionId] ?? [];
@@ -554,6 +564,12 @@ function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): s
   if (item.probe === "public_spa_route_metadata_probe") {
     return createSpaOperationEvidenceFact(item);
   }
+  if (item.probe === "frontend_technology_probe") {
+    return createFrontendTechnologyEvidenceFact(item);
+  }
+  if (item.probe === "bounded_public_app_header_metadata_probe") {
+    return createPublicAppHeaderMetadataEvidenceFact(item);
+  }
   if (item.probe === "performance_probe") {
     return createPerformanceEvidenceFact(item);
   }
@@ -563,8 +579,17 @@ function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): s
   if (item.probe === "organization_intelligence_probe") {
     return createOrganizationIntelligenceEvidenceFact(item);
   }
+  if (item.probe === "rdap_whois_lite_probe") {
+    return createRdapRegistrationEvidenceFact(item);
+  }
   if (item.probe === "security_headers_probe") {
     return createSecurityHeadersEvidenceFact(item);
+  }
+  if (item.probe === "bounded_cors_header_validation_probe") {
+    return createSecurityCorsEvidenceFact(item);
+  }
+  if (item.probe === "bounded_public_api_endpoint_inventory_probe") {
+    return createPublicApiEndpointSecurityEvidenceFact(item);
   }
 
   return truncate(item.summary, 360);
@@ -590,6 +615,80 @@ function createOrganizationIntelligenceEvidenceFact(item: ReportBrief["evidence_
   if (item.summary.toLowerCase().includes("wayback") || values.includes("wayback")) signals.push("Wayback archive evidence");
   const signalText = signals.length > 0 ? ` Signals: ${signals.join(", ")}.` : "";
   return truncate(`${item.summary}${signalText}`, 420);
+}
+
+function createRdapRegistrationEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const registrar = findEvidenceItemValue(item, ["rdap_registrar", "registrar"]);
+  const registrarText = registrar ? ` Registrar: ${registrar}.` : "";
+  return truncate(`${item.summary}${registrarText}`, 420);
+}
+
+function createSecurityCorsEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const rows = preferRowsWithSignalText(
+    item.evidence_items
+      .filter((evidence) => (evidence.name ?? evidence.type) === "bounded_cors_checks")
+      .flatMap((evidence) => parseEvidenceRecords(evidence.value)),
+  );
+  const details = rows
+    .slice(0, 3)
+    .map((row) => {
+      const target = [stringField(row, "host"), stringField(row, "method"), stringField(row, "path")]
+        .filter(Boolean)
+        .join(" ");
+      const signals = compactSignals(row.signals);
+      return [target, signals].filter(Boolean).join(": ");
+    })
+    .filter(Boolean)
+    .join("; ");
+  const detailText = details ? ` ${details}.` : "";
+  return truncate(
+    `CORS risk signal: bounded public checks observed response-header signal(s).${detailText} Risk signal only; not confirmed exploitability.`,
+    420,
+  );
+}
+
+function createPublicApiEndpointSecurityEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const rows = item.evidence_items
+    .filter((evidence) => (evidence.name ?? evidence.type) === "public_api_endpoint_inventory")
+    .flatMap((evidence) => parseEvidenceRecords(evidence.value));
+  const endpoints = rows
+    .slice(0, 4)
+    .map((row) => [stringField(row, "method"), stringField(row, "path"), statusField(row)].filter(Boolean).join(" "))
+    .filter(Boolean)
+    .join("; ");
+  const endpointText = endpoints ? ` ${endpoints}.` : "";
+  return truncate(
+    `Public API endpoint exposure: bounded public checks observed endpoint inventory.${endpointText} Inventory signal only; not authenticated API validation.`,
+    420,
+  );
+}
+
+function createFrontendTechnologyEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const values = item.evidence_items
+    .map((evidence) => `${evidence.name ?? evidence.type} ${stringifyEvidenceValue(evidence.value)}`)
+    .join(" ");
+  const facts: string[] = [];
+  if (/matomo/i.test(values)) facts.push("Matomo analytics marker");
+  const hostMatch = values.match(/matomo-host:([a-z0-9.-]+)/i) ?? values.match(/\b([a-z0-9.-]*matomo[a-z0-9.-]*)\b/i);
+  if (hostMatch?.[1]) facts.push(`tracker host ${hostMatch[1].toLowerCase()}`);
+  const factText = facts.length > 0
+    ? ` Static frontend marker evidence: ${uniqueStrings(facts).join(", ")}. Tracker-host evidence is a public script/configuration signal, not ownership proof.`
+    : "";
+  return truncate(`${item.summary}${factText}`, 420);
+}
+
+function createPublicAppHeaderMetadataEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const rows = item.evidence_items
+    .filter((evidence) => (evidence.name ?? evidence.type) === "public_app_header_metadata")
+    .flatMap((evidence) => parseEvidenceArray(evidence.value))
+    .filter(isRecord);
+  const facts = rankRows(rows, scorePublicAppHeaderMetadataRow)
+    .slice(0, 4)
+    .map(formatPublicAppHeaderMetadataFact)
+    .filter(Boolean);
+  return facts.length > 0
+    ? `Public app/header metadata: ${facts.join("; ")}.`
+    : item.summary.replace(/\.\.\./g, "");
 }
 
 function createSecurityHeadersEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
@@ -665,29 +764,8 @@ function createSpaOperationEvidenceFact(item: ReportBrief["evidence_index"][numb
   return truncate(`SPA operation hints: ${item.summary}.${operationText}${signalText}`, 800);
 }
 
-function createBusinessModelSynthesisFact(contract: AiNarrativeReportContract): string {
-  const hasModelsApi = hasPublicModelsApiEndpoint(contract);
-  const hasProviderRouting = hasProviderRoutingPublicDocs(contract) || hasSpaOperationEvidence(contract, "model-load/provider routing");
-  const hasVendorOnboarding = hasVendorOnboardingEvidence(contract);
-  const hasRevenueOps = Boolean(vendorRevenueAliasContentBasis(contract)) || hasSpaOperationEvidence(contract, "vendor revenue/payout");
-  const capabilities = uniqueStrings([
-    hasModelsApi ? "public `/v1/models` API surface" : "",
-    hasProviderRouting ? "provider routing" : "",
-    hasVendorOnboarding ? "supplier/vendor onboarding" : "",
-    hasRevenueOps ? "payout/revenue operations" : "",
-  ]);
-  const sources = uniqueStrings([
-    hasPublicBusinessEvidence(contract) ? "public content/detail" : "",
-    hasModelsApi ? "public API" : "",
-    hasAnySpaOperationEvidence(contract) ? "SPA operation" : "",
-  ]);
-  if (capabilities.length < 2 || sources.length === 0) return "";
-
-  const surface = hasModelsApi && hasProviderRouting ? "an AI API gateway/product platform" : "a public product platform";
-  return truncate(
-    `Business model synthesis: Current ${joinHumanList(sources)} evidence supports describing the public product surface as ${surface} with ${joinHumanList(capabilities)}. This does not prove authenticated billing, internal settlement, or operator ownership.`,
-    520,
-  );
+function createBusinessModelSynthesisFact(_contract: AiNarrativeReportContract): string {
+  return "";
 }
 
 function compactOperationSignalFacts(rows: Record<string, unknown>[]): string[] {
@@ -743,29 +821,42 @@ function createSectionTables(contract: AiNarrativeReportContract, sectionId: str
   }
   if (sectionId === "technology_stack") {
     return [
+      createFrontendTechnologyTable(contract),
       createSpaSignalTable(contract),
       createSpaAssetPreviewTable(contract),
       createPublicAppMarkerTable(contract),
+      createPublicCmsForumMetadataTable(contract),
+      createPublicAppHeaderMetadataTable(contract),
     ].filter(hasText);
   }
+  if (sectionId === "deployment_network_surface") return [createCacheHeaderEvidenceTable(contract)].filter(hasText);
   if (sectionId === "api_protocol_surface") {
     return [
       createApiBaseUrlTable(contract),
       createApiCompatibilityTable(contract),
       createApiEndpointTable(contract),
+      createApiModelListDetailTable(contract),
       createCorsObservationTable(contract),
     ].filter(hasText);
   }
-  if (sectionId === "subdomain_attack_surface") return [createPublicHostTable(contract)].filter(hasText);
+  if (sectionId === "subdomain_attack_surface") {
+    return [
+      createPublicHostTable(contract),
+      createCtSubdomainCandidateTable(contract),
+    ].filter(hasText);
+  }
   if (sectionId === "organization_operations") {
     return [
       createPublicBusinessPageTable(contract),
       createSpaOperationEvidenceTable(contract),
+      createOrganizationEvidenceTable(contract),
     ].filter(hasText);
   }
   if (sectionId === "security_posture") {
     return [
       createSecurityControlTable(contract),
+      createCorsRiskSignalTable(contract),
+      createPublicApiEndpointExposureTable(contract),
       createCookieObservationTable(contract),
     ].filter(hasText);
   }
@@ -801,11 +892,10 @@ function createPublicContentDetailTable(contract: AiNarrativeReportContract): st
 function createSpaRouteCandidateTable(contract: AiNarrativeReportContract): string {
   const rows = rankRows(
     evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"])
-      .map((row) => enrichDerivedSpaRouteAliasRow(contract, row))
-      .filter((row) => isReportableSpaRouteCandidateRow(row) && hasRequiredDerivedSpaRouteAliasSupport(contract, row)),
+      .filter(isReportableSpaRouteCandidateRow),
     scoreSpaRouteCandidateRow,
   )
-    .slice(0, 8)
+    .slice(0, 9)
     .map((row) => [
       stringField(row, "route_candidate") ?? "",
       basenameFromPath(stringField(row, "source_asset") ?? ""),
@@ -823,41 +913,20 @@ function isReportableSpaRouteCandidateRow(row: Record<string, unknown>): boolean
   return route.split("/").filter(Boolean).length <= 3;
 }
 
-function enrichDerivedSpaRouteAliasRow(
-  contract: AiNarrativeReportContract,
-  row: Record<string, unknown>,
-): Record<string, unknown> {
-  if (stringField(row, "derivation") !== "derived_alias") return row;
-  const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
-  if (route !== "/vendor/revenue") return row;
 
-  const contentBasis = vendorRevenueAliasContentBasis(contract);
-  const basis = stringField(row, "basis") ?? "derived alias";
-  return {
-    ...row,
-    basis: contentBasis && !basis.includes(contentBasis) ? `${basis}; ${contentBasis}` : basis,
-  };
-}
+function createOrganizationEvidenceTable(contract: AiNarrativeReportContract): string {
+  const rows: string[][] = [];
+  const organizationItem = contract.input.brief.evidence_index.find((item) => item.probe === "organization_intelligence_probe");
+  const organizationValues = organizationItem?.evidence_items.map((item) => item.value).join(" ") ?? "";
+  if (/larksuite/i.test(organizationValues)) {
+    rows.push(["Mail DNS", "MX/TXT", "Larksuite mail DNS signals"]);
+  }
 
-function hasRequiredDerivedSpaRouteAliasSupport(
-  contract: AiNarrativeReportContract,
-  row: Record<string, unknown>,
-): boolean {
-  if (stringField(row, "derivation") !== "derived_alias") return true;
-  const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
-  return route === "/vendor/revenue" && Boolean(vendorRevenueAliasContentBasis(contract));
-}
+  const rdapItem = contract.input.brief.evidence_index.find((item) => item.probe === "rdap_whois_lite_probe");
+  const registrar = rdapItem ? findEvidenceItemValue(rdapItem, ["rdap_registrar", "registrar"]) : "";
+  if (registrar) rows.push(["Registration", "Registrar", registrar]);
 
-function vendorRevenueAliasContentBasis(contract: AiNarrativeReportContract): string | null {
-  const rows = [
-    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
-    ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
-  ];
-  const hasPayoutTopic = rows.some((row) => {
-    const text = rowSearchText(row);
-    return /vendor|supplier/.test(text) && /payout|withdraw|withdrawal|settled revenue|revenue/.test(text);
-  });
-  return hasPayoutTopic ? "payout docs topic" : null;
+  return markdownTable("Organization evidence table:", ["Category", "Signal", "Observed value"], rows);
 }
 
 function spaRouteDerivationLabel(row: Record<string, unknown>): string {
@@ -905,6 +974,44 @@ function createPublicAppMarkerTable(contract: AiNarrativeReportContract): string
   return markdownTable("Public app marker table:", ["Host", "Marker", "Category", "Confidence"], rows);
 }
 
+function createPublicAppHeaderMetadataTable(contract: AiNarrativeReportContract): string {
+  const rows = rankRows(
+    evidenceRows(contract, "bounded_public_app_header_metadata_probe", ["public_app_header_metadata"]),
+    scorePublicAppHeaderMetadataRow,
+  )
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "kind") ?? stringField(row, "role_hint") ?? "",
+      statusField(row),
+      publicAppHeaderMetadataSignals(row),
+    ]);
+  return markdownTable("Public app header metadata table:", ["Host", "Kind", "Status", "Observed signals"], rows);
+}
+
+function createPublicCmsForumMetadataTable(contract: AiNarrativeReportContract): string {
+  const rows = rankRows(
+    evidenceRows(contract, "bounded_public_metadata_probe", ["bounded_public_metadata_checks"]),
+    scorePublicCmsForumMetadataRow,
+  )
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      publicCmsForumPlatformLabel(row),
+      stringField(row, "path") ?? "",
+      statusField(row),
+      publicCmsForumMetadataSignals(row),
+      publicCmsForumBoundary(row),
+    ])
+    .filter((row) => row[1] && row[4])
+    .slice(0, 8);
+  return markdownTable(
+    "Public CMS/forum metadata table:",
+    ["Host", "Platform", "Path", "Status", "Observed metadata", "Boundary"],
+    rows,
+    140,
+  );
+}
+
 function createApiEndpointTable(contract: AiNarrativeReportContract): string {
   const rows = evidenceRows(contract, "bounded_public_api_endpoint_inventory_probe", ["public_api_endpoint_inventory"])
     .slice(0, 6)
@@ -916,6 +1023,28 @@ function createApiEndpointTable(contract: AiNarrativeReportContract): string {
       compactSignals(row.signals),
     ]);
   return markdownTable("API endpoint table:", ["Host", "Method", "Path", "Status", "Signals"], rows);
+}
+
+function createApiModelListDetailTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "bounded_public_api_endpoint_inventory_probe", ["public_api_endpoint_inventory"])
+    .filter((row) => stringField(row, "path") === "/v1/models")
+    .filter((row) => typeof row.model_count === "number" || arrayField(row, "model_sample").length > 0)
+    .slice(0, 4)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      typeof row.model_count === "number" ? String(row.model_count) : "",
+      arrayField(row, "model_sample").slice(0, 5).join(", "),
+      bodyPreviewMetadata(row),
+      "Public endpoint inventory only; not authenticated API validation or availability guarantee",
+    ]);
+  return markdownTable(
+    "API model list detail table:",
+    ["Host", "Path", "Status", "Model count", "Sample", "Body preview", "Boundary"],
+    rows,
+    140,
+  );
 }
 
 function createApiCompatibilityTable(contract: AiNarrativeReportContract): string {
@@ -944,10 +1073,10 @@ function createApiBaseUrlTable(contract: AiNarrativeReportContract): string {
       stringField(row, "title") ?? stringField(row, "path") ?? "",
       apiBaseUrl,
       summarizeApiCompatibilitySignals(arrayField(row, "compatibility_signals")),
-      summarizeApiCompatibilitySnippet(row),
+      summarizeApiBaseUrlSnippet(row, apiBaseUrl),
     ]))
     .slice(0, 8);
-  return markdownTable("API base URL table:", ["Page", "Base URL", "Signals", "Snippet"], rows);
+  return markdownTable("API base URL table:", ["Page", "Base URL", "Signals", "Snippet"], rows, 120);
 }
 
 function createCorsObservationTable(contract: AiNarrativeReportContract): string {
@@ -978,6 +1107,175 @@ function createPublicHostTable(contract: AiNarrativeReportContract): string {
   return markdownTable("Public host table:", ["Host", "Role", "Status", "Observed hint"], rows);
 }
 
+function createCtSubdomainCandidateTable(contract: AiNarrativeReportContract): string {
+  const rows = selectGroupedCtSubdomainCandidateRows(
+    rankRows(
+      evidenceRows(contract, "subdomain_attack_surface_probe", ["subdomains"]),
+      scoreCtSubdomainCandidateRow,
+    ),
+  )
+    .map((row) => [
+      ctHostGroupLabel(stringField(row, "host") ?? ""),
+      stringField(row, "host") ?? "",
+      stringField(row, "source") ?? arrayField(row, "sources").join(", "),
+      ctSubdomainSignals(row),
+      "CT candidate; not service inventory",
+    ]);
+  return markdownTable("CT-discovered host candidate table:", ["Group", "Host", "Source", "Signals", "Boundary"], rows);
+}
+
+function selectGroupedCtSubdomainCandidateRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const byHost = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const host = (stringField(row, "host") ?? "").toLowerCase();
+    if (!host || byHost.has(host)) continue;
+    byHost.set(host, row);
+  }
+
+  const groupLimits = new Map([
+    ["official/public", 6],
+    ["placeholder/content", 5],
+    ["storage/media", 3],
+    ["tooling/ci", 3],
+    ["translation/tool", 3],
+    ["other candidate", 2],
+  ]);
+  const selected: Record<string, unknown>[] = [];
+
+  for (const [group, limit] of groupLimits) {
+    const groupRows = Array.from(byHost.values()).filter((row) => ctHostGroupKey(stringField(row, "host") ?? "") === group);
+    selected.push(...groupRows.slice(0, limit));
+  }
+
+  return selected.slice(0, 16);
+}
+
+function createFrontendTechnologyTable(contract: AiNarrativeReportContract): string {
+  const staticRows = contract.input.brief.evidence_index
+    .filter((item) => item.probe === "frontend_technology_probe")
+    .flatMap((item) => item.evidence_items)
+    .filter((evidence) => (evidence.name ?? evidence.type).toLowerCase().includes("matomo"))
+    .map((evidence) => {
+      const value = parseEvidenceObject(evidence.value);
+      return [
+        evidence.name ?? evidence.type,
+        stringField(value, "category") ?? "analytics",
+        stringField(value, "confidence") ?? "",
+        arrayField(value, "evidence_refs").join(", "),
+        "tracker host is not ownership proof",
+      ];
+    });
+  const runtimeRows = contract.input.brief.evidence_index
+    .filter((item) => item.probe === "runtime_third_party_resources_probe")
+    .flatMap((item) => item.evidence_items)
+    .filter((evidence) => /matomo/i.test(evidence.value))
+    .map((evidence) => [
+      "Matomo",
+      "analytics",
+      "observed",
+      analyticsHostFromUrl(evidence.value) ?? "runtime third-party resource",
+      "tracker host is not ownership proof",
+    ]);
+  const rows = dedupeTechnologyRows([...staticRows, ...runtimeRows]);
+  return markdownTable(
+    "Frontend technology evidence table:",
+    ["Technology", "Category", "Confidence", "Evidence refs", "Boundary"],
+    rows,
+  );
+}
+
+function createCacheHeaderEvidenceTable(contract: AiNarrativeReportContract): string {
+  const headerNames = new Set([
+    "server",
+    "cache-control",
+    "pragma",
+    "expires",
+    "etag",
+    "last-modified",
+    "vary",
+    "age",
+    "cf-cache-status",
+    "x-cache",
+    "x-cache-hits",
+    "server-timing",
+  ]);
+  const rows: string[][] = [];
+  const seen = new Set<string>();
+
+  for (const item of contract.input.brief.evidence_index) {
+    if (!["http_headers_probe", "cache_policy_probe", "runtime_asset_cache_policy_probe"].includes(item.probe)) continue;
+
+    for (const evidence of item.evidence_items) {
+      const signal = (evidence.name ?? evidence.type).toLowerCase();
+      if (!headerNames.has(signal) && !signal.startsWith("runtime_asset_cache_")) continue;
+
+      const value = markdownCell(evidence.value, 72);
+      if (!value) continue;
+
+      const key = `${signal}:${value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      rows.push([
+        cacheHeaderSourceLabel(item.probe),
+        signal,
+        value,
+        "Header/cache signals do not prove origin topology",
+      ]);
+    }
+  }
+
+  return markdownTable("Cache/header evidence table:", ["Source", "Signal", "Observed value", "Boundary"], rows.slice(0, 10));
+}
+
+function cacheHeaderSourceLabel(probe: string): string {
+  if (probe === "cache_policy_probe") return "main response cache policy";
+  if (probe === "runtime_asset_cache_policy_probe") return "runtime asset cache policy";
+  return "main response headers";
+}
+
+function dedupeTechnologyRows(rows: string[][]): string[][] {
+  const byKey = new Map<string, string[]>();
+  for (const row of rows) {
+    const key = `${row[0].toLowerCase()}:${row[1].toLowerCase()}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, row);
+      continue;
+    }
+    const stronger = technologyConfidenceRank(row[2]) > technologyConfidenceRank(existing[2]) ? row : existing;
+    byKey.set(key, [
+      stronger[0],
+      stronger[1],
+      stronger[2],
+      uniqueStrings([...splitCommaValues(existing[3]), ...splitCommaValues(row[3])]).join(", "),
+      stronger[4],
+    ]);
+  }
+  return Array.from(byKey.values());
+}
+
+function splitCommaValues(value: string): string[] {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function technologyConfidenceRank(value: string): number {
+  const normalized = value.toLowerCase();
+  if (normalized === "confirmed") return 3;
+  if (normalized === "observed") return 2;
+  if (normalized === "likely" || normalized === "medium") return 1;
+  return 0;
+}
+
+function analyticsHostFromUrl(value: string): string | null {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    const match = value.match(/\b([a-z0-9.-]*matomo[a-z0-9.-]*)\b/i);
+    return match?.[1]?.toLowerCase() ?? null;
+  }
+}
+
 function createPublicBusinessPageTable(contract: AiNarrativeReportContract): string {
   const detailRows = evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]);
   const contentRows = evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]);
@@ -992,8 +1290,9 @@ function createPublicBusinessPageTable(contract: AiNarrativeReportContract): str
       stringField(row, "controlled_hint") ?? "",
       stringField(row, "path") ?? "",
       stringField(row, "title") ?? stringField(row, "label") ?? "",
+      arrayField(row, "workflow_terms").join(", "),
     ]);
-  return markdownTable("Public business page table:", ["Kind", "Hint", "Path", "Title"], rows);
+  return markdownTable("Public business page table:", ["Kind", "Hint", "Path", "Title", "Workflow terms"], rows);
 }
 
 function createSpaOperationEvidenceTable(contract: AiNarrativeReportContract): string {
@@ -1079,9 +1378,6 @@ function operationSupportLabel(contract: AiNarrativeReportContract, row: Record<
     if (hasProviderRoutingPublicDocs(contract)) sources.push("public docs");
     if (hasPublicModelsApiEndpoint(contract)) sources.push("public API endpoint");
   }
-  if (operation === "vendor revenue/payout" && vendorRevenueAliasContentBasis(contract)) {
-    sources.push("public payout docs");
-  }
   return sources.join(" + ");
 }
 
@@ -1090,7 +1386,6 @@ function operationConfidenceLabel(contract: AiNarrativeReportContract, row: Reco
   if (operation === "model-load/provider routing" && hasProviderRoutingPublicDocs(contract) && hasPublicModelsApiEndpoint(contract)) {
     return "medium";
   }
-  if (operation === "log-management") return "low";
   return stringField(row, "confidence") ?? "low";
 }
 
@@ -1099,7 +1394,7 @@ function hasProviderRoutingPublicDocs(contract: AiNarrativeReportContract): bool
     ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
     ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
     ...evidenceRows(contract, "public_api_compatibility_detail_probe", ["api_compatibility_snippets"]),
-  ].some((row) => /provider|routing|厂商|路由|model|模型命名|provider\/<base_model>/.test(rowSearchText(row)));
+  ].some((row) => /provider|routing|model|provider\/<base_model>/.test(rowSearchText(row)));
 }
 
 function hasPublicModelsApiEndpoint(contract: AiNarrativeReportContract): boolean {
@@ -1107,44 +1402,57 @@ function hasPublicModelsApiEndpoint(contract: AiNarrativeReportContract): boolea
     .some((row) => (stringField(row, "path") ?? "").toLowerCase() === "/v1/models");
 }
 
-function hasPublicBusinessEvidence(contract: AiNarrativeReportContract): boolean {
-  return [
-    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
-    ...evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]),
-    ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
-  ].length > 0;
-}
-
-function hasVendorOnboardingEvidence(contract: AiNarrativeReportContract): boolean {
-  return [
-    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
-    ...evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]),
-    ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
-  ].some((row) => /supplier|vendor|onboarding|入驻|products\/vendor/i.test(rowSearchText(row)));
-}
-
-function hasAnySpaOperationEvidence(contract: AiNarrativeReportContract): boolean {
-  return evidenceRows(contract, "public_spa_route_metadata_probe", ["spa_operation_hints"]).length > 0;
-}
-
-function hasSpaOperationEvidence(contract: AiNarrativeReportContract, operation: string): boolean {
-  return evidenceRows(contract, "public_spa_route_metadata_probe", ["spa_operation_hints"])
-    .some((row) => (stringField(row, "operation") ?? "").toLowerCase() === operation.toLowerCase());
-}
-
-function joinHumanList(values: string[]): string {
-  const filtered = values.filter(Boolean);
-  if (filtered.length <= 1) return filtered[0] ?? "";
-  if (filtered.length === 2) return `${filtered[0]} and ${filtered[1]}`;
-  return `${filtered.slice(0, -1).join(", ")}, and ${filtered[filtered.length - 1]}`;
-}
 
 function createSecurityControlTable(contract: AiNarrativeReportContract): string {
   const securityHeaderItem = contract.input.brief.evidence_index.find((item) => item.probe === "security_headers_probe");
   if (!securityHeaderItem) return "";
   const missingHeader = findEvidenceItemValue(securityHeaderItem, ["missing", "security_header", "security headers"]);
-  const rowValue = missingHeader || securityHeaderItem.summary;
-  return markdownTable("Security control table:", ["Control", "Observed state"], [["Missing headers", rowValue]]);
+  const rowValue = [missingHeader, securityHeaderItem.summary]
+    .filter(Boolean)
+    .filter((value, index, values) => index === 0 || !values[0]?.includes(value))
+    .join("; ");
+  return markdownTable("Security control table:", ["Control", "Observed state"], [["Missing headers", rowValue]], 160);
+}
+
+function createCorsRiskSignalTable(contract: AiNarrativeReportContract): string {
+  const sourceRows = preferRowsWithSignalText(
+    evidenceRows(contract, "bounded_cors_header_validation_probe", ["bounded_cors_checks"]),
+  );
+  const rows = sourceRows
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "method") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      compactSignals(row.signals),
+      "Risk signal; not confirmed exploitability",
+    ]);
+  return markdownTable(
+    "CORS risk signal table:",
+    ["Host", "Method", "Path", "Status", "Signals", "Boundary"],
+    rows,
+    120,
+  );
+}
+
+function createPublicApiEndpointExposureTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "bounded_public_api_endpoint_inventory_probe", ["public_api_endpoint_inventory"])
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "method") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      compactSignals(row.signals),
+      "Public endpoint observation; not authenticated API validation",
+    ]);
+  return markdownTable(
+    "Public API endpoint exposure table:",
+    ["Host", "Method", "Path", "Status", "Signals", "Boundary"],
+    rows,
+    120,
+  );
 }
 
 function createCookieObservationTable(contract: AiNarrativeReportContract): string {
@@ -1160,8 +1468,20 @@ function createCookieObservationTable(contract: AiNarrativeReportContract): stri
       stringField(row, "path") ?? stringField(row, "name") ?? "",
       statusField(row),
       parsedSummary(row) || compactSignals(row.signals) || stringField(row, "value") || "",
+      cookieObservationBoundary(row),
     ]);
-  return markdownTable("Cookie observation table:", ["Host", "Method", "Path/Cookie", "Status", "Attributes"], rows);
+  return markdownTable(
+    "Cookie observation table:",
+    ["Host", "Method", "Path/Cookie", "Status", "Attributes", "Boundary"],
+    rows,
+    120,
+  );
+}
+
+function cookieObservationBoundary(row: Record<string, unknown>): string {
+  const path = stringField(row, "path") ?? stringField(row, "name") ?? "";
+  if (/wp-login/i.test(path)) return "Public route/cookie metadata; not admin access";
+  return "Public cookie metadata; not authenticated behavior";
 }
 
 function evidenceRows(contract: AiNarrativeReportContract, probe: string, evidenceNames: string[]): Record<string, unknown>[] {
@@ -1178,12 +1498,23 @@ function parseEvidenceRecords(value: string): Record<string, unknown>[] {
   return parseEvidenceArray(value).filter(isRecord);
 }
 
-function markdownTable(label: string, headers: string[], rows: string[][]): string {
+function parseEvidenceObject(value: string): Record<string, unknown> {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{")) return {};
+  try {
+    const parsed = JSON.parse(trimmed);
+    return isRecord(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function markdownTable(label: string, headers: string[], rows: string[][], bodyCellMaxLength = 80): string {
   const filteredRows = rows.filter((row) => row.some((cell) => cell.trim().length > 0));
   if (filteredRows.length === 0) return "";
   const header = `| ${headers.map((cell) => markdownCell(cell, 48)).join(" | ")} |`;
   const divider = `| ${headers.map(() => "---").join(" | ")} |`;
-  const body = filteredRows.map((row) => `| ${row.map((cell) => markdownCell(cell, 80)).join(" | ")} |`);
+  const body = filteredRows.map((row) => `| ${row.map((cell) => markdownCell(cell, bodyCellMaxLength)).join(" | ")} |`);
   return `${label}\n${[header, divider, ...body].join("\n")}`;
 }
 
@@ -1231,9 +1562,6 @@ function scorePublicBusinessPageRow(row: Record<string, unknown>): number {
 
   score += businessOperationScore(text);
   if (path && path !== "/") score += Math.min(12, path.split("/").filter(Boolean).length * 3);
-  if (/\/products\/vendor\/application/i.test(path)) score += 30;
-  else if (/\/products\/vendor/i.test(path)) score += 24;
-  if (/\/cn\/docs\/get-started\/overview/i.test(path)) score -= 18;
   if (asStringArray(row.evidence_snippets ?? row.snippets).length > 0) score += 6;
 
   return score;
@@ -1241,17 +1569,9 @@ function scorePublicBusinessPageRow(row: Record<string, unknown>): number {
 
 function scoreSpaRouteCandidateRow(row: Record<string, unknown>): number {
   const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
-  let score = confidenceScore(stringField(row, "confidence")) + businessOperationScore(route);
+  let score = confidenceScore(stringField(row, "confidence"));
 
-  if (/^\/products\/vendor\/application$/.test(route)) score += 38;
-  else if (/^\/products\/vendor$/.test(route)) score += 34;
-  else if (/^\/vendor\/(revenue|log)$/.test(route)) score += 32;
-  else if (/^\/vendor$/.test(route)) score += 28;
-  if (/^\/setting\/payment$/.test(route)) score += 30;
-  if (/^\/(pricing|model)$/.test(route)) score += 24;
-  if (/^\/(login|signup)$/.test(route)) score += 24;
-  if (/^\/(dashboard|billing|wallet)$/.test(route)) score += 14;
-  if (/^\/log$/.test(route)) score += 8;
+  if (/^\/(pricing|billing|dashboard|login|signup|settings?)$/.test(route)) score += 20;
   if (/^\/(?:admin|api|auth|tool|agent|affiliate)\//.test(route)) score -= 50;
   if (route === "/" || route.includes("*")) score -= 20;
   if (/\.(js|css|svg|png|jpg|webp)$/i.test(route)) score -= 40;
@@ -1270,44 +1590,90 @@ function scoreSpaAssetPreviewRow(row: Record<string, unknown>): number {
 }
 
 function scoreSpaOperationEvidenceRow(row: Record<string, unknown>): number {
-  const operation = (stringField(row, "operation") ?? "").toLowerCase();
-  const text = rowSearchText(row);
-  let score = confidenceScore(stringField(row, "confidence"));
-  if (operation === "model-load/provider routing") score += 60;
-  if (operation === "vendor revenue/payout") score += 46;
-  if (operation === "supplier/vendor onboarding") score += 34;
-  if (operation === "payment/billing") score += 28;
-  if (operation === "log-management") score += 44;
-  if (/model_load|provider[_/-]?routing|\/v1\/models|channel[_/-]?manage[_/-]?log/.test(text)) score += 12;
-  return score;
+  return confidenceScore(stringField(row, "confidence"));
 }
 
 function scoreApiCompatibilityRow(row: Record<string, unknown>): number {
   const text = rowSearchText(row);
-  const path = (stringField(row, "path") ?? "").toLowerCase();
   const apiBaseUrls = arrayField(row, "api_base_urls");
   const apiBaseUrlText = apiBaseUrls.join(" ").toLowerCase();
   let score = confidenceScore(stringField(row, "confidence"));
-  if (/\/base-url(?:\.md)?$/.test(path)) score += 90;
-  if (/\/openai-completions\//.test(path)) score += 78;
-  if (/\/anthropic-messages\//.test(path)) score += 72;
-  if (/\/model-naming(?:\.md)?$|provider-routing/.test(path)) score += 66;
-  if (/prompt-caching/.test(path)) score -= 24;
   if (apiBaseUrls.length > 0) score += 80;
   if (apiBaseUrls.length > 1) score += 90;
-  if (/api-eu|regional|副接口|直连|无\s*cdn/.test(apiBaseUrlText)) score += 60;
-  if (/base url|接口地址/.test(text)) score += 36;
-  if (/api-eu|regional|副接口|直连|无\s*cdn/.test(text)) score += 32;
+  if (/api-eu|regional/.test(apiBaseUrlText)) score += 60;
+  if (/base url/.test(text)) score += 36;
+  if (/api-eu|regional/.test(text)) score += 32;
   if (/https?:\/\/[a-z0-9.-]*api[a-z0-9.-]*\./.test(text)) score += 30;
   if (/chat completions|\/v1\/chat\/completions/.test(text)) score += 36;
   if (/responses|\/v1\/responses/.test(text)) score += 28;
   if (/anthropic|messages|\/v1\/messages/.test(text)) score += 30;
   if (/openai|chatgpt|gpt-/.test(text)) score += 28;
-  if (/compatib|兼容|差异说明/.test(text)) score += 28;
-  if (/model naming|模型命名|provider\/<base_model>|provider routing|模型厂商|路由/.test(text)) score += 34;
-  if (/us-east|regional|直连/.test(text)) score += 20;
+  if (/compatib/.test(text)) score += 28;
+  if (/model naming|provider\/<base_model>|provider routing/.test(text)) score += 34;
+  if (/us-east|regional/.test(text)) score += 20;
   if (stringField(row, "path")) score += 8;
   return score;
+}
+
+function scorePublicAppHeaderMetadataRow(row: Record<string, unknown>): number {
+  const host = (stringField(row, "host") ?? "").toLowerCase();
+  const signals = publicAppHeaderMetadataSignals(row).toLowerCase();
+  let score = 0;
+  if (host.includes("docs.")) score += 28;
+  if (host.includes("community.")) score += 22;
+  if (host.includes("blog.")) score += 14;
+  if (/mintlify|mint proxy|vercel|next\/rsc/.test(signals)) score += 30;
+  if (/discourse|x-runtime/.test(signals)) score += 24;
+  if (statusField(row)) score += 4;
+  return score;
+}
+
+function scorePublicCmsForumMetadataRow(row: Record<string, unknown>): number {
+  const host = (stringField(row, "host") ?? "").toLowerCase();
+  const path = (stringField(row, "path") ?? "").toLowerCase();
+  const signals = publicCmsForumMetadataSignals(row).toLowerCase();
+  let score = 0;
+  if (host.includes("blog.")) score += 24;
+  if (host.includes("community.")) score += 22;
+  if (path.includes("wp-json")) score += 28;
+  if (path.includes("latest.json")) score += 18;
+  if (/wordpress|wp-json|namespace|timezone|asset version/.test(signals)) score += 30;
+  if (/discourse|x-discourse-route|x-runtime|cached/.test(signals)) score += 28;
+  if (statusField(row)) score += 4;
+  return score;
+}
+
+function scoreCtSubdomainCandidateRow(row: Record<string, unknown>): number {
+  const host = (stringField(row, "host") ?? "").toLowerCase();
+  const labels = host.split(".").filter(Boolean);
+  const leftLabel = labels[0] ?? "";
+  let score = 0;
+
+  if (labels.length === 3) score += 28;
+  if (labels.length > 3) score -= 16;
+  if (/^(admin|internal|dev|test|ci|s3|n8n|bt|fanyi|translate|proxify)$/i.test(leftLabel)) score -= 28;
+  if (/^(api|docs|blog|community|status)$/i.test(leftLabel)) score += 14;
+  if (/^[a-z][a-z0-9-]{2,20}$/i.test(leftLabel)) score += 8;
+  if (arrayField(row, "indicators").length > 0) score += 4;
+
+  return score;
+}
+
+function ctHostGroupLabel(host: string): string {
+  return ctHostGroupKey(host);
+}
+
+function ctHostGroupKey(host: string): string {
+  const normalized = host.toLowerCase();
+  const labels = normalized.split(".").filter(Boolean);
+  const leftLabel = labels[0] ?? "";
+
+  if (/^(api|docs|blog|community|status)$/.test(leftLabel)) return "official/public";
+  if (/^(academy|news|nav|demo)$/.test(leftLabel)) return "placeholder/content";
+  if (leftLabel === "s3" || normalized.includes(".s3.")) return "storage/media";
+  if (/^(ci|bench)$/.test(leftLabel)) return "tooling/ci";
+  if (/^(fanyi|translate)$/.test(leftLabel) || normalized.includes(".translate.")) return "translation/tool";
+  return "other candidate";
 }
 
 function confidenceScore(value: string | null): number {
@@ -1320,12 +1686,12 @@ function confidenceScore(value: string | null): number {
 
 function businessOperationScore(text: string): number {
   let score = 0;
-  if (/supplier|vendor|onboarding|入驻/.test(text)) score += 28;
-  if (/payout|withdraw|withdrawal|settlement|收益|提现/.test(text)) score += 26;
-  if (/routing|provider|厂商|路由/.test(text)) score += 24;
-  if (/pricing|price|cost|discount|成本|降|价格/.test(text)) score += 18;
-  if (/token|recharge|billing|payment|wallet|log|model|令牌|充值|账单|日志|模型/.test(text)) score += 16;
-  if (/about|platform|关于|平台/.test(text)) score += 8;
+  if (/supplier|vendor|onboarding/.test(text)) score += 28;
+  if (/payout|withdraw|withdrawal|settlement/.test(text)) score += 26;
+  if (/routing|provider/.test(text)) score += 24;
+  if (/pricing|price|cost|discount/.test(text)) score += 18;
+  if (/token|recharge|billing|payment|wallet|log|model/.test(text)) score += 16;
+  if (/about|platform/.test(text)) score += 8;
   return score;
 }
 
@@ -1343,6 +1709,7 @@ function rowSearchText(row: Record<string, unknown>): string {
     stringField(row, "source_asset"),
     stringField(row, "role"),
     compactSignals(row.signals),
+    ...arrayField(row, "workflow_terms"),
     ...asStringArray(row.evidence_snippets ?? row.snippets),
   ];
   return parts.filter((part): part is string => Boolean(part)).join(" ").toLowerCase();
@@ -1362,6 +1729,117 @@ function publicHostObservedHint(row: Record<string, unknown>): string {
   if (role && status) return `${role} host HTTP ${status}`;
   if (status) return `HTTP ${status}`;
   return role ? `${role} host observed` : "";
+}
+
+function bodyPreviewMetadata(row: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (typeof row.body_preview_bytes === "number") parts.push(`${row.body_preview_bytes} bytes sampled`);
+  if (typeof row.body_preview_truncated === "boolean") parts.push(row.body_preview_truncated ? "truncated" : "not truncated");
+  return parts.join("; ");
+}
+
+function publicAppHeaderMetadataSignals(row: Record<string, unknown>): string {
+  const signals: string[] = [];
+  const discourseRoute = stringField(row, "discourse_route");
+  const discourseRuntime = stringField(row, "discourse_runtime");
+  const mintlifyClient = stringField(row, "mintlify_client_version");
+  const mintProxy = stringField(row, "mint_proxy_version");
+  const vercelCache = stringField(row, "vercel_cache");
+  const nextRscVary = stringField(row, "next_rsc_vary");
+  if (discourseRoute) signals.push(`Discourse route ${discourseRoute}`);
+  if (discourseRuntime) signals.push(`x-runtime ${discourseRuntime}`);
+  if (mintlifyClient) signals.push(`Mintlify ${mintlifyClient}`);
+  if (mintProxy) signals.push(`Mint proxy ${mintProxy}`);
+  if (vercelCache) signals.push(`Vercel ${vercelCache}`);
+  if (nextRscVary) signals.push("Next/RSC vary");
+  if (signals.length === 0) signals.push(...arrayField(row, "signals").slice(0, 3));
+  return signals.slice(0, 4).join(", ");
+}
+
+function publicCmsForumPlatformLabel(row: Record<string, unknown>): string {
+  const parsed = parsedField(row);
+  const host = (stringField(row, "host") ?? "").toLowerCase();
+  const path = (stringField(row, "path") ?? "").toLowerCase();
+  const text = rowSearchText({ ...row, ...parsed });
+  if (path.includes("wp-json") || host.includes("blog.") || /wordpress|wp-json|wp\/v2|oembed/.test(text)) return "WordPress public metadata";
+  if (host.includes("community.") || /discourse|x_discourse|x-discourse|list\/latest/.test(text)) return "Discourse public metadata";
+  return "";
+}
+
+function publicCmsForumMetadataSignals(row: Record<string, unknown>): string {
+  const parsed = parsedField(row);
+  const signals: string[] = [];
+  const wordpressName = stringField(parsed, "wordpress_name") ?? stringField(row, "wordpress_name");
+  const wordpressTimezone = stringField(parsed, "wordpress_timezone") ?? stringField(row, "wordpress_timezone");
+  const wordpressNamespaces = arrayField(parsed, "wordpress_namespaces").length > 0
+    ? arrayField(parsed, "wordpress_namespaces")
+    : arrayField(row, "wordpress_namespaces");
+  const wordpressAssetVersions = arrayField(parsed, "wordpress_asset_versions").length > 0
+    ? arrayField(parsed, "wordpress_asset_versions")
+    : arrayField(row, "wordpress_asset_versions");
+  const discourseRoute = stringField(parsed, "discourse_route")
+    ?? stringField(parsed, "x_discourse_route")
+    ?? stringField(row, "discourse_route")
+    ?? stringField(row, "x_discourse_route");
+  const discourseCached = stringField(parsed, "discourse_cached")
+    ?? stringField(parsed, "x_discourse_cached")
+    ?? stringField(row, "discourse_cached")
+    ?? stringField(row, "x_discourse_cached");
+  const discourseRuntime = stringField(parsed, "discourse_runtime")
+    ?? stringField(parsed, "x_runtime")
+    ?? stringField(row, "discourse_runtime")
+    ?? stringField(row, "x_runtime");
+
+  if (wordpressNamespaces.length > 0) signals.push(`wordpress_namespaces=${prioritizeWordpressNamespaces(wordpressNamespaces).join(",")}`);
+  if (wordpressName) signals.push(`wordpress_name=${wordpressName}`);
+  if (wordpressTimezone) signals.push(`wordpress_timezone=${wordpressTimezone}`);
+  if (wordpressAssetVersions.length > 0) signals.push(`wordpress_asset_versions=${wordpressAssetVersions.slice(0, 3).join(",")}`);
+  if (discourseRoute) signals.push(`x-discourse-route=${discourseRoute}`);
+  if (discourseCached) signals.push(`x-discourse-cached=${discourseCached}`);
+  if (discourseRuntime) signals.push(`x-runtime=${discourseRuntime}`);
+  return signals.slice(0, 4).join(", ");
+}
+
+function prioritizeWordpressNamespaces(values: string[]): string[] {
+  const priority = ["meow-lightbox", "farallon", "wp/v2", "oembed/1.0"];
+  const unique = uniqueStrings(values);
+  const selected = [
+    ...priority.filter((item) => unique.includes(item)),
+    ...unique.filter((item) => !priority.includes(item)),
+  ];
+  return selected.slice(0, 4);
+}
+
+function publicCmsForumBoundary(row: Record<string, unknown>): string {
+  const platform = publicCmsForumPlatformLabel(row).toLowerCase();
+  if (platform.includes("wordpress")) {
+    return "Public metadata; not admin access, vulnerability proof, or exact core version";
+  }
+  if (platform.includes("discourse")) {
+    return "Public headers/metadata; not authenticated community behavior";
+  }
+  return "Public metadata only";
+}
+
+function parsedField(row: Record<string, unknown>): Record<string, unknown> {
+  return isRecord(row.parsed) ? row.parsed : {};
+}
+
+function formatPublicAppHeaderMetadataFact(row: Record<string, unknown>): string {
+  const host = stringField(row, "host");
+  const signals = publicAppHeaderMetadataSignals(row);
+  if (!host || !signals) return "";
+  return `${host}: ${signals}`;
+}
+
+function ctSubdomainSignals(row: Record<string, unknown>): string {
+  const signals = [
+    ...arrayField(row, "sources"),
+    ...arrayField(row, "indicators"),
+  ];
+  const source = stringField(row, "source");
+  if (source && signals.length === 0) signals.push(source);
+  return signals.slice(0, 3).join(", ");
 }
 
 function isGenericHomepageBusinessRow(row: Record<string, unknown>): boolean {
@@ -1403,7 +1881,11 @@ function formatSignalLabel(value: string): string {
   const normalized = value.trim();
   const [key, ...rest] = normalized.split(":");
   const detail = rest.join(":");
-  if (key === "cors_allow_origin" || key === "access_control_allow_origin_reflects_probe_origin") {
+  if (key === "access_control_allow_origin_reflects_probe_origin") {
+    return detail ? `allow-origin reflected (${detail})` : "allow-origin reflected";
+  }
+  if (key === "cors_allow_origin") {
+    if (detail.includes("site-10-layer-check.invalid")) return `allow-origin reflected (${detail})`;
     return detail ? `allow-origin ${detail}` : "allow-origin reflected";
   }
   if (key === "cors_allow_credentials" || key === "access_control_allow_credentials_true") return "allow-credentials true";
@@ -1430,7 +1912,7 @@ function basenameFromPath(value: string): string {
 function formatBusinessOperationPage(value: Record<string, unknown>): string {
   const title = stringField(value, "title") ?? stringField(value, "label") ?? stringField(value, "path");
   const path = stringField(value, "path");
-  const snippets = asStringArray(value.evidence_snippets ?? value.snippets)
+  const snippets = [...arrayField(value, "workflow_terms"), ...asStringArray(value.evidence_snippets ?? value.snippets)]
     .map((snippet) => snippet.replace(/\s+/g, " ").trim())
     .filter(Boolean)
     .slice(0, 1);
@@ -1443,6 +1925,10 @@ function extractBusinessOperationTopics(values: string[]): string[] {
   const text = values.join(" ").toLowerCase();
   const labels: string[] = [];
   if (/supplier|vendor|onboarding|入驻/.test(text)) labels.push("supplier/vendor onboarding");
+  if (/创建令牌/.test(text)) labels.push("创建令牌/token creation");
+  if (/充值/.test(text)) labels.push("充值/recharge");
+  if (/查看日志/.test(text)) labels.push("查看日志/logs");
+  if (/收益提现/.test(text)) labels.push("收益提现/payouts");
   if (/payout|withdraw|withdrawal|提现|settlement/.test(text)) labels.push("payouts/withdrawals");
   if (/model[_/-]?load|model[_/-]?stat|\/v1\/models|\/dash\/model/.test(text)) labels.push("model-load/provider routing");
   if (/routing|provider|厂商|路由/.test(text)) labels.push("provider routing");
@@ -1466,6 +1952,55 @@ function summarizeApiCompatibilitySnippet(row: Record<string, unknown>): string 
   return truncate(preferred.replace(/\s+/g, " "), 120);
 }
 
+function summarizeApiBaseUrlSnippet(row: Record<string, unknown>, apiBaseUrl: string): string {
+  const snippets = arrayField(row, "snippets");
+  const excerpt = stringField(row, "excerpt");
+  const regionalBaseUrl = isRegionalApiBaseUrl(apiBaseUrl);
+  const preferred = snippets.find((snippet) => snippetMentionsApiBaseUrl(snippet, apiBaseUrl))
+    ?? (regionalBaseUrl ? summarizeRegionalApiBaseUrlFallback(row, apiBaseUrl) : null)
+    ?? snippets.find((snippet) => /https?:\/\/|api-eu|\/v1\/(?:chat\/completions|messages|responses)/i.test(snippet))
+    ?? excerpt
+    ?? snippets[0]
+    ?? "";
+  return truncate(preferred.replace(/\s+/g, " "), 120);
+}
+
+function summarizeRegionalApiBaseUrlFallback(row: Record<string, unknown>, apiBaseUrl: string): string | null {
+  const signals = arrayField(row, "compatibility_signals").join(" ");
+  const snippets = arrayField(row, "snippets");
+  const hasRegionalEvidence = /regional|api-eu|direct|without\s+cdn|no\s*cdn|副接口|直连|无\s*cdn/i.test(signals)
+    || snippets.some(isRegionalApiEndpointSnippet);
+  return hasRegionalEvidence ? `Regional endpoint documented: ${apiBaseUrl}` : null;
+}
+
+function snippetMentionsApiBaseUrl(snippet: string, apiBaseUrl: string): boolean {
+  const normalizedSnippet = snippet.toLowerCase();
+  for (const candidate of apiBaseUrlMatchCandidates(apiBaseUrl)) {
+    if (candidate && normalizedSnippet.includes(candidate)) return true;
+  }
+  return false;
+}
+
+function apiBaseUrlMatchCandidates(apiBaseUrl: string): string[] {
+  const normalized = apiBaseUrl.toLowerCase().replace(/\/+$/, "");
+  const candidates = [normalized, `${normalized}/`];
+  try {
+    const parsed = new URL(apiBaseUrl);
+    candidates.push(parsed.host.toLowerCase());
+  } catch {
+    // Keep the normalized string fallback for malformed candidate evidence.
+  }
+  return uniqueStrings(candidates);
+}
+
+function isRegionalApiBaseUrl(apiBaseUrl: string): boolean {
+  return /api-[a-z]+-[a-z]+-\d|api-eu|dc\d+|regional/i.test(apiBaseUrl);
+}
+
+function isRegionalApiEndpointSnippet(snippet: string): boolean {
+  return /api-[a-z]+-[a-z]+-\d|api-eu|dc\d+|regional|direct|without\s+cdn|no\s*cdn|副接口|直连|无\s*cdn/i.test(snippet);
+}
+
 function arrayField(value: Record<string, unknown>, key: string): string[] {
   const field = value[key];
   if (!Array.isArray(field)) return [];
@@ -1475,6 +2010,17 @@ function arrayField(value: Record<string, unknown>, key: string): string[] {
 function stringField(value: Record<string, unknown>, key: string): string | null {
   const field = value[key];
   return typeof field === "string" && field.length > 0 ? field : null;
+}
+
+function stringifyEvidenceValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (value === null || value === undefined) return "";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
 }
 
 function createFallbackContent(
@@ -1598,6 +2144,7 @@ function shapeSectionContent(sectionId: string, content: string): string {
         "Public SPA asset metadata:",
         "Found 2 application fingerprint",
         "Bounded public app header metadata:",
+        "Static frontend marker evidence:",
         "Bounded public metadata check:",
         "Observed public app marker(s):",
         "Extracted ",
@@ -1636,6 +2183,10 @@ function shapeSectionContent(sectionId: string, content: string): string {
     return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Security evidence:"],
       paragraphMarkers: [
+        "CORS risk signal:",
+        "Public API endpoint exposure:",
+        "Bounded public CORS check:",
+        "Bounded public API endpoint inventory:",
         "No Set-Cookie",
         "Missing security headers:",
         "Frame embedding policy",
@@ -1690,7 +2241,7 @@ function shapeApiProtocolSurfaceContent(
 
 function compressInlineEvidenceProse(sectionId: string, content: string): string {
   if (sectionId === "missing_data_next_steps") return content;
-  const paragraphs = collapseExcessParagraphs(content)
+  const paragraphs = collapseExcessParagraphs(removeInlineDeterministicTableFragments(sectionId, content))
     .map((paragraph) => compressInlineEvidenceParagraph(sectionId, paragraph));
   return dedupeCompressedSectionParagraphs(sectionId, paragraphs)
     .join("\n\n");
@@ -1723,6 +2274,15 @@ function createInlineEvidenceDigest(sectionId: string, claim: string, rawEvidenc
   if (sectionId === "security_posture" && normalized.includes("content-security-policy")) {
     return "Header evidence includes CSP/HSTS absence and frame/content-type/referrer controls.";
   }
+  if (
+    sectionId === "security_posture" &&
+    (claimNormalized.includes("cors") || claimNormalized.includes("access-control"))
+  ) {
+    return "CORS response-header signals are risk signals, not confirmed exploitability.";
+  }
+  if (sectionId === "security_posture" && (normalized.includes("/health") || normalized.includes("/v1/models"))) {
+    return "Bounded public API endpoint observations are inventory signals, not authenticated API validation.";
+  }
   if (sectionId === "security_posture" && normalized.includes("set-cookie")) {
     return "Cookie evidence is limited to the bounded public checks.";
   }
@@ -1742,6 +2302,7 @@ function dedupeCompressedSectionParagraphs(sectionId: string, paragraphs: string
     ) {
       continue;
     }
+    if (shouldDropDenseTableOwnedParagraph(sectionId, paragraph)) continue;
     const key = compressedParagraphDedupeKey(sectionId, paragraph);
     if (key && seen.has(key)) continue;
     if (key) seen.add(key);
@@ -1758,8 +2319,110 @@ function compressedParagraphDedupeKey(sectionId: string, paragraph: string): str
   if (sectionId === "security_posture" && normalized.startsWith("no set-cookie header was observed")) return "no_set_cookie";
   if (sectionId === "security_posture" && normalized.startsWith("missing security headers:")) return "missing_security_headers";
   if (sectionId === "security_posture" && normalized.startsWith("bounded public cookie check:")) return "bounded_cookie_check";
+  if (sectionId === "security_posture" && normalized.startsWith("bounded public cors check:")) return "bounded_cors_check";
+  if (sectionId === "security_posture" && normalized.startsWith("cors risk signal:")) return "cors_risk_signal";
+  if (sectionId === "security_posture" && normalized.startsWith("public api endpoint exposure:")) {
+    return "public_api_endpoint_exposure";
+  }
+  if (sectionId === "security_posture" && normalized.startsWith("bounded public api endpoint inventory:")) {
+    return "bounded_public_api_endpoint_inventory";
+  }
   if (sectionId === "api_protocol_surface" && normalized.startsWith("bounded public cors check:")) return "bounded_cors_check";
   return null;
+}
+
+function shouldDropDenseTableOwnedParagraph(sectionId: string, paragraph: string): boolean {
+  const normalized = paragraph.toLowerCase();
+  if (sectionId === "technology_stack") {
+    return (
+      normalized.startsWith("bounded public app header metadata:") ||
+      normalized.startsWith("public app/header metadata:") ||
+      normalized.startsWith("observed public app header metadata signal") ||
+      normalized.includes("docs.poix...")
+    );
+  }
+  return false;
+}
+
+function removeInlineDeterministicTableFragments(sectionId: string, content: string): string {
+  const labelsBySection: Record<string, string[]> = {
+    public_information_architecture: [
+      "Public content surface table:",
+      "Public detail page table:",
+      "SPA route candidate table:",
+    ],
+    technology_stack: [
+      "Frontend technology evidence table:",
+      "SPA signal table:",
+      "SPA asset preview table:",
+      "Public app marker table:",
+      "Public app header metadata table:",
+    ],
+    deployment_network_surface: ["Cache/header evidence table:"],
+    api_protocol_surface: [
+      "API base URL table:",
+      "API compatibility evidence table:",
+      "API endpoint table:",
+      "API model list detail table:",
+      "CORS observation table:",
+    ],
+    subdomain_attack_surface: [
+      "Public host table:",
+      "CT-discovered host candidate table:",
+    ],
+    organization_operations: [
+      "Public business page table:",
+      "SPA operation evidence table:",
+      "Organization evidence table:",
+    ],
+    security_posture: [
+      "Security control table:",
+      "CORS risk signal table:",
+      "Public API endpoint exposure table:",
+      "Cookie observation table:",
+    ],
+  };
+  let result = content;
+  for (const label of labelsBySection[sectionId] ?? []) {
+    result = removeInlineTableFragment(result, label);
+  }
+  return result;
+}
+
+function removeInlineTableFragment(content: string, label: string): string {
+  let result = content;
+  let start = result.indexOf(`${label} |`);
+  while (start >= 0) {
+    const end = findInlineTableFragmentEnd(result, start + label.length);
+    result = `${result.slice(0, start).trimEnd()} ${result.slice(end).trimStart()}`.replace(/\s{2,}/g, " ").trim();
+    start = result.indexOf(`${label} |`);
+  }
+  return result;
+}
+
+function findInlineTableFragmentEnd(content: string, fromIndex: number): number {
+  const markers = [
+    "Subdomain/reachability matrix:",
+    "Public SPA asset metadata:",
+    "Bounded public app header metadata:",
+    "Public product/business detail:",
+    "Public business/product content:",
+    "Public API compatibility detail:",
+    "Security evidence:",
+    "Missing security headers:",
+    "Frame embedding policy",
+    "No Set-Cookie",
+    "Browser runtime",
+    "Collected ",
+    "Checked ",
+    "Found ",
+    "Evidence:",
+    "Boundaries:",
+  ];
+  const candidates = markers
+    .map((marker) => content.indexOf(marker, fromIndex))
+    .filter((index) => index >= 0);
+  return candidates.length > 0 ? Math.min(...candidates) : content.length;
 }
 
 function dedupeApiCorsBoilerplate(content: string): string {
@@ -1854,6 +2517,10 @@ function isInvalidSectionLimitation(value: string): boolean {
   const normalized = value.toLowerCase();
   return (
     normalized.includes(" evidence:") ||
+    normalized.includes("public spa asset metadata:") ||
+    normalized.includes("bounded public app header metadata:") ||
+    normalized.includes("static frontend marker evidence:") ||
+    normalized.includes("no third-party script was found") ||
     normalized.includes("generated from bounded reportbrief") ||
     normalized.includes("do not place ") ||
     normalized.includes("do not infer ") ||
@@ -1912,7 +2579,7 @@ function trimOrganizationParagraph(value: string): string {
   if (value.startsWith("Public operations evidence: ")) {
     const trimmed = value.replace(/^Public operations evidence:\s*/, "");
     if (/^Business model synthesis:/i.test(trimmed)) return trimBusinessModelSynthesisParagraph(trimmed);
-    if (/^Collected organization-facing DNS/i.test(trimmed)) return "";
+    if (/^Collected organization-facing DNS/i.test(trimmed) && !/larksuite|mail DNS/i.test(trimmed)) return "";
     if (/^Public SPA operation evidence:/i.test(trimmed)) {
       return `Public operations evidence: ${trimmed.replace(/^Public SPA operation evidence:\s*/i, "SPA operation hints: ")}`;
     }

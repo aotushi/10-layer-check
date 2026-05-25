@@ -62,7 +62,7 @@ try {
     throw new Error("AI narrative report contract should forbid one-section-per-layer output.");
   }
   if (!contract.output_contract.section_guidance?.some((item) => item.id === "technology_stack")) {
-    throw new Error("AI narrative report contract should include poixe-style topical section guidance.");
+    throw new Error("AI narrative report contract should include topical section guidance.");
   }
   if (!contract.output_contract.section_guidance?.some((item) => item.fact_hints?.some((hint) => hint.includes("server=example")))) {
     throw new Error("AI narrative report contract should include concrete section fact hints.");

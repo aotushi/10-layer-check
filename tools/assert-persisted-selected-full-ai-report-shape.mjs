@@ -274,7 +274,7 @@ function assertConcreteFactHints(contract) {
     "Cookie",
     "Subdomain/reachability matrix",
     "/v1/models",
-    "wordpress_name",
+    "Matomo",
   ]) {
     if (!factHints.some((hint) => hint.toLowerCase().includes(expected.toLowerCase())) && process.env.DEBUG_FACT_HINTS) {
       console.log(factHints.join("\n---\n"));
@@ -324,8 +324,12 @@ function assertSectionGuidancePlacement(contract) {
     "Security section should receive bounded cookie evidence.",
   );
   assert.ok(
-    !probes("security_posture").includes("bounded_cors_header_validation_probe"),
-    "Security section should not receive primary bounded CORS evidence.",
+    probes("security_posture").includes("bounded_cors_header_validation_probe"),
+    "Security section should receive bounded CORS evidence as a risk signal.",
+  );
+  assert.ok(
+    probes("security_posture").includes("bounded_public_api_endpoint_inventory_probe"),
+    "Security section should receive bounded public API endpoint inventory evidence as exposure metadata.",
   );
   assert.ok(
     !probes("organization_operations").includes("public_content_surface_probe"),
@@ -336,8 +340,12 @@ function assertSectionGuidancePlacement(contract) {
     "Organization section should not receive primary content detail map evidence.",
   );
   assert.ok(facts("api_protocol_surface").includes("/v1/models"), "API facts should include concrete endpoint paths.");
-  assert.ok(facts("technology_stack").includes("wordpress_name"), "Technology facts should include parsed WordPress metadata.");
   assert.ok(facts("security_posture").includes("set-cookie"), "Security facts should include cookie observations.");
+  assert.ok(facts("security_posture").includes("cors"), "Security facts should include bounded CORS observations.");
+  assert.ok(
+    facts("security_posture").includes("/v1/models"),
+    "Security facts should include bounded API endpoint inventory observations.",
+  );
 }
 
 function assertMarkdownPlacement(markdown) {
@@ -387,8 +395,8 @@ function assertSectionFactOwnership(markdown) {
     "Organization section should not repeat public product/business detail paragraphs.",
   );
   assert.ok(
-    !security.includes("bounded public cors check:") && !security.includes("observed cors response header"),
-    "Security section should not duplicate CORS facts owned by API.",
+    !security.includes("cors observation table:"),
+    "Security section should not duplicate the API-owned CORS observation table.",
   );
 }
 
@@ -504,6 +512,7 @@ function assertSectionSpecificTables(markdown) {
   const summary = sectionText(markdown, "Executive Summary");
   const publicIa = sectionText(markdown, "Public Information Architecture");
   const technology = sectionText(markdown, "Technology Stack");
+  const deployment = sectionText(markdown, "Deployment and Network Surface");
   const api = sectionText(markdown, "API and Protocol Surface");
   const subdomains = sectionText(markdown, "Subdomains and Attack Surface");
   const organization = sectionText(markdown, "Organization and Operations Signals");
@@ -516,62 +525,172 @@ function assertSectionSpecificTables(markdown) {
   ]) {
     assert.ok(publicIa.includes(expected), `Public IA should include ${expected}`);
   }
-  for (const expected of ["SPA signal table:", "SPA asset preview table:", "Public app marker table:"]) {
+  for (const expected of [
+    "Frontend technology evidence table:",
+    "SPA signal table:",
+    "SPA asset preview table:",
+    "Public app marker table:",
+    "Public CMS/forum metadata table:",
+    "Public app header metadata table:",
+  ]) {
     assert.ok(technology.includes(expected), `Technology section should include ${expected}`);
   }
-  for (const expected of ["API base URL table:", "API compatibility evidence table:", "API endpoint table:", "CORS observation table:"]) {
+  assert.ok(technology.includes("| Matomo | analytics | confirmed |"), "Technology section should surface static Matomo marker evidence.");
+  assert.ok(technology.includes("matomo.gptocean.com"), "Technology section should surface the public tracker host marker.");
+  assert.ok(
+    technology.includes("runtime-matomo.example"),
+    "Technology section should preserve Matomo runtime third-party resource evidence in the merged technology row.",
+  );
+  assert.ok(
+    technology.includes("not ownership proof"),
+    "Technology section should bound tracker-host evidence as a signal rather than ownership proof.",
+  );
+  assert.ok(
+    technology.includes("| docs.poixe.example | cors | 308 | Mintlify 0.0.2952, Mint proxy 1.0.0-prod, Vercel MISS, Next/RSC vary |"),
+    "Technology section should preserve full docs host app-header metadata without truncated host fragments.",
+  );
+  assert.ok(
+    technology.includes("| blog.poixe.example | WordPress public metadata | /wp-json/ | 200 |"),
+    "Technology section should render WordPress public metadata without unsupported admin/version/vulnerability claims.",
+  );
+  assert.ok(
+    technology.includes("wordpress_name=Poixe Blog")
+      && technology.includes("wordpress_timezone=Asia/Shanghai")
+      && technology.includes("Public metadata; not admin access, vulnerability proof, or exact core version"),
+    "Technology section should render WordPress public metadata values and boundary.",
+  );
+  assert.ok(
+    technology.includes("| community.poixe.example | Discourse public metadata | /latest.json | 200 |"),
+    "Technology section should render Discourse public route/runtime metadata without authenticated-behavior claims.",
+  );
+  assert.ok(
+    technology.includes("x-discourse-route=list/latest")
+      && technology.includes("x-discourse-cached=skip")
+      && technology.includes("x-runtime=0.809627")
+      && technology.includes("Public headers/metadata; not authenticated community behavior"),
+    "Technology section should render Discourse public route/runtime values and boundary.",
+  );
+  assert.ok(!markdown.includes("docs.poix..."), "Generated Markdown should not include truncated docs host fragments.");
+  for (const unexpected of [
+    "Public host table: |",
+    "SPA signal table: |",
+    "Security control table: |",
+    "CORS risk signal table: |",
+    "Public API endpoint exposure table: |",
+    "API model list detail table: |",
+  ]) {
+    assert.ok(!markdown.includes(unexpected), `Generated Markdown should not include inline table fragment ${unexpected}`);
+  }
+  assert.ok(deployment.includes("Cache/header evidence table:"), "Deployment section should include cache/header evidence table.");
+  for (const expected of ["cloudflare", "cache-control", "cf-cache-status", "last-modified", "etag"]) {
+    assert.ok(deployment.toLowerCase().includes(expected), `Deployment cache/header table should include ${expected}.`);
+  }
+  assert.ok(
+    deployment.includes("Header/cache signals do not prove origin topology"),
+    "Deployment cache/header table should keep the non-origin-topology boundary.",
+  );
+  assert.ok(
+    !deployment.toLowerCase().includes("nginx"),
+    "Deployment section should not include unsupported nginx evidence.",
+  );
+  for (const expected of [
+    "API base URL table:",
+    "API compatibility evidence table:",
+    "API endpoint table:",
+    "API model list detail table:",
+    "CORS observation table:",
+  ]) {
     assert.ok(api.includes(expected), `API section should include ${expected}`);
   }
-  assert.match(
-    api,
-    /\| Base URL \| https:\/\/api\.poixe\.example\/ \| base URL documentation; regional endpoint documentation \| Public API base URLs include https:\/\/api\.poixe\.example[\s\S]*\| Base URL \| https:\/\/api-eu-central-1-dc8\.poixe\.example\/ \| base URL documentation; regional endpoint documentation \| Public API base URLs include https:\/\/api\.poixe\.example/,
-    "API base URL table should preserve compact public-doc base URL evidence without truncating regional endpoints.",
+  assert.ok(
+    api.includes("| api.poixe.example | /v1/models | 200 | 3 | gpt-4o-mini, claude-3-5-sonnet, deepseek-chat |")
+      && api.includes("Public endpoint inventory only; not authenticated API validation or availability guarantee"),
+    "API model list detail table should preserve public /v1/models count, sample, and boundary.",
   );
   assert.match(
     api,
-    /\| Base URL \| \/docs\/base-url \| base URL documentation; regional endpoint documentation \| Public API base URLs include https:\/\/api\.poixe\.example/,
+    /\| Base URL \| https:\/\/api\.poixe\.example\/ \| base URL documentation; regional endpoint documentation \| Primary public API base URL: https:\/\/api\.poixe\.example\/\./,
+    "API base URL table should preserve primary base URL-specific snippet evidence.",
+  );
+  assert.match(
+    api,
+    /\| Base URL \| https:\/\/api-eu-central-1-dc8\.poixe\.example\/ \| base URL documentation; regional endpoint documentation \| Regional direct endpoint without CDN: https:\/\/api-eu-central-1-dc8\.poixe\.example/,
+    "API base URL table should use the dc8 regional endpoint snippet for the dc8 row.",
+  );
+  assert.match(
+    api,
+    /\| Base URL \| https:\/\/api-eu-central-1-dc15\.poixe\.example\/ \| base URL documentation; regional endpoint documentation \| Regional direct endpoint without CDN: https:\/\/api-eu-central-1-dc15\.poixe\.example/,
+    "API base URL table should use the dc15 regional base URL with its own snippet.",
+  );
+  assert.match(
+    api,
+    /\| Base URL \| \/docs\/base-url \| base URL documentation; regional endpoint documentation \| Primary public API base URL: https:\/\/api\.poixe\.example\/\./,
     "API compatibility table should preserve compact public-doc signals and snippets.",
   );
   assert.ok(subdomains.includes("Public host table:"), "Subdomain section should include public host table.");
+  assert.ok(
+    subdomains.includes("CT-discovered host candidate table:"),
+    "Subdomain section should include CT-discovered host candidate table.",
+  );
+  for (const expected of ["academy.poixe.example", "news.poixe.example", "nav.poixe.example"]) {
+    assert.ok(subdomains.includes(expected), `CT candidate table should retain ancillary public host ${expected}.`);
+  }
+  for (const expected of ["admin.s3.poixe.example", "ci.poixe.example"]) {
+    assert.ok(subdomains.includes(expected), `CT candidate table should retain grouped target host candidate ${expected}.`);
+  }
+  for (const expected of ["placeholder/content", "storage/media", "tooling/ci"]) {
+    assert.ok(subdomains.includes(expected), `CT candidate table should include grouped host label ${expected}.`);
+  }
+  assert.ok(
+    subdomains.includes("CT candidate; not service inventory"),
+    "CT candidate table should bound CT rows as candidates rather than service inventory.",
+  );
   assert.ok(organization.includes("Public business page table:"), "Organization section should include public business page table.");
   assert.ok(organization.includes("SPA operation evidence table:"), "Organization section should include SPA operation evidence table.");
+  assert.ok(organization.includes("Organization evidence table:"), "Organization section should include organization evidence table.");
+  assert.ok(
+    organization.includes("| Mail DNS | MX/TXT | Larksuite mail DNS signals |"),
+    "Organization evidence table should preserve Larksuite MX/TXT signals.",
+  );
+  assert.ok(
+    organization.includes("| Registration | Registrar | Example Registrar |"),
+    "Organization evidence table should preserve registrar evidence.",
+  );
   assert.ok(security.includes("Security control table:"), "Security section should include security control table.");
+  assert.ok(security.includes("CORS risk signal table:"), "Security section should include CORS risk signal table.");
+  assert.ok(
+    security.includes("allow-origin reflected") && security.includes("allow-credentials true"),
+    "Security CORS table should surface reflected origin and credentials risk signals.",
+  );
+  assert.ok(
+    security.includes("Risk signal; not confirmed exploitability"),
+    "Security CORS table should keep the risk-signal boundary.",
+  );
+  assert.ok(
+    security.includes("Public API endpoint exposure table:"),
+    "Security section should include public API endpoint exposure table.",
+  );
+  assert.ok(
+    security.includes("| api.poixe.example | GET | /health | 200 |")
+      && security.includes("| api.poixe.example | GET | /v1/models | 200 |"),
+    "Security API endpoint exposure table should surface /health and /v1/models observations.",
+  );
+  assert.ok(
+    security.includes("Public endpoint observation; not authenticated API validation"),
+    "Security API endpoint exposure table should keep the authenticated-validation boundary.",
+  );
   assert.ok(security.includes("Cookie observation table:"), "Security section should include cookie observation table.");
-
-  for (const [sectionName, section] of [["Summary", summary], ["Organization", organization]]) {
-    assert.ok(section.includes("Business model synthesis:"), `${sectionName} should include compact business-model synthesis.`);
-    assert.ok(section.includes("AI API gateway/product platform"), `${sectionName} should synthesize the supported public product surface.`);
-    assert.ok(section.includes("provider routing"), `${sectionName} should include provider-routing synthesis from current refs.`);
-    assert.ok(section.includes("supplier/vendor onboarding"), `${sectionName} should include supplier/vendor onboarding synthesis from current refs.`);
-    assert.ok(section.includes("payout/revenue operations"), `${sectionName} should include payout/revenue synthesis from current refs.`);
-    assert.ok(
-      section.includes("does not prove authenticated billing, internal settlement, or operator ownership"),
-      `${sectionName} should bound the business-model synthesis to public-surface evidence.`,
-    );
-  }
+  assert.ok(
+    security.includes("wp-login.php") && security.includes("Public route/cookie metadata; not admin access"),
+    "Security cookie table should surface wp-login public route metadata with a no-admin-access boundary.",
+  );
+  assert.ok(
+    security.toLowerCase().includes("content-security-policy") && security.toLowerCase().includes("permissions-policy"),
+    "Security control table should keep missing CSP/Permissions-Policy controls visible.",
+  );
 
   assert.ok(!publicIa.includes("CORS observation table:"), "Public IA should not own API/CORS tables.");
   assert.ok(!organization.includes("Public content surface table:"), "Organization should not duplicate public content map tables.");
-  assert.match(
-    organization,
-    /\| model-load\/provider routing \| \/dash\/model\/model_load_stats(?: \(\+\d+ related signals?\))? \| SPA asset string \+ public docs \+ public API endpoint \| medium \|/,
-    "Organization section should summarize model-load/provider-routing as operation evidence, not an exact route.",
-  );
-  assert.match(
-    organization,
-    /\| log-management \| \/channel\/manage\/log(?: \(\+\d+ related signals?\))? \| SPA asset string \| low \|/,
-    "Organization section should keep log-related SPA strings as low-confidence operation hints.",
-  );
-  assert.match(
-    organization,
-    /\| vendor revenue\/payout \| \/setting\/payment(?: \(\+\d+ related signals?\))? \|/,
-    "Organization section should keep one compact vendor revenue/payout operation row.",
-  );
-  assert.equal(
-    (organization.match(/\| vendor revenue\/payout \|/g) ?? []).length,
-    1,
-    "Organization operation table should deduplicate sibling vendor revenue/payout paths.",
-  );
   assert.ok(
     !organization.includes("Public operations evidence: Public SPA operation evidence"),
     "Organization prose should not stack operation evidence lead-in labels.",
@@ -597,29 +716,11 @@ function assertSectionSpecificTables(markdown) {
     security.includes("wordpress_test_cookie=path,secure,httponly"),
     "Cookie table should preserve parsed cookie attributes from stronger observations.",
   );
-  assert.ok(
-    publicIa.includes("| /products/vendor/application | index-abcd.js | medium | direct |"),
-    "SPA route table should retain the late product/vendor application route.",
-  );
-  assert.ok(
-    publicIa.includes("| /products/vendor | index-abcd.js | medium | direct |"),
-    "SPA route table should retain the late product/vendor route.",
-  );
-  assert.ok(
-    publicIa.includes(
-      "| /vendor/revenue | revenue-abcd.js | low | derived alias: vendor route + revenue API path; payout docs topic |",
-    ),
-    "SPA route table should expose supported route aliases as explicit derived aliases.",
-  );
+  assert.ok(publicIa.includes("| /signup | index-abcd.js | medium | direct |"), "SPA route table should retain signup route.");
   assert.ok(publicIa.includes("| /pricing | index-abcd.js | medium | direct |"), "SPA route table should include the pricing route.");
   assert.ok(
     !publicIa.includes("/dash/model/model_load_stats") && !publicIa.includes("/channel/manage/log"),
     "SPA route table should not expose internal operation strings as public route rows.",
-  );
-  assert.ok(
-    publicIa.indexOf("| /products/vendor/application | index-abcd.js | medium | direct |") <
-      publicIa.indexOf("| /pricing | index-abcd.js | medium | direct |"),
-    "SPA route table should prioritize high-value product/vendor routes over generic product routes.",
   );
   assert.ok(
     organization.includes("| product | product | /products/vendor/application | Supplier onboarding |"),
@@ -628,11 +729,6 @@ function assertSectionSpecificTables(markdown) {
   assert.ok(
     organization.includes("| product | product | /products/vendor | Vendor console |"),
     "Business table should retain the late vendor console product row.",
-  );
-  assert.ok(
-    organization.indexOf("| product | product | /products/vendor/application | Supplier onboarding |") <
-      organization.indexOf("| docs | product | /docs/route-provider | Provider routing |"),
-    "Business table should prioritize product/business operation rows over generic docs product rows.",
   );
 }
 
@@ -761,10 +857,52 @@ function createFullSelectedFixtureRun() {
         summary: "The main HTTP response returned HTML with Cloudflare and cache headers.",
         value: {
           status_code: 200,
-          headers: { server: "cloudflare", "cache-control": "max-age=300", "cf-cache-status": "HIT" },
+          headers: {
+            server: "cloudflare",
+            "cache-control": "max-age=300",
+            "cf-cache-status": "HIT",
+            "last-modified": "Sun, 24 May 2026 14:58:34 GMT",
+            etag: "\"fixture-etag\"",
+          },
           coverage: { collected: ["status_code", "response_headers"], missing: [] },
         },
-        evidence: [{ type: "http_header", name: "server", value: "cloudflare" }],
+        evidence: [
+          { type: "http_header", name: "server", value: "cloudflare" },
+          { type: "http_header", name: "cache-control", value: "max-age=300" },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 3,
+        probe: "cache_policy_probe",
+        item: "cache_policy",
+        source: "cloudflare_worker_fetch + cache_header_rules",
+        summary: "Response is cacheable for 5m.",
+        value: {
+          requested_url: target,
+          final_url: target,
+          status_code: 200,
+          response_kind: "html",
+          cacheability: "cacheable",
+          browser_max_age_seconds: 300,
+          shared_max_age_seconds: null,
+          immutable: false,
+          has_validator: true,
+          validator: "etag",
+          cdn_cache_status: "HIT",
+          raw_headers: {
+            "cache-control": "max-age=300",
+            "cf-cache-status": "HIT",
+            "last-modified": "Sun, 24 May 2026 14:58:34 GMT",
+            etag: "\"fixture-etag\"",
+          },
+        },
+        evidence: [
+          { type: "http_status", value: 200 },
+          { type: "http_header", name: "cache-control", value: "max-age=300" },
+          { type: "http_header", name: "cf-cache-status", value: "HIT" },
+          { type: "http_header", name: "last-modified", value: "Sun, 24 May 2026 14:58:34 GMT" },
+          { type: "http_header", name: "etag", value: "\"fixture-etag\"" },
+        ],
       }),
       record(target, normalizedTarget, snapshotAt, {
         layer: 4,
@@ -909,6 +1047,7 @@ function createFullSelectedFixtureRun() {
               { route_candidate: "/dashboard", source_asset: "/assets/index-abcd.js", confidence: "low" },
               { route_candidate: "/log", source_asset: "/assets/index-abcd.js", confidence: "low" },
               { route_candidate: "/login", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/signup", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/model", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/pricing", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/products", source_asset: "/assets/index-abcd.js", confidence: "medium" },
@@ -1044,7 +1183,18 @@ function createFullSelectedFixtureRun() {
             name: "bounded_public_api_checks",
             value: [
               { host: "api.poixe.example", method: "GET", path: "/health", status_code: 200, signals: [] },
-              { host: "api.poixe.example", method: "GET", path: "/v1/models", status_code: 200, signals: [] },
+              {
+                host: "api.poixe.example",
+                method: "GET",
+                path: "/v1/models",
+                status_code: 200,
+                content_type: "application/json",
+                model_count: 3,
+                model_sample: ["gpt-4o-mini", "claude-3-5-sonnet", "deepseek-chat"],
+                body_preview_bytes: 180,
+                body_preview_truncated: false,
+                signals: ["public_model_list_observed"],
+              },
             ],
           },
         ],
@@ -1068,7 +1218,18 @@ function createFullSelectedFixtureRun() {
             name: "public_api_endpoint_inventory",
             value: [
               { host: "api.poixe.example", method: "GET", path: "/health", status_code: 200, signals: [] },
-              { host: "api.poixe.example", method: "GET", path: "/v1/models", status_code: 200, signals: [] },
+              {
+                host: "api.poixe.example",
+                method: "GET",
+                path: "/v1/models",
+                status_code: 200,
+                content_type: "application/json",
+                model_count: 3,
+                model_sample: ["gpt-4o-mini", "claude-3-5-sonnet", "deepseek-chat"],
+                body_preview_bytes: 180,
+                body_preview_truncated: false,
+                signals: ["public_model_list_observed"],
+              },
             ],
           },
         ],
@@ -1078,13 +1239,39 @@ function createFullSelectedFixtureRun() {
         probe: "subdomain_attack_surface_probe",
         item: "ct_subdomains",
         source: "cloudflare_worker_dns_tls",
-        summary: "CT logs exposed one subdomain candidate and bounded reachability was checked.",
+        summary: "CT logs exposed multiple subdomain candidates and bounded reachability was checked.",
         value: {
-          discovered_subdomains: [{ host: "admin.poixe.example", source: "ct_log" }],
+          discovered_subdomains: [
+            { host: "academy.poixe.example", source: "ct_log" },
+            { host: "admin.s3.poixe.example", source: "ct_log" },
+            { host: "blog.poixe.example", source: "ct_log" },
+            { host: "ci.poixe.example", source: "ct_log" },
+            { host: "community.poixe.example", source: "ct_log" },
+            { host: "docs.poixe.example", source: "ct_log" },
+            { host: "nav.poixe.example", source: "ct_log" },
+            { host: "news.poixe.example", source: "ct_log" },
+            { host: "status.poixe.example", source: "ct_log" },
+          ],
           reachability: [{ host: "admin.poixe.example", https_status_code: 200 }],
           coverage: { collected: ["ct_subdomain_candidates", "bounded_https_reachability"], missing: ["deep_service_inventory"] },
         },
-        evidence: [{ type: "subdomain", name: "ct_log", value: "admin.poixe.example" }],
+        evidence: [
+          {
+            type: "subdomain",
+            name: "subdomains",
+            value: [
+              { host: "academy.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "admin.s3.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "blog.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "ci.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "community.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "docs.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "nav.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "news.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+              { host: "status.poixe.example", source: "ct_log", sources: ["certspotter"], indicators: ["issuer:Let's Encrypt"] },
+            ],
+          },
+        ],
       }),
       record(target, normalizedTarget, snapshotAt, {
         layer: 8,
@@ -1093,10 +1280,20 @@ function createFullSelectedFixtureRun() {
         source: "cloudflare_worker_fetch",
         summary: "Static HTML exposed Next.js and script bundle technology candidates.",
         value: {
-          candidates: [{ name: "Next.js", confidence: "medium", evidence: "meta generator" }],
+          candidates: [
+            { name: "Next.js", confidence: "medium", evidence: "meta generator" },
+            { name: "Matomo", confidence: "confirmed", evidence: "inline marker" },
+          ],
           coverage: { collected: ["static_technology_candidates"], missing: ["runtime_framework_confirmation"] },
         },
-        evidence: [{ type: "technology", name: "frontend", value: "Next.js" }],
+        evidence: [
+          { type: "technology", name: "frontend", value: "Next.js" },
+          {
+            type: "technology_candidate",
+            name: "Matomo",
+            value: { category: "analytics", confidence: "confirmed", evidence_refs: ["marker:matomo", "marker:matomo-host:matomo.gptocean.com"] },
+          },
+        ],
       }),
       record(target, normalizedTarget, snapshotAt, {
         layer: 7,
@@ -1148,6 +1345,68 @@ function createFullSelectedFixtureRun() {
       }),
       record(target, normalizedTarget, snapshotAt, {
         layer: 8,
+        probe: "runtime_third_party_resources_probe",
+        item: "runtime_third_party_resources",
+        source: "github-actions-browser",
+        summary: "Browser runtime observed third-party scripts and resources.",
+        value: {
+          third_party_scripts: ["https://runtime-matomo.example/matomo.js"],
+          third_party_resources: ["https://runtime-matomo.example/matomo.php?idsite=36"],
+          coverage: { collected: ["runtime_third_party_resources"], missing: [] },
+        },
+        evidence: [
+          { type: "runtime_resource", name: "script", value: "https://runtime-matomo.example/matomo.js" },
+          { type: "runtime_resource", name: "ping", value: "https://runtime-matomo.example/matomo.php?idsite=36" },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 8,
+        probe: "bounded_public_app_header_metadata_probe",
+        item: "bounded_public_app_header_metadata",
+        source: "cloudflare_worker_public_security_details",
+        summary: "Observed public app header metadata signal(s) on bounded check(s).",
+        value: {
+          checks: [
+            {
+              host: "docs.poixe.example",
+              role_hint: "docs",
+              method: "HEAD",
+              path: "/",
+              status_code: 308,
+              kind: "cors",
+              signals: ["mintlify_client_version", "mint_proxy_version", "vercel_cache", "next_rsc_vary"],
+              mintlify_client_version: "0.0.2952",
+              mint_proxy_version: "1.0.0-prod",
+              vercel_cache: "MISS",
+              next_rsc_vary: "RSC, Next-Router-State-Tree",
+            },
+          ],
+          coverage: { collected: ["bounded_public_app_header_metadata"], missing: [] },
+        },
+        evidence: [
+          {
+            type: "app_header_metadata",
+            name: "public_app_header_metadata",
+            value: [
+              {
+                host: "docs.poixe.example",
+                role_hint: "docs",
+                method: "HEAD",
+                path: "/",
+                status_code: 308,
+                kind: "cors",
+                signals: ["mintlify_client_version", "mint_proxy_version", "vercel_cache", "next_rsc_vary"],
+                mintlify_client_version: "0.0.2952",
+                mint_proxy_version: "1.0.0-prod",
+                vercel_cache: "MISS",
+                next_rsc_vary: "RSC, Next-Router-State-Tree",
+              },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 8,
         probe: "bounded_public_metadata_probe",
         item: "bounded_public_metadata",
         source: "cloudflare_worker_public_security_details",
@@ -1170,7 +1429,7 @@ function createFullSelectedFixtureRun() {
               method: "GET",
               path: "/latest.json",
               status_code: 200,
-              parsed: { x_discourse_route: "list/latest", x_discourse_cached: "skip" },
+              parsed: { x_discourse_route: "list/latest", x_discourse_cached: "skip", x_runtime: "0.809627" },
             },
             {
               host: "docs.poixe.example",
@@ -1203,7 +1462,7 @@ function createFullSelectedFixtureRun() {
                 method: "GET",
                 path: "/latest.json",
                 status_code: 200,
-                parsed: { x_discourse_route: "list/latest", x_discourse_cached: "skip" },
+                parsed: { x_discourse_route: "list/latest", x_discourse_cached: "skip", x_runtime: "0.809627" },
               },
               {
                 host: "docs.poixe.example",
@@ -1236,6 +1495,19 @@ function createFullSelectedFixtureRun() {
           { type: "dns_mx", name: "mx", value: "10 mx1.larksuite.com" },
           { type: "dns_txt", name: "spf", value: "v=spf1 include:spf.onlarksuite.com -all" },
         ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 3,
+        probe: "rdap_whois_lite_probe",
+        item: "rdap_whois_lite",
+        source: "cloudflare_worker_fetch",
+        summary: "Collected RDAP / WHOIS-lite registration evidence.",
+        value: {
+          registrar: "Example Registrar",
+          status: "active",
+          coverage: { collected: ["rdap_registrar"], missing: ["manual_ownership_confirmation"] },
+        },
+        evidence: [{ type: "rdap", name: "registrar", value: "Example Registrar" }],
       }),
       record(target, normalizedTarget, snapshotAt, {
         layer: 10,
@@ -1330,7 +1602,7 @@ function createFullSelectedFixtureRun() {
                 title: "Supplier onboarding",
                 detail_kind: "product",
                 controlled_hint: "product",
-                snippets: ["Vendors can apply to join the platform."],
+                snippets: ["Vendors can apply to join the platform. 控制台 创建令牌 充值 查看日志 收益提现"],
               },
             ],
           },
@@ -1358,6 +1630,14 @@ function createFullSelectedFixtureRun() {
                 controlled_hint: "news",
                 classification: { controlled_hint: "news", label: "news" },
                 snippets: ["Generic homepage copy."],
+              },
+              {
+                host: "docs.poixe.example",
+                path: "/cn/docs/get-started/overview",
+                title: "Poixe AI - Poixe Docs",
+                controlled_hint: "technical_documentation",
+                classification: { controlled_hint: "technical_documentation", label: "docs" },
+                snippets: ["控制台 创建令牌 充值 查看日志 供应商 入驻 部署资源 收益提现"],
               },
             ],
           },
@@ -1389,8 +1669,16 @@ function createFullSelectedFixtureRun() {
                 controlled_hint: "technical_documentation",
                 confidence: "medium",
                 compatibility_signals: ["base URL documentation", "regional endpoint documentation"],
-                api_base_urls: ["https://api.poixe.example/", "https://api-eu-central-1-dc8.poixe.example/"],
-                snippets: ["Public API base URLs include https://api.poixe.example and https://api-eu-central-1-dc8.poixe.example."],
+                api_base_urls: [
+                  "https://api.poixe.example/",
+                  "https://api-eu-central-1-dc8.poixe.example/",
+                  "https://api-eu-central-1-dc15.poixe.example/",
+                ],
+                snippets: [
+                  "Primary public API base URL: https://api.poixe.example/.",
+                  "Regional direct endpoint without CDN: https://api-eu-central-1-dc8.poixe.example/.",
+                  "Regional direct endpoint without CDN: https://api-eu-central-1-dc15.poixe.example/.",
+                ],
               },
               {
                 host: "docs.poixe.example",

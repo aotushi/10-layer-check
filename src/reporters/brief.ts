@@ -404,24 +404,21 @@ function compactEvidenceItems(items: Evidence[]): ReportBriefEvidenceItem[] {
 
 function compactEvidenceValue(item: Evidence): string {
   const tableRows = compactTableRowsForEvidenceItem(item);
-  return tableRows ? compactArrayValue(tableRows) : compactValue(item.value);
+  const isSubdomains = item.name === "subdomains";
+  if (tableRows) {
+    const maxLength = isSubdomains ? 1800 : 900;
+    const maxRows = isSubdomains ? 16 : 8;
+    for (let size = Math.min(tableRows.length, maxRows); size >= 1; size -= 1) {
+      const text = JSON.stringify(tableRows.slice(0, size));
+      if (text.length <= maxLength) return text;
+    }
+    return JSON.stringify([]);
+  }
+  return compactValue(item.value);
 }
 
-function createDerivedBriefEvidenceItems(item: Evidence): ReportBriefEvidenceItem[] {
-  const name = item.name ?? item.type;
-  if (name !== "route_candidates" || !Array.isArray(item.value)) return [];
-
-  const rows = item.value.filter(isRecord).map(compactRouteCandidateRow);
-  const operationHints = createSpaOperationHintRows(rows);
-  if (operationHints.length === 0) return [];
-
-  return [
-    {
-      type: "spa_operation_hint",
-      name: "spa_operation_hints",
-      value: compactArrayValue(operationHints),
-    },
-  ];
+function createDerivedBriefEvidenceItems(_item: Evidence): ReportBriefEvidenceItem[] {
+  return [];
 }
 
 function compactValue(value: unknown): string {
@@ -430,11 +427,11 @@ function compactValue(value: unknown): string {
   return text.length > 900 ? `${text.slice(0, 900)}...` : text;
 }
 
-function compactArrayValue(value: unknown[]): string {
+function compactArrayValue(value: unknown[], maxLength = 900, maxRows = 8): string {
   const compacted = value.map(compactBriefJsonValue);
-  for (let size = Math.min(compacted.length, 8); size >= 1; size -= 1) {
+  for (let size = Math.min(compacted.length, maxRows); size >= 1; size -= 1) {
     const text = JSON.stringify(compacted.slice(0, size));
-    if (text.length <= 900) return text;
+    if (text.length <= maxLength) return text;
   }
   return JSON.stringify([]);
 }
@@ -445,19 +442,36 @@ function compactTableRowsForEvidenceItem(item: Evidence): unknown[] | null {
   const rows = item.value.filter(isRecord);
 
   if (name === "product_business_detail_snippets") {
-    return rankBriefRows(rows.map(compactPublicBusinessDetailRow), scorePublicBusinessDetailRow);
+    return rankBriefRows(rows.map(compactPublicBusinessDetailRow), scoreGenericRow);
+  }
+
+  if (name === "business_product_snippets") {
+    return rankBriefRows(rows.map(compactPublicBusinessContentRow), scoreGenericRow);
   }
 
   if (name === "api_compatibility_snippets") {
     return rankBriefRows(rows.map(compactApiCompatibilityDetailRow), scoreApiCompatibilityDetailRow);
   }
 
+  if (name === "public_api_endpoint_inventory") {
+    return rankBriefRows(rows.map(compactPublicApiEndpointInventoryRow), scorePublicApiEndpointInventoryRow);
+  }
+
+  if (name === "public_app_header_metadata") {
+    return rankBriefRows(rows.map(compactPublicAppHeaderMetadataRow), scoreGenericRow);
+  }
+
+  if (name === "bounded_public_metadata_checks") {
+    return rankBriefRows(rows.map(compactPublicCmsForumMetadataRow), scoreGenericRow);
+  }
+
+  if (name === "subdomains") {
+    return rankBriefRows(rows.map(compactCtSubdomainRow), scoreCtSubdomainRow);
+  }
+
   if (name === "route_candidates") {
     const compactRows = rows.map(compactRouteCandidateRow);
-    return rankBriefRows(
-      [...compactRows.filter(isReportableRouteCandidateRow), ...deriveRouteAliasRows(compactRows)],
-      scoreRouteCandidateRow,
-    );
+    return rankBriefRows(compactRows.filter(isReportableRouteCandidateRow), scoreRouteCandidateRow);
   }
 
   return null;
@@ -469,6 +483,16 @@ function compactPublicBusinessDetailRow(row: Record<string, unknown>): Record<st
     title: stringField(row, "title") ?? stringField(row, "label"),
     detail_kind: stringField(row, "detail_kind"),
     controlled_hint: stringField(row, "controlled_hint"),
+  });
+}
+
+function compactPublicBusinessContentRow(row: Record<string, unknown>): Record<string, unknown> {
+  return removeEmptyFields({
+    host: stringField(row, "host"),
+    path: stringField(row, "path"),
+    title: stringField(row, "title") ?? stringField(row, "label"),
+    controlled_hint: stringField(row, "controlled_hint"),
+    confidence: stringField(row, "confidence"),
   });
 }
 
@@ -485,18 +509,133 @@ function compactApiCompatibilityDetailRow(row: Record<string, unknown>): Record<
   });
 }
 
+function compactPublicApiEndpointInventoryRow(row: Record<string, unknown>): Record<string, unknown> {
+  return removeEmptyFields({
+    host: stringField(row, "host"),
+    role_hint: stringField(row, "role_hint"),
+    method: stringField(row, "method"),
+    path: stringField(row, "path"),
+    endpoint: stringField(row, "endpoint"),
+    status_code: typeof row.status_code === "number" ? row.status_code : stringField(row, "status_code"),
+    content_type: stringField(row, "content_type"),
+    signals: arrayField(row, "signals").slice(0, 4),
+    api_error: stringField(row, "api_error"),
+    api_message: stringField(row, "api_message"),
+    api_request_id: stringField(row, "api_request_id"),
+    api_type: stringField(row, "api_type"),
+    model_count: typeof row.model_count === "number" ? row.model_count : undefined,
+    model_sample: arrayField(row, "model_sample").slice(0, 6),
+    model_object: stringField(row, "model_object"),
+    body_preview_bytes: typeof row.body_preview_bytes === "number" ? row.body_preview_bytes : undefined,
+    body_preview_truncated: typeof row.body_preview_truncated === "boolean" ? row.body_preview_truncated : undefined,
+    error: stringField(row, "error"),
+  });
+}
+
+function compactPublicAppHeaderMetadataRow(row: Record<string, unknown>): Record<string, unknown> {
+  return removeEmptyFields({
+    host: stringField(row, "host"),
+    role_hint: stringField(row, "role_hint"),
+    method: stringField(row, "method"),
+    path: stringField(row, "path"),
+    status_code: typeof row.status_code === "number" ? row.status_code : stringField(row, "status_code"),
+    kind: stringField(row, "kind"),
+    signals: arrayField(row, "signals").slice(0, 3),
+    discourse_route: stringField(row, "discourse_route"),
+    discourse_runtime: stringField(row, "discourse_runtime"),
+    mint_proxy_version: stringField(row, "mint_proxy_version"),
+    mintlify_client_version: stringField(row, "mintlify_client_version"),
+    vercel_cache: stringField(row, "vercel_cache"),
+    next_rsc_vary: stringField(row, "next_rsc_vary"),
+    error: stringField(row, "error"),
+  });
+}
+
+function compactPublicCmsForumMetadataRow(row: Record<string, unknown>): Record<string, unknown> {
+  const parsed = isRecord(row.parsed) ? row.parsed : {};
+  return removeEmptyFields({
+    host: stringField(row, "host"),
+    role_hint: stringField(row, "role_hint"),
+    method: stringField(row, "method"),
+    path: stringField(row, "path"),
+    status_code: typeof row.status_code === "number" ? row.status_code : stringField(row, "status_code"),
+    kind: stringField(row, "kind"),
+    signals: arrayField(row, "signals").slice(0, 4),
+    wordpress_name: stringField(parsed, "wordpress_name") ?? stringField(row, "wordpress_name"),
+    wordpress_timezone: stringField(parsed, "wordpress_timezone") ?? stringField(row, "wordpress_timezone"),
+    wordpress_namespaces: arrayField(parsed, "wordpress_namespaces").length > 0
+      ? arrayField(parsed, "wordpress_namespaces").slice(0, 6)
+      : arrayField(row, "wordpress_namespaces").slice(0, 6),
+    wordpress_asset_versions: arrayField(parsed, "wordpress_asset_versions").length > 0
+      ? arrayField(parsed, "wordpress_asset_versions").slice(0, 3)
+      : arrayField(row, "wordpress_asset_versions").slice(0, 3),
+    discourse_route: stringField(parsed, "discourse_route")
+      ?? stringField(parsed, "x_discourse_route")
+      ?? stringField(row, "discourse_route")
+      ?? stringField(row, "x_discourse_route"),
+    x_discourse_route: stringField(parsed, "x_discourse_route") ?? stringField(row, "x_discourse_route"),
+    discourse_cached: stringField(parsed, "discourse_cached")
+      ?? stringField(parsed, "x_discourse_cached")
+      ?? stringField(row, "discourse_cached")
+      ?? stringField(row, "x_discourse_cached"),
+    x_discourse_cached: stringField(parsed, "x_discourse_cached") ?? stringField(row, "x_discourse_cached"),
+    discourse_runtime: stringField(parsed, "discourse_runtime")
+      ?? stringField(parsed, "x_runtime")
+      ?? stringField(row, "discourse_runtime")
+      ?? stringField(row, "x_runtime"),
+    x_runtime: stringField(parsed, "x_runtime") ?? stringField(row, "x_runtime"),
+    error: stringField(row, "error"),
+  });
+}
+
+function compactCtSubdomainRow(row: Record<string, unknown>): Record<string, unknown> {
+  return removeEmptyFields({
+    host: stringField(row, "host"),
+    source: stringField(row, "source"),
+    sources: arrayField(row, "sources").slice(0, 2),
+    indicators: arrayField(row, "indicators").slice(0, 2),
+  });
+}
+
 function compactApiCompatibilitySnippets(row: Record<string, unknown>): string[] {
   const snippets = arrayField(row, "snippets");
   const excerpt = stringField(row, "excerpt");
+  const apiBaseUrls = arrayField(row, "api_base_urls");
+  const urlSpecificSnippets = apiBaseUrls.flatMap((apiBaseUrl) =>
+    snippets.filter((value) => snippetMentionsApiBaseUrl(value, apiBaseUrl)),
+  );
+  const regionalSnippets = snippets.filter((value) => /api-[a-z]+-[a-z]+-\d|api-eu|dc\d+|regional|direct|without\s+cdn|no\s*cdn/i.test(value));
   const candidates = [
+    ...urlSpecificSnippets,
+    ...regionalSnippets,
     ...snippets.filter((value) => /https?:\/\/|api-eu|\/v1\/(?:chat\/completions|messages|responses)/i.test(value)),
     ...(excerpt ? [excerpt] : []),
     ...snippets,
   ];
   return uniqueStrings(candidates)
-    .slice(0, 1)
-    .map((value) => truncateBriefField(value, 150))
+    .slice(0, 4)
+    .map((value) => truncateBriefField(value, 180))
     .filter((value): value is string => Boolean(value));
+}
+
+function snippetMentionsApiBaseUrl(snippet: string, apiBaseUrl: string): boolean {
+  const normalizedSnippet = snippet.toLowerCase();
+  for (const candidate of apiBaseUrlMatchCandidates(apiBaseUrl)) {
+    if (candidate && normalizedSnippet.includes(candidate)) return true;
+  }
+  return false;
+}
+
+function apiBaseUrlMatchCandidates(apiBaseUrl: string): string[] {
+  const normalized = apiBaseUrl.toLowerCase().replace(/\/+$/, "");
+  const candidates = [normalized, `${normalized}/`];
+  try {
+    const parsed = new URL(apiBaseUrl);
+    candidates.push(parsed.host.toLowerCase());
+  } catch {
+    // Keep the normalized string fallback for malformed candidate evidence.
+  }
+  return uniqueStrings(candidates);
 }
 
 function compactRouteCandidateRow(row: Record<string, unknown>): Record<string, unknown> {
@@ -509,114 +648,6 @@ function compactRouteCandidateRow(row: Record<string, unknown>): Record<string, 
   });
 }
 
-function deriveRouteAliasRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
-  if (rows.some((row) => (stringField(row, "route_candidate") ?? "").toLowerCase() === "/vendor/revenue")) {
-    return [];
-  }
-
-  const hasVendorRoute = rows.some((row) => (stringField(row, "route_candidate") ?? "").toLowerCase() === "/vendor");
-  const revenueRows = rows.filter((row) => {
-    const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
-    const sourceAsset = (stringField(row, "source_asset") ?? "").toLowerCase();
-    return /^\/(?:agent\/revenue|affiliate\/earning)\//.test(route) || sourceAsset.includes("revenue");
-  });
-  const hasRevenueApiPath = revenueRows.some((row) =>
-    /^\/(?:agent\/revenue|affiliate\/earning)\//.test((stringField(row, "route_candidate") ?? "").toLowerCase()),
-  );
-  const revenueSourceAsset = revenueRows.map((row) => stringField(row, "source_asset")).find((value): value is string =>
-    Boolean(value),
-  );
-
-  if (!hasVendorRoute || !hasRevenueApiPath || !revenueSourceAsset) return [];
-
-  return [
-    {
-      route_candidate: "/vendor/revenue",
-      source_asset: revenueSourceAsset,
-      confidence: "low",
-      derivation: "derived_alias",
-      basis: "vendor route + revenue API path",
-    },
-  ];
-}
-
-function createSpaOperationHintRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
-  const hints: Record<string, unknown>[] = [];
-
-  for (const row of rows) {
-    const text = rowSearchText(row);
-    const route = stringField(row, "route_candidate");
-    const sourceAsset = stringField(row, "source_asset");
-    const signal = route ?? sourceAsset;
-    if (!signal) continue;
-
-    for (const operation of classifySpaOperationHints(text)) {
-      hints.push(removeEmptyFields({
-        operation,
-        signal,
-        source_asset: sourceAsset,
-        confidence: spaOperationConfidence(operation, row),
-        basis: "SPA string; not route proof",
-      }));
-    }
-  }
-
-  return rankBriefRows(dedupeOperationHints(hints), scoreSpaOperationHintRow);
-}
-
-function classifySpaOperationHints(text: string): string[] {
-  const operations: string[] = [];
-  if (/model[_/-]?load|model[_/-]?stat|\/dash\/model|\/v1\/models|provider[_/-]?routing|provider|routing|厂商|路由/.test(text)) {
-    operations.push("model-load/provider routing");
-  }
-  if (/channel[_/-]?manage[_/-]?log|\/log\b|[_/-]log\b|log[_/-]|日志/.test(text)) {
-    operations.push("log-management");
-  }
-  if (/revenue|earning|payout|withdraw|withdrawal|settlement|收益|提现/.test(text)) {
-    operations.push("vendor revenue/payout");
-  }
-  if (/vendor|supplier|onboarding|入驻/.test(text)) {
-    operations.push("supplier/vendor onboarding");
-  }
-  if (/payment|billing|wallet|recharge|token|账单|钱包|充值|令牌/.test(text)) {
-    operations.push("payment/billing");
-  }
-  return uniqueStrings(operations).slice(0, 3);
-}
-
-function spaOperationConfidence(operation: string, row: Record<string, unknown>): string {
-  const confidence = (stringField(row, "confidence") ?? "").toLowerCase();
-  if (operation === "log-management") return "low";
-  if (operation === "model-load/provider routing" && confidence === "medium") return "medium";
-  if (confidence === "medium") return "medium";
-  return "low";
-}
-
-function dedupeOperationHints(rows: Record<string, unknown>[]): Record<string, unknown>[] {
-  const byKey = new Map<string, Record<string, unknown>>();
-  for (const row of rows) {
-    const key = [
-      stringField(row, "operation"),
-      stringField(row, "signal"),
-      stringField(row, "source_asset"),
-    ].join(":");
-    if (!byKey.has(key)) byKey.set(key, row);
-  }
-  return Array.from(byKey.values());
-}
-
-function scoreSpaOperationHintRow(row: Record<string, unknown>): number {
-  const operation = (stringField(row, "operation") ?? "").toLowerCase();
-  const text = rowSearchText(row);
-  let score = confidenceScore(stringField(row, "confidence"));
-  if (operation === "model-load/provider routing") score += 50;
-  if (operation === "vendor revenue/payout") score += 40;
-  if (operation === "supplier/vendor onboarding") score += 34;
-  if (operation === "payment/billing") score += 28;
-  if (operation === "log-management") score += 44;
-  if (/model_load|provider[_/-]?routing|\/v1\/models|channel[_/-]?manage[_/-]?log/.test(text)) score += 12;
-  return score;
-}
 
 function rankBriefRows(
   rows: Record<string, unknown>[],
@@ -628,66 +659,58 @@ function rankBriefRows(
     .map((item) => item.row);
 }
 
-function scorePublicBusinessDetailRow(row: Record<string, unknown>): number {
-  const text = rowSearchText(row);
-  const path = stringField(row, "path") ?? "";
+function scoreGenericRow(row: Record<string, unknown>): number {
   const hint = (stringField(row, "controlled_hint") ?? "").toLowerCase();
   const kind = (stringField(row, "detail_kind") ?? "").toLowerCase();
   let score = 0;
-
   if (kind === "product") score += 24;
   if (kind === "article") score += 10;
   if (/product|commercial|business/.test(hint)) score += 18;
   if (/docs|technical_documentation|news|blog/.test(hint)) score -= 4;
-  score += businessRowSignalScore(text);
-  if (/\/products\/vendor\/application/i.test(path)) score += 34;
-  else if (/\/products\/vendor/i.test(path)) score += 28;
-  if (/\/cn\/docs\/get-started\/overview/i.test(path)) score -= 18;
-
   return score;
 }
 
 function scoreApiCompatibilityDetailRow(row: Record<string, unknown>): number {
-  const text = rowSearchText(row);
-  const path = (stringField(row, "path") ?? "").toLowerCase();
   const apiBaseUrls = arrayField(row, "api_base_urls");
-  const apiBaseUrlText = apiBaseUrls.join(" ").toLowerCase();
   let score = confidenceScore(stringField(row, "confidence"));
-  if (/\/base-url(?:\.md)?$/.test(path)) score += 90;
-  if (/\/openai-completions\//.test(path)) score += 78;
-  if (/\/anthropic-messages\//.test(path)) score += 72;
-  if (/\/model-naming(?:\.md)?$|provider-routing/.test(path)) score += 66;
-  if (/prompt-caching/.test(path)) score -= 24;
   if (apiBaseUrls.length > 0) score += 80;
-  if (apiBaseUrls.length > 1) score += 90;
-  if (/api-eu|regional|副接口|直连|无\s*cdn/.test(apiBaseUrlText)) score += 60;
-  if (/base url|接口地址|api[-./\w]*poixe/.test(text)) score += 50;
-  if (/chat completions|\/v1\/chat\/completions/.test(text)) score += 42;
-  if (/anthropic|messages|\/v1\/messages/.test(text)) score += 34;
-  if (/responses|\/v1\/responses/.test(text)) score += 30;
-  if (/openai|chatgpt|gpt-/.test(text)) score += 30;
-  if (/compatib|兼容|差异说明/.test(text)) score += 28;
-  if (/model naming|模型命名|provider\/<base_model>|provider routing|模型厂商|路由/.test(text)) score += 34;
-  if (/regional|us-east|api-eu|直连|副接口/.test(text)) score += 22;
+  if (apiBaseUrls.length > 1) score += 40;
+  return score;
+}
+
+function scorePublicApiEndpointInventoryRow(row: Record<string, unknown>): number {
+  let score = 0;
+  if (typeof row.status_code === "number" && row.status_code >= 200 && row.status_code < 300) score += 20;
+  if (stringField(row, "content_type")) score += 8;
+  if (arrayField(row, "signals").length > 0) score += 6;
+  return score;
+}
+
+
+
+function scoreCtSubdomainRow(row: Record<string, unknown>): number {
+  const host = (stringField(row, "host") ?? "").toLowerCase();
+  const labels = host.split(".").filter(Boolean);
+  const leftLabel = labels[0] ?? "";
+  let score = 0;
+
+  if (labels.length === 3) score += 28;
+  if (labels.length > 3) score -= 16;
+  if (/^(admin|internal|dev|test|ci|s3|n8n|bt|fanyi|translate|proxify)$/i.test(leftLabel)) score -= 28;
+  if (/^(api|docs|blog|community|status)$/i.test(leftLabel)) score += 14;
+  if (/^[a-z][a-z0-9-]{2,20}$/i.test(leftLabel)) score += 8;
+  if (arrayField(row, "indicators").length > 0) score += 4;
+
   return score;
 }
 
 function scoreRouteCandidateRow(row: Record<string, unknown>): number {
   const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
-  let score = confidenceScore(stringField(row, "confidence")) + businessRowSignalScore(route);
-
-  if (/^\/products\/vendor\/application$/.test(route)) score += 40;
-  else if (/^\/products\/vendor$/.test(route)) score += 36;
-  else if (/^\/vendor\/(revenue|log)$/.test(route)) score += 32;
-  else if (/^\/vendor$/.test(route)) score += 28;
-  if (stringField(row, "derivation") === "derived_alias") score += 8;
-  if (/^\/setting\/payment$/.test(route)) score += 30;
-  if (/^\/(pricing|model)$/.test(route)) score += 24;
-  if (/^\/(login|signup)$/.test(route)) score += 24;
-  if (/^\/(dashboard|billing|wallet)$/.test(route)) score += 14;
+  let score = confidenceScore(stringField(row, "confidence"));
+  const depth = route.split("/").filter(Boolean).length;
+  score += Math.max(0, 10 - depth * 2);
   if (/^\/(?:admin|api|auth|tool|agent|affiliate)\//.test(route)) score -= 50;
   if (route === "/" || route.includes("*")) score -= 20;
-
   return score;
 }
 
@@ -699,16 +722,6 @@ function isReportableRouteCandidateRow(row: Record<string, unknown>): boolean {
   return route.split("/").filter(Boolean).length <= 3;
 }
 
-function businessRowSignalScore(text: string): number {
-  let score = 0;
-  if (/supplier|vendor|onboarding/.test(text)) score += 28;
-  if (/payout|withdraw|withdrawal|settlement/.test(text)) score += 26;
-  if (/routing|provider/.test(text)) score += 24;
-  if (/pricing|price|cost|discount/.test(text)) score += 18;
-  if (/token|recharge|billing|payment|wallet|log|model/.test(text)) score += 16;
-  if (/about|platform/.test(text)) score += 8;
-  return score;
-}
 
 function confidenceScore(value: string | null): number {
   const normalized = (value ?? "").toLowerCase();
@@ -716,11 +729,6 @@ function confidenceScore(value: string | null): number {
   if (normalized === "likely" || normalized === "medium") return 20;
   if (normalized === "possible" || normalized === "low") return 6;
   return 0;
-}
-
-function rowSearchText(row: Record<string, unknown>): string {
-  return flattenSearchValues(Object.values(row))
-    .toLowerCase();
 }
 
 function stringField(value: Record<string, unknown>, key: string): string | null {
@@ -753,16 +761,6 @@ function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
-function flattenSearchValues(values: unknown[]): string {
-  const parts: string[] = [];
-  for (const value of values) {
-    if (typeof value === "string") parts.push(value);
-    else if (Array.isArray(value)) parts.push(flattenSearchValues(value));
-    else if (isRecord(value)) parts.push(flattenSearchValues(Object.values(value)));
-  }
-  return parts.join(" ");
-}
-
 function compactBriefJsonValue(value: unknown): unknown {
   if (typeof value === "string") return value.length > 80 ? `${value.slice(0, 80)}...` : value;
   if (typeof value === "number" || typeof value === "boolean" || value === null) return value;
@@ -777,9 +775,22 @@ function compactBriefJsonValue(value: unknown): unknown {
     "endpoint",
     "status_code",
     "content_type",
+    "headers",
+    "raw_headers",
+    "cacheability",
+    "browser_max_age_seconds",
+    "shared_max_age_seconds",
+    "has_validator",
+    "validator",
+    "cdn_cache_status",
+    "age_seconds",
     "kind",
     "role",
     "name",
+    "data",
+    "source",
+    "sources",
+    "indicators",
     "category",
     "label",
     "controlled_hint",
@@ -800,27 +811,21 @@ function compactBriefJsonValue(value: unknown): unknown {
     "signals",
     "parsed",
     "classification",
-    "wordpress_name",
-    "wordpress_timezone",
-    "wordpress_namespaces",
-    "wordpress_test_cookie",
-    "discourse_route",
-    "discourse_cached",
-    "discourse_runtime",
-    "mint_proxy_version",
-    "mintlify_client_version",
-    "vercel_cache",
-    "next_rsc_vary",
-    "api_error",
-    "api_message",
-    "api_request_id",
-    "api_type",
     "error",
   ];
   const entries = preferredKeys
     .filter((key) => Object.prototype.hasOwnProperty.call(value, key))
-    .map((key) => [key, compactBriefJsonValue(value[key])] as const);
+    .map((key) => [key, key === "parsed" ? compactParsedSubObject(value[key]) : compactBriefJsonValue(value[key])] as const);
   return Object.fromEntries(entries);
+}
+
+function compactParsedSubObject(value: unknown): unknown {
+  if (!isRecord(value)) return compactBriefJsonValue(value);
+  return Object.fromEntries(
+    Object.entries(value)
+      .slice(0, 12)
+      .map(([k, v]) => [k, typeof v === "string" ? (v.length > 60 ? `${v.slice(0, 60)}...` : v) : v]),
+  );
 }
 
 function isProviderContractRecord(record: SnapshotRecord): boolean {
