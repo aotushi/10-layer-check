@@ -118,7 +118,7 @@ The smoke commands post to `https://probe.9shi.cc` by default, read `PROBE_API_K
 
 Latest remote verification:
 
-- Section table row ranking verification: Worker version `9b6d76a2-10c3-49fc-b980-acd62b8b3d70` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-764b745b-70c8-4550-a3ef-363960089609`, 57 records, Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, 12 compact section-specific tables, public business and SPA route rows ranked by stronger current-evidence signals, low-signal table rows filtered, public-host observed hints filled, no `Do not infer` / `Do not place` prompt guidance in `Boundaries`, one bounded-CORS prose occurrence, one endpoint-summary occurrence, and 0 raw inline `Evidence: key=value` prose lines. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-25T01-45-14-233Z.json` and `.md`.
+- ReportBrief high-value row retention verification: Worker version `52f88ea6-5382-470d-98d5-0763ab13cbba` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-3b52731d-d515-42d8-af22-0be6561e8780`, 57 records, Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, compact section-specific tables, public business and SPA route rows retained after brief compaction, `/products/vendor/application` and `/products/vendor` present in both the SPA route candidate table and Public business page table, low-signal table rows filtered, no `Do not infer` / `Do not place` prompt guidance in `Boundaries`, and 0 raw inline `Evidence: key=value` prose lines. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-25T02-04-50-374Z.json` and `.md`.
 - Worker version: `92f852eb-db6e-41e6-a28c-5d1361c7cea2`
 - Target: `https://example.com`
 - Result: `site-10-layer-scan-ai-report/v0.1`, 20 deterministic records, 6 AI report sections, 1766-character Markdown, no unknown evidence or missing-data refs.
@@ -149,10 +149,10 @@ Latest remote verification:
 Current parity progress:
 
 - Overall target: close the poixe target-report parity gap without using the reference report as evidence.
-- Current gap ledger item: `G2 evidence_selection`.
-- Current subtask: `G2.4 ReportBrief High-Value Row Retention`.
-- Last completed subtask: `G2.3 Section Table Row Ranking and High-Value Selection`.
-- Next engineering focus: inspect and fix compact brief retention so high-value public business/detail and SPA route/module rows survive into deterministic section tables when current normalized evidence supports them, while preserving G2.3 ranking, G1.8 filtering, G1.9 boundary cleanup, raw evidence-prose compression, G2.2 section ownership, and validated refs.
+- Current gap ledger item: `G3 new_provider`.
+- Current subtask: `G3.1 Public Route Hint Derivation`.
+- Last completed subtask: `G2.4 ReportBrief High-Value Row Retention`.
+- Next engineering focus: derive missing public route hints such as `/signup`, `/vendor`, `/vendor/log`, `/vendor/revenue`, `/setting/payment`, and `/model?tab=model-load` only when current public docs/content/bundle evidence supports them, while preserving G2.4 brief retention, G2.3 ranking, G1.8 filtering, G1.9 boundary cleanup, raw evidence-prose compression, G2.2 section ownership, and validated refs.
 
 ## Current Features
 

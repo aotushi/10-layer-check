@@ -393,8 +393,13 @@ function compactEvidenceItems(items: Evidence[]): ReportBriefEvidenceItem[] {
   return items.slice(0, 20).map((item) => ({
     type: item.type,
     ...(item.name ? { name: item.name } : {}),
-    value: compactValue(item.value),
+    value: compactEvidenceValue(item),
   }));
+}
+
+function compactEvidenceValue(item: Evidence): string {
+  const tableRows = compactTableRowsForEvidenceItem(item);
+  return tableRows ? compactArrayValue(tableRows) : compactValue(item.value);
 }
 
 function compactValue(value: unknown): string {
@@ -410,6 +415,124 @@ function compactArrayValue(value: unknown[]): string {
     if (text.length <= 900) return text;
   }
   return JSON.stringify([]);
+}
+
+function compactTableRowsForEvidenceItem(item: Evidence): unknown[] | null {
+  if (!Array.isArray(item.value)) return null;
+  const name = item.name ?? item.type;
+  const rows = item.value.filter(isRecord);
+
+  if (name === "product_business_detail_snippets") {
+    return rankBriefRows(rows.map(compactPublicBusinessDetailRow), scorePublicBusinessDetailRow);
+  }
+
+  if (name === "route_candidates") {
+    return rankBriefRows(rows.map(compactRouteCandidateRow), scoreRouteCandidateRow);
+  }
+
+  return null;
+}
+
+function compactPublicBusinessDetailRow(row: Record<string, unknown>): Record<string, unknown> {
+  return removeEmptyFields({
+    path: stringField(row, "path"),
+    title: stringField(row, "title") ?? stringField(row, "label"),
+    detail_kind: stringField(row, "detail_kind"),
+    controlled_hint: stringField(row, "controlled_hint"),
+  });
+}
+
+function compactRouteCandidateRow(row: Record<string, unknown>): Record<string, unknown> {
+  return removeEmptyFields({
+    route_candidate: stringField(row, "route_candidate") ?? stringField(row, "value"),
+    source_asset: stringField(row, "source_asset"),
+    confidence: stringField(row, "confidence"),
+  });
+}
+
+function rankBriefRows(
+  rows: Record<string, unknown>[],
+  scoreRow: (row: Record<string, unknown>) => number,
+): Record<string, unknown>[] {
+  return rows
+    .map((row, index) => ({ row, index, score: scoreRow(row) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((item) => item.row);
+}
+
+function scorePublicBusinessDetailRow(row: Record<string, unknown>): number {
+  const text = rowSearchText(row);
+  const path = stringField(row, "path") ?? "";
+  const hint = (stringField(row, "controlled_hint") ?? "").toLowerCase();
+  const kind = (stringField(row, "detail_kind") ?? "").toLowerCase();
+  let score = 0;
+
+  if (kind === "product") score += 24;
+  if (kind === "article") score += 10;
+  if (/product|commercial|business/.test(hint)) score += 18;
+  if (/docs|technical_documentation|news|blog/.test(hint)) score -= 4;
+  score += businessRowSignalScore(text);
+  if (/\/products\/vendor\/application/i.test(path)) score += 34;
+  else if (/\/products\/vendor/i.test(path)) score += 28;
+  if (/\/cn\/docs\/get-started\/overview/i.test(path)) score -= 18;
+
+  return score;
+}
+
+function scoreRouteCandidateRow(row: Record<string, unknown>): number {
+  const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
+  let score = confidenceScore(stringField(row, "confidence")) + businessRowSignalScore(route);
+
+  if (/^\/products\/vendor\/application$/.test(route)) score += 40;
+  else if (/^\/products\/vendor$/.test(route)) score += 36;
+  else if (/^\/vendor\/(revenue|log)$/.test(route)) score += 32;
+  else if (/^\/vendor$/.test(route)) score += 28;
+  if (/^\/setting\/payment$/.test(route)) score += 30;
+  if (/^\/(pricing|model)$/.test(route)) score += 24;
+  if (/^\/(login|signup)$/.test(route)) score += 18;
+  if (/^\/(dashboard|billing|wallet)$/.test(route)) score += 14;
+  if (route === "/" || route.includes("*")) score -= 20;
+
+  return score;
+}
+
+function businessRowSignalScore(text: string): number {
+  let score = 0;
+  if (/supplier|vendor|onboarding/.test(text)) score += 28;
+  if (/payout|withdraw|withdrawal|settlement/.test(text)) score += 26;
+  if (/routing|provider/.test(text)) score += 24;
+  if (/pricing|price|cost|discount/.test(text)) score += 18;
+  if (/token|recharge|billing|payment|wallet|log|model/.test(text)) score += 16;
+  if (/about|platform/.test(text)) score += 8;
+  return score;
+}
+
+function confidenceScore(value: string | null): number {
+  const normalized = (value ?? "").toLowerCase();
+  if (normalized === "confirmed" || normalized === "high") return 30;
+  if (normalized === "likely" || normalized === "medium") return 20;
+  if (normalized === "possible" || normalized === "low") return 6;
+  return 0;
+}
+
+function rowSearchText(row: Record<string, unknown>): string {
+  return Object.values(row)
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+}
+
+function stringField(value: Record<string, unknown>, key: string): string | null {
+  const child = value[key];
+  return typeof child === "string" && child.trim() ? child : null;
+}
+
+function removeEmptyFields(value: Record<string, string | null>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (child) result[key] = child;
+  }
+  return result;
 }
 
 function compactBriefJsonValue(value: unknown): unknown {

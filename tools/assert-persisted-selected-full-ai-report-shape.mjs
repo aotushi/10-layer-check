@@ -543,25 +543,26 @@ function assertSectionSpecificTables(markdown) {
     security.includes("wordpress_test_cookie=path,secure,httponly"),
     "Cookie table should preserve parsed cookie attributes from stronger observations.",
   );
-  assert.ok(publicIa.includes("| /products/vendor | index-abcd.js | medium |"), "SPA route table should include the product/vendor route.");
-  assert.ok(publicIa.includes("| /products | index-abcd.js | medium |"), "SPA route table should include the product route.");
+  assert.ok(publicIa.includes("| /products/vendor/application | index-abcd.js | medium |"), "SPA route table should retain the late product/vendor application route.");
+  assert.ok(publicIa.includes("| /products/vendor | index-abcd.js | medium |"), "SPA route table should retain the late product/vendor route.");
+  assert.ok(publicIa.includes("| /pricing | index-abcd.js | medium |"), "SPA route table should include the pricing route.");
   assert.ok(
-    publicIa.indexOf("| /products/vendor | index-abcd.js | medium |") <
-      publicIa.indexOf("| /products | index-abcd.js | medium |"),
+    publicIa.indexOf("| /products/vendor/application | index-abcd.js | medium |") <
+      publicIa.indexOf("| /pricing | index-abcd.js | medium |"),
     "SPA route table should prioritize high-value product/vendor routes over generic product routes.",
   );
   assert.ok(
     organization.includes("| product | product | /products/vendor/application | Supplier onboarding |"),
-    "Business table should include the supplier onboarding product row.",
+    "Business table should retain the late supplier onboarding product row.",
   );
   assert.ok(
-    organization.includes("| docs | technical_documentation | /docs/get-started/overview | Generic overview |"),
-    "Business table fixture should include the generic docs overview row for ordering checks.",
+    organization.includes("| product | product | /products/vendor | Vendor console |"),
+    "Business table should retain the late vendor console product row.",
   );
   assert.ok(
     organization.indexOf("| product | product | /products/vendor/application | Supplier onboarding |") <
-      organization.indexOf("| docs | technical_documentation | /docs/get-started/overview | Generic overview |"),
-    "Business table should prioritize product/business operation rows over generic docs overview rows.",
+      organization.indexOf("| docs | product | /docs/route-provider | Provider routing |"),
+    "Business table should prioritize product/business operation rows over generic docs product rows.",
   );
 }
 
@@ -835,9 +836,17 @@ function createFullSelectedFixtureRun() {
             name: "route_candidates",
             value: [
               { route_candidate: "/billing", source_asset: "/assets/index-abcd.js", confidence: "low" },
-              { route_candidate: "/products", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/dashboard", source_asset: "/assets/index-abcd.js", confidence: "low" },
               { route_candidate: "/log", source_asset: "/assets/index-abcd.js", confidence: "low" },
+              { route_candidate: "/login", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/model", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/pricing", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/products", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/products/free", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/products/user", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/token", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/products/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/products/vendor/application", source_asset: "/assets/index-abcd.js", confidence: "medium" },
             ],
           },
         ],
@@ -1191,19 +1200,59 @@ function createFullSelectedFixtureRun() {
               },
               {
                 host: "docs.poixe.example",
-                path: "/products/vendor/application",
-                title: "Supplier onboarding",
-                detail_kind: "product",
-                controlled_hint: "product",
-                snippets: ["Vendors can apply to join the platform."],
+                path: "/blog/platform-news",
+                title: "Platform news",
+                detail_kind: "article",
+                controlled_hint: "news",
+                snippets: ["Generic release update."],
               },
               {
                 host: "docs.poixe.example",
                 path: "/docs/route-provider",
                 title: "Provider routing",
                 detail_kind: "docs",
-                controlled_hint: "docs",
+                controlled_hint: "product",
                 snippets: ["Model provider routing can be configured."],
+              },
+              {
+                host: "docs.poixe.example",
+                path: "/docs/vendor/onboarding",
+                title: "Vendor onboarding",
+                detail_kind: "docs",
+                controlled_hint: "product",
+                snippets: ["Vendors can apply to join the platform."],
+              },
+              {
+                host: "docs.poixe.example",
+                path: "/docs/vendor/payouts",
+                title: "Vendor payouts",
+                detail_kind: "docs",
+                controlled_hint: "product",
+                snippets: ["Vendors can withdraw settled revenue."],
+              },
+              {
+                host: "poixe.example",
+                path: "/products",
+                title: "Products",
+                detail_kind: "product",
+                controlled_hint: "product",
+                snippets: ["Generic product page."],
+              },
+              {
+                host: "poixe.example",
+                path: "/products/vendor",
+                title: "Vendor console",
+                detail_kind: "product",
+                controlled_hint: "product",
+                snippets: ["Vendor product console."],
+              },
+              {
+                host: "poixe.example",
+                path: "/products/vendor/application",
+                title: "Supplier onboarding",
+                detail_kind: "product",
+                controlled_hint: "product",
+                snippets: ["Vendors can apply to join the platform."],
               },
             ],
           },
