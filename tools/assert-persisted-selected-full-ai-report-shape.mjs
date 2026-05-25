@@ -496,6 +496,27 @@ function assertSectionSpecificTables(markdown) {
 
   assert.ok(!publicIa.includes("CORS observation table:"), "Public IA should not own API/CORS tables.");
   assert.ok(!organization.includes("Public content surface table:"), "Organization should not duplicate public content map tables.");
+  assert.ok(
+    !api.includes("| poixe.example | GET | / | 200 |  |"),
+    "CORS table should hide low-signal empty rows when stronger CORS rows exist.",
+  );
+  assert.ok(api.includes("allow-origin reflected"), "CORS table should render readable signal labels.");
+  assert.ok(
+    subdomains.includes("| docs.poixe.example | docs | 200 | docs host HTTP 200 |"),
+    "Public host table should fill observed hints from role/status context when server/title is absent.",
+  );
+  assert.ok(
+    !organization.includes("Poixe Fixture"),
+    "Business table should hide generic homepage rows when product/business detail rows exist.",
+  );
+  assert.ok(
+    !security.includes("| poixe.example | GET | / | 200 |  |"),
+    "Cookie table should hide low-signal empty rows when stronger cookie observations exist.",
+  );
+  assert.ok(
+    security.includes("wordpress_test_cookie=path,secure,httponly"),
+    "Cookie table should preserve parsed cookie attributes from stronger observations.",
+  );
 }
 
 function assertSectionCitationShape(markdown) {
@@ -825,6 +846,7 @@ function createFullSelectedFixtureRun() {
         summary: "Observed CORS response header signal(s) on 2 bounded public check(s).",
         value: {
           checks: [
+            { host: "poixe.example", method: "GET", path: "/", status_code: 200, signals: [] },
             {
               host: "api.poixe.example",
               method: "GET",
@@ -848,6 +870,7 @@ function createFullSelectedFixtureRun() {
             type: "bounded_cors_checks",
             name: "bounded_cors_checks",
             value: [
+              { host: "poixe.example", method: "GET", path: "/", status_code: 200, signals: [] },
               {
                 host: "api.poixe.example",
                 method: "GET",
@@ -959,7 +982,7 @@ function createFullSelectedFixtureRun() {
             type: "http_observation",
             name: "public_hosts",
             value: [
-              { host: "docs.poixe.example", role_hint: "docs", status_code: 200, server: "cloudflare" },
+              { host: "docs.poixe.example", role_hint: "docs", status_code: 200 },
               { host: "api.poixe.example", role_hint: "api", status_code: 200, server: "cloudflare" },
               { host: "blog.poixe.example", role_hint: "blog", status_code: 200, server: "nginx" },
             ],
@@ -1131,6 +1154,33 @@ function createFullSelectedFixtureRun() {
         ],
       }),
       record(target, normalizedTarget, snapshotAt, {
+        layer: 9,
+        probe: "public_business_content_probe",
+        item: "public_business_content",
+        source: "cloudflare_worker_public_content_surface",
+        summary: "Collected public business/product snippets from root and product pages.",
+        value: {
+          pages: [{ title: "Poixe Fixture", path: "/" }],
+          coverage: { collected: ["public_business_product_snippets"], missing: ["manual_business_confirmation"] },
+        },
+        evidence: [
+          {
+            type: "public_business_content",
+            name: "business_product_snippets",
+            value: [
+              {
+                host: "poixe.example",
+                path: "/",
+                title: "Poixe Fixture",
+                controlled_hint: "news",
+                classification: { controlled_hint: "news", label: "news" },
+                snippets: ["Generic homepage copy."],
+              },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
         layer: 10,
         probe: "security_headers_probe",
         item: "security_headers",
@@ -1158,6 +1208,7 @@ function createFullSelectedFixtureRun() {
         summary: "Observed Set-Cookie header(s) on 1 bounded public check(s).",
         value: {
           checks: [
+            { host: "poixe.example", method: "GET", path: "/", status_code: 200 },
             {
               host: "blog.poixe.example",
               method: "HEAD",
@@ -1174,6 +1225,7 @@ function createFullSelectedFixtureRun() {
             type: "bounded_cookie_checks",
             name: "bounded_cookie_checks",
             value: [
+              { host: "poixe.example", method: "GET", path: "/", status_code: 200 },
               {
                 host: "blog.poixe.example",
                 method: "HEAD",

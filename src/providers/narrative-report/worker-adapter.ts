@@ -759,7 +759,10 @@ function createApiEndpointTable(contract: AiNarrativeReportContract): string {
 }
 
 function createCorsObservationTable(contract: AiNarrativeReportContract): string {
-  const rows = evidenceRows(contract, "bounded_cors_header_validation_probe", ["bounded_cors_checks"])
+  const sourceRows = preferRowsWithSignalText(
+    evidenceRows(contract, "bounded_cors_header_validation_probe", ["bounded_cors_checks"]),
+  );
+  const rows = sourceRows
     .slice(0, 6)
     .map((row) => [
       stringField(row, "host") ?? "",
@@ -778,16 +781,19 @@ function createPublicHostTable(contract: AiNarrativeReportContract): string {
       stringField(row, "host") ?? "",
       stringField(row, "role_hint") ?? "",
       statusField(row),
-      stringField(row, "server") ?? stringField(row, "title") ?? stringField(row, "error") ?? "",
+      publicHostObservedHint(row),
     ]);
   return markdownTable("Public host table:", ["Host", "Role", "Status", "Observed hint"], rows);
 }
 
 function createPublicBusinessPageTable(contract: AiNarrativeReportContract): string {
-  const rows = [
-    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
-    ...evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]),
-  ]
+  const detailRows = evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]);
+  const contentRows = evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]);
+  const sourceRows = [
+    ...detailRows,
+    ...(detailRows.length > 0 ? contentRows.filter((row) => !isGenericHomepageBusinessRow(row)) : contentRows),
+  ];
+  const rows = sourceRows
     .slice(0, 6)
     .map((row) => [
       stringField(row, "detail_kind") ?? classificationLabel(row),
@@ -807,17 +813,18 @@ function createSecurityControlTable(contract: AiNarrativeReportContract): string
 }
 
 function createCookieObservationTable(contract: AiNarrativeReportContract): string {
-  const rows = [
+  const sourceRows = preferRowsWithObservationText([
     ...evidenceRows(contract, "bounded_cookie_attribute_observation_probe", ["bounded_cookie_checks"]),
     ...evidenceRows(contract, "cookie_security_probe", ["cookie", "session"]),
-  ]
+  ]);
+  const rows = sourceRows
     .slice(0, 5)
     .map((row) => [
       stringField(row, "host") ?? "",
       stringField(row, "method") ?? "",
       stringField(row, "path") ?? stringField(row, "name") ?? "",
       statusField(row),
-      parsedSummary(row) || compactSignals(row.signals),
+      parsedSummary(row) || compactSignals(row.signals) || stringField(row, "value") || "",
     ]);
   return markdownTable("Cookie observation table:", ["Host", "Method", "Path/Cookie", "Status", "Attributes"], rows);
 }
@@ -850,6 +857,41 @@ function markdownCell(value: string, maxLength: number): string {
   return compact.length > maxLength ? `${compact.slice(0, Math.max(0, maxLength - 3))}...` : compact;
 }
 
+function preferRowsWithSignalText(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const signalRows = rows.filter((row) => compactSignals(row.signals).length > 0);
+  return signalRows.length > 0 ? signalRows : rows;
+}
+
+function preferRowsWithObservationText(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const signalRows = rows.filter((row) =>
+    parsedSummary(row).length > 0
+    || compactSignals(row.signals).length > 0
+    || stringField(row, "value") !== null
+  );
+  return signalRows.length > 0 ? signalRows : rows;
+}
+
+function publicHostObservedHint(row: Record<string, unknown>): string {
+  const server = stringField(row, "server");
+  if (server) return `server=${server}`;
+  const title = stringField(row, "title");
+  if (title) return `title=${title}`;
+  const redirect = stringField(row, "redirect") ?? stringField(row, "redirected_to") ?? stringField(row, "final_url");
+  if (redirect) return `redirect=${redirect}`;
+  const error = stringField(row, "error");
+  if (error) return `error=${error}`;
+  const role = stringField(row, "role_hint");
+  const status = statusField(row);
+  if (role && status) return `${role} host HTTP ${status}`;
+  if (status) return `HTTP ${status}`;
+  return role ? `${role} host observed` : "";
+}
+
+function isGenericHomepageBusinessRow(row: Record<string, unknown>): boolean {
+  const path = stringField(row, "path") ?? "";
+  return path === "/" && stringField(row, "detail_kind") === null;
+}
+
 function classificationLabel(row: Record<string, unknown>): string {
   const direct = stringField(row, "controlled_hint") ?? stringField(row, "label") ?? stringField(row, "detail_kind");
   if (direct) return direct;
@@ -867,16 +909,32 @@ function statusField(row: Record<string, unknown>): string {
 }
 
 function compactSignals(value: unknown): string {
-  return asStringArray(value).slice(0, 3).join(", ");
+  return asStringArray(value).map(formatSignalLabel).slice(0, 3).join(", ");
 }
 
 function parsedSummary(row: Record<string, unknown>): string {
-  const parsed = isRecord(row.parsed) ? row.parsed : row;
+  const parsed = isRecord(row.parsed) ? row.parsed : null;
+  if (!parsed) return "";
   return Object.entries(parsed)
     .filter(([, value]) => typeof value === "string" || typeof value === "number" || typeof value === "boolean")
     .slice(0, 3)
     .map(([key, value]) => `${key}=${String(value)}`)
     .join(", ");
+}
+
+function formatSignalLabel(value: string): string {
+  const normalized = value.trim();
+  const [key, ...rest] = normalized.split(":");
+  const detail = rest.join(":");
+  if (key === "cors_allow_origin" || key === "access_control_allow_origin_reflects_probe_origin") {
+    return detail ? `allow-origin ${detail}` : "allow-origin reflected";
+  }
+  if (key === "cors_allow_credentials" || key === "access_control_allow_credentials_true") return "allow-credentials true";
+  if (key === "cors_allow_methods" || key === "access_control_allow_methods_present") return "allow-methods present";
+  if (key === "cors_allow_headers" || key === "access_control_allow_headers_authorization") return "allow-headers authorization";
+  if (key === "set_cookie_observed") return "set-cookie observed";
+  if (key === "public_route_presence_observed") return "public route present";
+  return normalized.replace(/_/g, " ");
 }
 
 function signalBasis(row: Record<string, unknown>): string {
