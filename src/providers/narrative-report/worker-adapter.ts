@@ -483,6 +483,9 @@ function createSectionFactLimit(sectionId: string): number {
 }
 
 function isRedundantSectionFact(sectionId: string, content: string, hint: string): boolean {
+  if (hint.startsWith("Business model synthesis:")) {
+    return content.includes("Business model synthesis:");
+  }
   if (sectionId !== "organization_operations") return false;
   const normalizedContent = content.toLowerCase();
   const normalizedHint = hint.toLowerCase();
@@ -528,12 +531,16 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
     ],
   };
   const probes = probesBySection[sectionId] ?? [];
-  if (probes.length === 0) return [];
+  const synthesisFact = sectionId === "summary" || sectionId === "organization_operations"
+    ? createBusinessModelSynthesisFact(contract)
+    : "";
+  if (probes.length === 0) return synthesisFact ? [synthesisFact] : [];
 
-  return contract.input.brief.evidence_index
+  const evidenceFacts = contract.input.brief.evidence_index
     .filter((item) => probes.includes(item.probe))
     .map((item) => createBriefEvidenceFact(item))
     .filter(Boolean);
+  return uniqueStrings([synthesisFact, ...evidenceFacts].filter(Boolean));
 }
 
 function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
@@ -628,6 +635,31 @@ function createSpaOperationEvidenceFact(item: ReportBrief["evidence_index"][numb
   const operationText = operations.length > 0 ? ` Operation hints: ${operations.join(", ")}.` : "";
   const signalText = signals.length > 0 ? ` Signals: ${signals.join("; ")}.` : "";
   return truncate(`SPA operation hints: ${item.summary}.${operationText}${signalText}`, 800);
+}
+
+function createBusinessModelSynthesisFact(contract: AiNarrativeReportContract): string {
+  const hasModelsApi = hasPublicModelsApiEndpoint(contract);
+  const hasProviderRouting = hasProviderRoutingPublicDocs(contract) || hasSpaOperationEvidence(contract, "model-load/provider routing");
+  const hasVendorOnboarding = hasVendorOnboardingEvidence(contract);
+  const hasRevenueOps = Boolean(vendorRevenueAliasContentBasis(contract)) || hasSpaOperationEvidence(contract, "vendor revenue/payout");
+  const capabilities = uniqueStrings([
+    hasModelsApi ? "public `/v1/models` API surface" : "",
+    hasProviderRouting ? "provider routing" : "",
+    hasVendorOnboarding ? "supplier/vendor onboarding" : "",
+    hasRevenueOps ? "payout/revenue operations" : "",
+  ]);
+  const sources = uniqueStrings([
+    hasPublicBusinessEvidence(contract) ? "public content/detail" : "",
+    hasModelsApi ? "public API" : "",
+    hasAnySpaOperationEvidence(contract) ? "SPA operation" : "",
+  ]);
+  if (capabilities.length < 2 || sources.length === 0) return "";
+
+  const surface = hasModelsApi && hasProviderRouting ? "an AI API gateway/product platform" : "a public product platform";
+  return truncate(
+    `Business model synthesis: Current ${joinHumanList(sources)} evidence supports describing the public product surface as ${surface} with ${joinHumanList(capabilities)}. This does not prove authenticated billing, internal settlement, or operator ownership.`,
+    520,
+  );
 }
 
 function compactOperationSignalFacts(rows: Record<string, unknown>[]): string[] {
@@ -1012,6 +1044,38 @@ function hasPublicModelsApiEndpoint(contract: AiNarrativeReportContract): boolea
     .some((row) => (stringField(row, "path") ?? "").toLowerCase() === "/v1/models");
 }
 
+function hasPublicBusinessEvidence(contract: AiNarrativeReportContract): boolean {
+  return [
+    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
+    ...evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]),
+    ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
+  ].length > 0;
+}
+
+function hasVendorOnboardingEvidence(contract: AiNarrativeReportContract): boolean {
+  return [
+    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
+    ...evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]),
+    ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
+  ].some((row) => /supplier|vendor|onboarding|入驻|products\/vendor/i.test(rowSearchText(row)));
+}
+
+function hasAnySpaOperationEvidence(contract: AiNarrativeReportContract): boolean {
+  return evidenceRows(contract, "public_spa_route_metadata_probe", ["spa_operation_hints"]).length > 0;
+}
+
+function hasSpaOperationEvidence(contract: AiNarrativeReportContract, operation: string): boolean {
+  return evidenceRows(contract, "public_spa_route_metadata_probe", ["spa_operation_hints"])
+    .some((row) => (stringField(row, "operation") ?? "").toLowerCase() === operation.toLowerCase());
+}
+
+function joinHumanList(values: string[]): string {
+  const filtered = values.filter(Boolean);
+  if (filtered.length <= 1) return filtered[0] ?? "";
+  if (filtered.length === 2) return `${filtered[0]} and ${filtered[1]}`;
+  return `${filtered.slice(0, -1).join(", ")}, and ${filtered[filtered.length - 1]}`;
+}
+
 function createSecurityControlTable(contract: AiNarrativeReportContract): string {
   const securityHeaderItem = contract.input.brief.evidence_index.find((item) => item.probe === "security_headers_probe");
   if (!securityHeaderItem) return "";
@@ -1309,15 +1373,19 @@ function createFallbackContent(
   _missingRefs: string[],
 ): string {
   const brief = contract.input.brief;
+  const businessModelSynthesis = guidance.id === "summary" || guidance.id === "organization_operations"
+    ? createBusinessModelSynthesisFact(contract)
+    : "";
 
   if (guidance.id === "summary") {
     const warningCount = brief.layers.filter((layer) => layer.status === "warning" || layer.status === "error").length;
     const riskCount = brief.risks.filter((risk) => risk.level === "high" || risk.level === "medium").length;
     return [
       `This report is based on ${brief.run.record_count} normalized record(s) across ${brief.coverage.collected_layers.length}/${brief.coverage.total_layers} collected layer(s).`,
+      businessModelSynthesis,
       warningCount > 0 ? `${warningCount} layer(s) contain warning or error signals.` : "No layer has warning or error status in the current evidence.",
       riskCount > 0 ? `${riskCount} high/medium risk item(s) should be reviewed first.` : "No high/medium risk item is flagged by the deterministic analysis.",
-    ].join(" ");
+    ].filter(Boolean).join(" ");
   }
 
   if (guidance.id === "missing_data_next_steps") {
@@ -1334,7 +1402,8 @@ function createFallbackContent(
   const factHints = guidance.fact_hints.slice(0, 5);
 
   if (factHints.length > 0) {
-    return `${createSectionFactAppendLabel(guidance.id)} ${factHints.join(" ")}`;
+    const synthesisPrefix = businessModelSynthesis ? `${businessModelSynthesis} ` : "";
+    return `${synthesisPrefix}${createSectionFactAppendLabel(guidance.id)} ${factHints.join(" ")}`;
   }
 
   const collected = evidenceSummaries.length > 0
@@ -1378,7 +1447,13 @@ function shapeSectionContent(sectionId: string, content: string): string {
   if (sectionId === "summary") {
     return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
       duplicateLabels: ["Key evidence:"],
-      paragraphMarkers: ["Performance score", "Lighthouse performance score", "Missing security headers:", "Subdomain/reachability matrix:"],
+      paragraphMarkers: [
+        "Business model synthesis:",
+        "Performance score",
+        "Lighthouse performance score",
+        "Missing security headers:",
+        "Subdomain/reachability matrix:",
+      ],
     });
   }
   if (sectionId === "deployment_network_surface") {
@@ -1651,7 +1726,7 @@ function sanitizeSectionLimitations(
 
 function cleanSectionLimitation(value: string): string {
   const trimmed = value.trim();
-  if (/^Do not infer business model or ownership from technical evidence alone\.$/i.test(trimmed)) {
+  if (/^Do not infer business model or ownership from technical evidence alone/i.test(trimmed)) {
     return "Technical evidence alone does not prove business model or ownership.";
   }
   return value
@@ -1696,6 +1771,7 @@ function escapeRegExp(value: string): string {
 function shapeOrganizationOperationsContent(content: string): string {
   const normalized = content
     .replace(/\s+/g, " ")
+    .replace(/ Business model synthesis:\s*/g, "\n\nBusiness model synthesis: ")
     .replace(/ Public operations evidence:\s*/g, "\n\nPublic operations evidence: ")
     .replace(/ Public business\/product content:\s*/g, "\n\nPublic business/product content: ")
     .replace(/ Public product\/business detail:\s*/g, "\n\nPublic product/business detail: ")
@@ -1724,6 +1800,7 @@ function trimOrganizationParagraph(value: string): string {
   if (value === "Public operations evidence:") return "";
   if (value.startsWith("Public operations evidence: ")) {
     const trimmed = value.replace(/^Public operations evidence:\s*/, "");
+    if (/^Business model synthesis:/i.test(trimmed)) return trimBusinessModelSynthesisParagraph(trimmed);
     if (/^Collected organization-facing DNS/i.test(trimmed)) return "";
     if (/^Public SPA operation evidence:/i.test(trimmed)) {
       return `Public operations evidence: ${trimmed.replace(/^Public SPA operation evidence:\s*/i, "SPA operation hints: ")}`;
@@ -1731,6 +1808,12 @@ function trimOrganizationParagraph(value: string): string {
     return `Public operations evidence: ${trimmed}`;
   }
   return value;
+}
+
+function trimBusinessModelSynthesisParagraph(value: string): string {
+  return value
+    .replace(/\s+(?:SPA operation hints:|Preserved \d+ bounded public API endpoint|Collected public business\/product|Collected organization-facing DNS)[\s\S]*$/i, "")
+    .trim();
 }
 
 function uniqueOrganizationParagraph(value: string, index: number, values: string[]): boolean {
@@ -1741,6 +1824,7 @@ function uniqueOrganizationParagraph(value: string, index: number, values: strin
 
 function organizationParagraphKey(value: string): string | null {
   for (const label of [
+    "Business model synthesis:",
     "Public product/business detail:",
     "Public business/product content:",
     "Public content detail map:",
@@ -1752,6 +1836,7 @@ function organizationParagraphKey(value: string): string | null {
 }
 
 function scoreOrganizationParagraph(value: string): number {
+  if (value.startsWith("Business model synthesis:")) return 5;
   if (value.startsWith("Public product/business detail:")) return 10;
   if (value.startsWith("Public business/product content:")) return 20;
   if (value.startsWith("Public content detail map:")) return 30;

@@ -450,6 +450,12 @@ function assertSectionDensityShape(markdown) {
       "Summary should split performance facts into topical paragraphs.",
     );
   }
+  if (summary.includes("Business model synthesis:")) {
+    assert.ok(
+      summary.startsWith("Business model synthesis:") || summary.includes("\n\nBusiness model synthesis:"),
+      "Summary should split business model synthesis into a topical paragraph.",
+    );
+  }
   if (technology.includes("Public SPA asset metadata:")) {
     assert.ok(
       technology.startsWith("Public SPA asset metadata:") || technology.includes("\n\nPublic SPA asset metadata:"),
@@ -495,6 +501,7 @@ function assertSectionDensityShape(markdown) {
 }
 
 function assertSectionSpecificTables(markdown) {
+  const summary = sectionText(markdown, "Executive Summary");
   const publicIa = sectionText(markdown, "Public Information Architecture");
   const technology = sectionText(markdown, "Technology Stack");
   const api = sectionText(markdown, "API and Protocol Surface");
@@ -520,6 +527,18 @@ function assertSectionSpecificTables(markdown) {
   assert.ok(organization.includes("SPA operation evidence table:"), "Organization section should include SPA operation evidence table.");
   assert.ok(security.includes("Security control table:"), "Security section should include security control table.");
   assert.ok(security.includes("Cookie observation table:"), "Security section should include cookie observation table.");
+
+  for (const [sectionName, section] of [["Summary", summary], ["Organization", organization]]) {
+    assert.ok(section.includes("Business model synthesis:"), `${sectionName} should include compact business-model synthesis.`);
+    assert.ok(section.includes("AI API gateway/product platform"), `${sectionName} should synthesize the supported public product surface.`);
+    assert.ok(section.includes("provider routing"), `${sectionName} should include provider-routing synthesis from current refs.`);
+    assert.ok(section.includes("supplier/vendor onboarding"), `${sectionName} should include supplier/vendor onboarding synthesis from current refs.`);
+    assert.ok(section.includes("payout/revenue operations"), `${sectionName} should include payout/revenue synthesis from current refs.`);
+    assert.ok(
+      section.includes("does not prove authenticated billing, internal settlement, or operator ownership"),
+      `${sectionName} should bound the business-model synthesis to public-surface evidence.`,
+    );
+  }
 
   assert.ok(!publicIa.includes("CORS observation table:"), "Public IA should not own API/CORS tables.");
   assert.ok(!organization.includes("Public content surface table:"), "Organization should not duplicate public content map tables.");

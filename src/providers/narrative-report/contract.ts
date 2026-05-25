@@ -69,8 +69,8 @@ export const AI_NARRATIVE_REPORT_SECTION_GUIDANCE = [
   {
     id: "summary",
     title: "Executive Summary",
-    focus: "State the strongest evidence-backed conclusion, coverage, and top risks.",
-    boundary: "Do not infer business model or ownership from technical evidence alone.",
+    focus: "State the strongest evidence-backed product/business-surface conclusion, coverage, and top risks.",
+    boundary: "Do not infer business model or ownership from technical evidence alone; use public content, public API, and public SPA-operation evidence only when those refs directly support the conclusion.",
   },
   {
     id: "public_information_architecture",
@@ -111,8 +111,8 @@ export const AI_NARRATIVE_REPORT_SECTION_GUIDANCE = [
   {
     id: "organization_operations",
     title: "Organization and Operations Signals",
-    focus: "Summarize RDAP, MX/TXT, homepage social/related-domain candidates, and Wayback evidence.",
-    boundary: "Registration and historical evidence do not prove current operator or legal ownership.",
+    focus: "Summarize public business/product model signals, public operation evidence, RDAP, MX/TXT, homepage social/related-domain candidates, and Wayback evidence.",
+    boundary: "Registration, historical, and public-surface operation evidence do not prove current operator, legal ownership, authenticated billing, or internal settlement behavior.",
   },
   {
     id: "security_posture",
@@ -277,8 +277,20 @@ function selectFactHints(brief: ReportBrief, sectionId: string, evidenceRefs: st
       .map((item) => `Missing data: ${item.description} (${item.classification}).`)
     : [];
 
-  return prioritizeFactHints(sectionId, uniqueStrings([...evidenceFacts, ...missingFacts]))
+  const facts = sectionId === "summary"
+    ? uniqueStrings([...evidenceFacts, ...missingFacts]).filter((fact) => !isSummaryDetailInventoryFact(fact))
+    : uniqueStrings([...evidenceFacts, ...missingFacts]);
+  return prioritizeFactHints(sectionId, facts)
     .slice(0, factHintLimitForSection(sectionId));
+}
+
+function isSummaryDetailInventoryFact(value: string): boolean {
+  return (
+    value.startsWith("Public product/business detail:") ||
+    value.startsWith("Public business/product content:") ||
+    value.startsWith("Public SPA route metadata:") ||
+    value.startsWith("Bounded public API endpoint inventory:")
+  );
 }
 
 function createEvidenceFactHint(item: ReportBrief["evidence_index"][number]): string {
@@ -911,6 +923,7 @@ function selectEvidenceRefHints(brief: ReportBrief, sectionId: string): string[]
 }
 
 function selectSummaryEvidenceRefs(brief: ReportBrief): string[] {
+  const businessSurfaceRefs = selectSummaryBusinessSurfaceEvidenceRefs(brief);
   const riskRefs = brief.risks
     .flatMap((risk) => risk.evidence_refs)
     .filter((ref) => {
@@ -922,7 +935,22 @@ function selectSummaryEvidenceRefs(brief: ReportBrief): string[] {
     .filter((item) => !SUMMARY_DETAIL_PROBES.has(item.probe))
     .map((item) => item.id);
   const firstLayerRefs = brief.layers.flatMap((layer) => layer.evidence_refs.slice(0, 1));
-  return uniqueStrings([...riskRefs, ...warningRefs, ...firstLayerRefs]).slice(0, 10);
+  return uniqueStrings([...businessSurfaceRefs, ...riskRefs, ...warningRefs, ...firstLayerRefs]).slice(0, 10);
+}
+
+function selectSummaryBusinessSurfaceEvidenceRefs(brief: ReportBrief): string[] {
+  const priority = new Map([
+    ["public_product_business_detail_probe", 0],
+    ["bounded_public_api_endpoint_inventory_probe", 1],
+    ["public_spa_route_metadata_probe", 2],
+    ["public_business_content_probe", 3],
+  ]);
+  return brief.evidence_index
+    .map((item, index) => ({ item, index, priority: priority.get(item.probe) ?? Number.MAX_SAFE_INTEGER }))
+    .filter(({ priority }) => priority < Number.MAX_SAFE_INTEGER)
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .slice(0, 3)
+    .map(({ item }) => item.id);
 }
 
 const SUMMARY_DETAIL_PROBES = new Set([
