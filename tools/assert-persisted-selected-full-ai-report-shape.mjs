@@ -87,6 +87,8 @@ try {
 function createSparseModelOutput(contract) {
   const evidenceRef = contract.input.brief.evidence_index[0]?.id ?? "E001";
   const missingRef = contract.input.brief.missing_data[0]?.id;
+  const apiGuidance = contract.output_contract.section_guidance.find((section) => section.id === "api_protocol_surface");
+  const apiEvidenceRef = apiGuidance?.evidence_ref_hints?.[0] ?? evidenceRef;
 
   return {
     sections: [
@@ -98,6 +100,17 @@ function createSparseModelOutput(contract) {
         evidence_refs: [evidenceRef],
         missing_data_refs: missingRef ? [missingRef] : [],
         limitations: ["Generated from bounded local fixture evidence."],
+      },
+      {
+        id: "api_protocol_surface",
+        title: "API and Protocol Surface",
+        content:
+          "API/protocol evidence: Bounded public CORS check: Observed CORS response header signal(s) on 2 bounded public check(s). Evidence: host=api.poixe.example path=/health access-control=true. No CORS headers were found on the main response. Bounded public CORS check: Observed CORS response header signal(s) on 2 bounded public check(s). CORS response-header signals were observed in bounded public checks. Bounded public API endpoint inventory: Preserved 2 bounded public API endpoint observation(s): /health, /v1/models. Evidence: path=/health access-control=true.",
+        evidence_refs: [apiEvidenceRef],
+        missing_data_refs: [],
+        limitations: [
+          "Do not place CORS, cookie, API error-surface, or CMS metadata details here; use the API, Technology, Subdomain, or Security sections.",
+        ],
       },
     ],
     markdown: "",
@@ -412,6 +425,18 @@ function assertSectionDensityShape(markdown) {
   assert.ok(!security.includes("Security evidence:"), "Security section should not keep duplicated evidence labels.");
   assert.ok(!missingData.includes("Gap examples:"), "Missing-data section should not keep dense Gap examples labels.");
   assert.ok(!/Boundaries:[^\n]*(Evidence:|status_code=|metric\(s\)|certificate\(s\))/i.test(markdown), "Boundaries should not contain fact-like evidence prose.");
+  assert.ok(
+    !/^Boundaries:.*(?:Do not place|section_guidance|write one section|cite only|do not invent|keep markdown)/gim.test(markdown),
+    "Boundaries should not contain prompt or editorial guidance text.",
+  );
+  assert.ok(
+    countOccurrences(api, "Bounded public CORS check:") <= 1,
+    "API section should not repeat bounded CORS prose before the tables.",
+  );
+  assert.ok(
+    countOccurrences(api, "Bounded public checks include `/health` and `/v1/models`.") <= 1,
+    "API section should not repeat endpoint summary boilerplate before the tables.",
+  );
   if (publicIa.includes("Public content detail map:") || publicIa.includes("Public content surface map:")) {
     assert.ok(
       publicIa.includes("\n\nPublic content detail map:") || publicIa.includes("\n\nPublic content surface map:"),

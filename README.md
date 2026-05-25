@@ -118,7 +118,7 @@ The smoke commands post to `https://probe.9shi.cc` by default, read `PROBE_API_K
 
 Latest remote verification:
 
-- Table row filtering and signal labels verification: Worker version `781f27ea-5e92-4f3a-b5d0-939326756bcc` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-23c328a8-18e1-4ab0-a00b-3f0ca2b7506e`, 57 records, Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, 12 compact section-specific tables, low-signal CORS/cookie/homepage rows filtered, public-host observed hints filled from current evidence, readable CORS/cookie signal labels, and 0 raw inline `Evidence: key=value` prose lines. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-25T01-20-43-046Z.json` and `.md`.
+- Boundary guidance leakage cleanup verification: Worker version `6d7d9cfe-e1ee-4b8b-aa1b-ca432b1522df` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-93b191ab-5cc5-41b0-8548-b96e52c2d150`, 57 records, Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, 12 compact section-specific tables, low-signal table rows filtered, public-host observed hints filled, no prompt/editorial guidance in `Boundaries`, one bounded-CORS prose occurrence, one endpoint-summary occurrence, and 0 raw inline `Evidence: key=value` prose lines. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-25T01-32-46-827Z.json` and `.md`.
 - Worker version: `92f852eb-db6e-41e6-a28c-5d1361c7cea2`
 - Target: `https://example.com`
 - Result: `site-10-layer-scan-ai-report/v0.1`, 20 deterministic records, 6 AI report sections, 1766-character Markdown, no unknown evidence or missing-data refs.
@@ -149,10 +149,10 @@ Latest remote verification:
 Current parity progress:
 
 - Overall target: close the poixe target-report parity gap without using the reference report as evidence.
-- Current gap ledger item: `G1 report_synthesis`.
-- Current subtask: `G1.9 Boundary Guidance Leakage Cleanup`.
-- Last completed subtask: `G1.8 Table Row Filtering and Signal Labels`.
-- Next engineering focus: remove prompt/editorial guidance from rendered `Boundaries` and reduce repeated CORS/API prose while preserving G1.8 table filtering, raw evidence-prose compression, G2.2 section ownership, and validated refs.
+- Current gap ledger item: `G2 evidence_selection`.
+- Current subtask: `G2.3 Section Table Row Ranking and High-Value Selection`.
+- Last completed subtask: `G1.9 Boundary Guidance Leakage Cleanup`.
+- Next engineering focus: rank and select stronger current-evidence rows for section tables, especially public business/detail and SPA route/module rows, while preserving G1.8 table filtering, G1.9 boundary cleanup, raw evidence-prose compression, G2.2 section ownership, and validated refs.
 
 ## Current Features
 

@@ -1099,9 +1099,10 @@ function shapeSectionContent(sectionId: string, content: string): string {
     });
   }
   if (sectionId === "api_protocol_surface") {
-    return shapeAndCompressTopicalFactContent(sectionId, contentWithoutGenericMissing, {
+    return shapeApiProtocolSurfaceContent(contentWithoutGenericMissing, {
       duplicateLabels: ["API/protocol evidence:"],
       paragraphMarkers: [
+        "Bounded public CORS check:",
         "Bounded public API endpoint inventory:",
         "Bounded public API check:",
         "No CORS headers",
@@ -1170,6 +1171,14 @@ function shapeAndCompressTopicalFactContent(
   return compressInlineEvidenceProse(sectionId, shapeTopicalFactContent(content, options));
 }
 
+function shapeApiProtocolSurfaceContent(
+  content: string,
+  options: { duplicateLabels: string[]; paragraphMarkers: string[] },
+): string {
+  const shaped = compressInlineEvidenceProse("api_protocol_surface", shapeTopicalFactContent(content, options));
+  return dedupeApiCorsBoilerplate(shaped);
+}
+
 function compressInlineEvidenceProse(sectionId: string, content: string): string {
   if (sectionId === "missing_data_next_steps") return content;
   const paragraphs = collapseExcessParagraphs(content)
@@ -1183,20 +1192,24 @@ function compressInlineEvidenceParagraph(sectionId: string, paragraph: string): 
   if (evidenceIndex < 0) return paragraph;
   const claim = paragraph.slice(0, evidenceIndex).trim();
   const rawEvidence = paragraph.slice(evidenceIndex + " Evidence: ".length).trim();
-  const digest = createInlineEvidenceDigest(sectionId, `${claim} ${rawEvidence}`);
+  const digest = createInlineEvidenceDigest(sectionId, claim, rawEvidence);
   return `${claim}${digest ? ` ${digest}` : ""}`.replace(/\s+/g, " ").trim();
 }
 
-function createInlineEvidenceDigest(sectionId: string, rawEvidence: string): string {
-  const normalized = rawEvidence.toLowerCase();
+function createInlineEvidenceDigest(sectionId: string, claim: string, rawEvidence: string): string {
+  const claimNormalized = claim.toLowerCase();
+  const normalized = `${claim} ${rawEvidence}`.toLowerCase();
   if (rawEvidence.includes("Example CA")) return "Certificate issuer summary includes Example CA.";
   if (rawEvidence.includes("0.91")) return "Performance source metrics include score 0.91.";
   if (normalized.includes("larksuite")) return "Mail DNS includes larksuite MX/TXT signals.";
+  if (
+    sectionId === "api_protocol_surface" &&
+    (claimNormalized.includes("cors") || claimNormalized.includes("access-control"))
+  ) {
+    return "CORS response-header signals were observed in bounded public checks.";
+  }
   if (sectionId === "api_protocol_surface" && (normalized.includes("/health") || normalized.includes("/v1/models"))) {
     return "Bounded public checks include `/health` and `/v1/models`.";
-  }
-  if (sectionId === "api_protocol_surface" && (normalized.includes("cors") || normalized.includes("access-control"))) {
-    return "CORS response-header signals were observed in bounded public checks.";
   }
   if (sectionId === "security_posture" && normalized.includes("content-security-policy")) {
     return "Header evidence includes CSP/HSTS absence and frame/content-type/referrer controls.";
@@ -1236,7 +1249,28 @@ function compressedParagraphDedupeKey(sectionId: string, paragraph: string): str
   if (sectionId === "security_posture" && normalized.startsWith("no set-cookie header was observed")) return "no_set_cookie";
   if (sectionId === "security_posture" && normalized.startsWith("missing security headers:")) return "missing_security_headers";
   if (sectionId === "security_posture" && normalized.startsWith("bounded public cookie check:")) return "bounded_cookie_check";
+  if (sectionId === "api_protocol_surface" && normalized.startsWith("bounded public cors check:")) return "bounded_cors_check";
   return null;
+}
+
+function dedupeApiCorsBoilerplate(content: string): string {
+  let keptEndpointSummary = false;
+  const endpointSummary = "Bounded public checks include `/health` and `/v1/models`.";
+  const paragraphs = collapseExcessParagraphs(content).map((paragraph) => {
+    if (!paragraph.startsWith("No CORS headers were found on the main response.")) return paragraph;
+    return paragraph
+      .replace(/\s+Bounded public CORS check:\s+[^.]+?\.\s*CORS response-header signals were observed in bounded public checks\./g, "")
+      .replace(/\s+CORS response-header signals were observed in bounded public checks\./g, "")
+      .trim();
+  }).map((paragraph) => {
+    if (!paragraph.includes(endpointSummary)) return paragraph;
+    if (!keptEndpointSummary) {
+      keptEndpointSummary = true;
+      return paragraph;
+    }
+    return paragraph.replace(endpointSummary, "").replace(/\s{2,}/g, " ").trim();
+  });
+  return dedupeCompressedSectionParagraphs("api_protocol_surface", paragraphs).join("\n\n");
 }
 
 function removeDuplicatedLeadInLabel(content: string, labels: string[]): string {
@@ -1283,12 +1317,23 @@ function sanitizeSectionLimitations(
   const guidanceBoundary = contract.output_contract.section_guidance.find((item) => item.id === sectionId)?.boundary;
   const cleaned = uniqueStrings(
     limitations
-      .map((value) => value.trim())
+      .map(cleanSectionLimitation)
       .filter(Boolean)
       .filter((value) => !isInvalidSectionLimitation(value)),
   ).slice(0, 8);
   if (cleaned.length > 0) return cleaned;
-  return guidanceBoundary ? [guidanceBoundary] : [];
+  const fallback = guidanceBoundary ? cleanSectionLimitation(guidanceBoundary) : "";
+  return fallback && !isInvalidSectionLimitation(fallback) ? [fallback] : [];
+}
+
+function cleanSectionLimitation(value: string): string {
+  return value
+    .trim()
+    .replace(/;?\s*Do not place CORS,[\s\S]*$/i, "")
+    .replace(/;?\s*Do not add generic Missing data[\s\S]*$/i, "")
+    .replace(/;?\s*Use each section_guidance[\s\S]*$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function isInvalidSectionLimitation(value: string): boolean {
@@ -1296,6 +1341,14 @@ function isInvalidSectionLimitation(value: string): boolean {
   return (
     normalized.includes(" evidence:") ||
     normalized.includes("generated from bounded reportbrief") ||
+    normalized.includes("do not place ") ||
+    normalized.includes("use the api, technology") ||
+    normalized.includes("section_guidance") ||
+    normalized.includes("write one section") ||
+    normalized.includes("cite only ") ||
+    normalized.includes("do not invent ") ||
+    normalized.includes("must be under ") ||
+    normalized.includes("keep markdown ") ||
     normalized.includes("status_code=") ||
     normalized.includes("metric(s)") ||
     normalized.includes("certificate(s)") ||
