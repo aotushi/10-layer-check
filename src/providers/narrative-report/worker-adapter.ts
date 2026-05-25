@@ -321,7 +321,7 @@ function completeRequiredSections(
   return orderSections(contract, result).map((section) => ({
     ...section,
     title: getCanonicalSectionTitle(contract, section),
-    content: shapeSectionContent(section.id, section.content),
+    content: appendSectionTables(contract, section.id, shapeSectionContent(section.id, section.content)),
     evidence_refs: prioritizeSectionEvidenceRefs(contract, section),
     missing_data_refs: prioritizeSectionMissingDataRefs(contract, section),
     limitations: sanitizeSectionLimitations(contract, section.id, section.limitations),
@@ -631,6 +631,265 @@ function parseEvidenceArray(value: string): unknown[] {
   } catch {
     return [];
   }
+}
+
+function appendSectionTables(contract: AiNarrativeReportContract, sectionId: string, content: string): string {
+  const tables = createSectionTables(contract, sectionId);
+  if (tables.length === 0) return content;
+  return [content.trim(), ...tables].filter(Boolean).join("\n\n");
+}
+
+function createSectionTables(contract: AiNarrativeReportContract, sectionId: string): string[] {
+  if (sectionId === "public_information_architecture") {
+    return [
+      createPublicContentSurfaceTable(contract),
+      createPublicContentDetailTable(contract),
+      createSpaRouteCandidateTable(contract),
+    ].filter(hasText);
+  }
+  if (sectionId === "technology_stack") {
+    return [
+      createSpaSignalTable(contract),
+      createSpaAssetPreviewTable(contract),
+      createPublicAppMarkerTable(contract),
+    ].filter(hasText);
+  }
+  if (sectionId === "api_protocol_surface") {
+    return [
+      createApiEndpointTable(contract),
+      createCorsObservationTable(contract),
+    ].filter(hasText);
+  }
+  if (sectionId === "subdomain_attack_surface") return [createPublicHostTable(contract)].filter(hasText);
+  if (sectionId === "organization_operations") return [createPublicBusinessPageTable(contract)].filter(hasText);
+  if (sectionId === "security_posture") {
+    return [
+      createSecurityControlTable(contract),
+      createCookieObservationTable(contract),
+    ].filter(hasText);
+  }
+  return [];
+}
+
+function createPublicContentSurfaceTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "public_content_surface_probe", ["public_content_surfaces"])
+    .slice(0, 5)
+    .map((row) => [
+      classificationLabel(row),
+      stringField(row, "host") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      stringField(row, "title") ?? "",
+    ]);
+  return markdownTable("Public content surface table:", ["Type", "Host", "Path", "Status", "Title"], rows);
+}
+
+function createPublicContentDetailTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "public_content_detail_probe", ["detail_pages"])
+    .slice(0, 5)
+    .map((row) => [
+      stringField(row, "detail_kind") ?? classificationLabel(row),
+      stringField(row, "host") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      stringField(row, "title") ?? "",
+    ]);
+  return markdownTable("Public detail page table:", ["Kind", "Host", "Path", "Status", "Title"], rows);
+}
+
+function createSpaRouteCandidateTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "public_spa_route_metadata_probe", ["route_candidates"])
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "route_candidate") ?? "",
+      basenameFromPath(stringField(row, "source_asset") ?? ""),
+      stringField(row, "confidence") ?? "",
+    ]);
+  return markdownTable("SPA route candidate table:", ["Candidate", "Source asset", "Confidence"], rows);
+}
+
+function createSpaSignalTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "public_spa_asset_metadata_probe", ["detected_signals"])
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "category") ?? "",
+      stringField(row, "label") ?? stringField(row, "name") ?? "",
+      stringField(row, "confidence") ?? "",
+      signalBasis(row),
+    ]);
+  return markdownTable("SPA signal table:", ["Category", "Signal", "Confidence", "Basis"], rows);
+}
+
+function createSpaAssetPreviewTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "public_spa_asset_metadata_probe", ["asset_previews"])
+    .slice(0, 5)
+    .map((row) => [
+      stringField(row, "kind") ?? "",
+      stringField(row, "role") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      compactSignals(row.signals),
+    ]);
+  return markdownTable("SPA asset preview table:", ["Kind", "Role", "Path", "Status", "Signals"], rows);
+}
+
+function createPublicAppMarkerTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "public_app_marker_probe", ["public_app_marker_names", "public_app_markers"])
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "name") ?? "",
+      stringField(row, "category") ?? "",
+      stringField(row, "confidence") ?? "",
+    ]);
+  return markdownTable("Public app marker table:", ["Host", "Marker", "Category", "Confidence"], rows);
+}
+
+function createApiEndpointTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "bounded_public_api_endpoint_inventory_probe", ["public_api_endpoint_inventory"])
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "method") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      compactSignals(row.signals),
+    ]);
+  return markdownTable("API endpoint table:", ["Host", "Method", "Path", "Status", "Signals"], rows);
+}
+
+function createCorsObservationTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "bounded_cors_header_validation_probe", ["bounded_cors_checks"])
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "method") ?? "",
+      stringField(row, "path") ?? "",
+      statusField(row),
+      compactSignals(row.signals),
+    ]);
+  return markdownTable("CORS observation table:", ["Host", "Method", "Path", "Status", "Signals"], rows);
+}
+
+function createPublicHostTable(contract: AiNarrativeReportContract): string {
+  const rows = evidenceRows(contract, "public_host_fingerprint_probe", ["public_hosts", "public_host_roles"])
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "role_hint") ?? "",
+      statusField(row),
+      stringField(row, "server") ?? stringField(row, "title") ?? stringField(row, "error") ?? "",
+    ]);
+  return markdownTable("Public host table:", ["Host", "Role", "Status", "Observed hint"], rows);
+}
+
+function createPublicBusinessPageTable(contract: AiNarrativeReportContract): string {
+  const rows = [
+    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
+    ...evidenceRows(contract, "public_business_content_probe", ["business_product_snippets"]),
+  ]
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "detail_kind") ?? classificationLabel(row),
+      stringField(row, "controlled_hint") ?? "",
+      stringField(row, "path") ?? "",
+      stringField(row, "title") ?? stringField(row, "label") ?? "",
+    ]);
+  return markdownTable("Public business page table:", ["Kind", "Hint", "Path", "Title"], rows);
+}
+
+function createSecurityControlTable(contract: AiNarrativeReportContract): string {
+  const securityHeaderItem = contract.input.brief.evidence_index.find((item) => item.probe === "security_headers_probe");
+  if (!securityHeaderItem) return "";
+  const missingHeader = findEvidenceItemValue(securityHeaderItem, ["missing", "security_header", "security headers"]);
+  const rowValue = missingHeader || securityHeaderItem.summary;
+  return markdownTable("Security control table:", ["Control", "Observed state"], [["Missing headers", rowValue]]);
+}
+
+function createCookieObservationTable(contract: AiNarrativeReportContract): string {
+  const rows = [
+    ...evidenceRows(contract, "bounded_cookie_attribute_observation_probe", ["bounded_cookie_checks"]),
+    ...evidenceRows(contract, "cookie_security_probe", ["cookie", "session"]),
+  ]
+    .slice(0, 5)
+    .map((row) => [
+      stringField(row, "host") ?? "",
+      stringField(row, "method") ?? "",
+      stringField(row, "path") ?? stringField(row, "name") ?? "",
+      statusField(row),
+      parsedSummary(row) || compactSignals(row.signals),
+    ]);
+  return markdownTable("Cookie observation table:", ["Host", "Method", "Path/Cookie", "Status", "Attributes"], rows);
+}
+
+function evidenceRows(contract: AiNarrativeReportContract, probe: string, evidenceNames: string[]): Record<string, unknown>[] {
+  return contract.input.brief.evidence_index
+    .filter((item) => item.probe === probe)
+    .flatMap((item) =>
+      item.evidence_items
+        .filter((evidence) => evidenceNames.includes(evidence.name ?? evidence.type))
+        .flatMap((evidence) => parseEvidenceRecords(evidence.value)),
+    );
+}
+
+function parseEvidenceRecords(value: string): Record<string, unknown>[] {
+  return parseEvidenceArray(value).filter(isRecord);
+}
+
+function markdownTable(label: string, headers: string[], rows: string[][]): string {
+  const filteredRows = rows.filter((row) => row.some((cell) => cell.trim().length > 0));
+  if (filteredRows.length === 0) return "";
+  const header = `| ${headers.map((cell) => markdownCell(cell, 48)).join(" | ")} |`;
+  const divider = `| ${headers.map(() => "---").join(" | ")} |`;
+  const body = filteredRows.map((row) => `| ${row.map((cell) => markdownCell(cell, 80)).join(" | ")} |`);
+  return `${label}\n${[header, divider, ...body].join("\n")}`;
+}
+
+function markdownCell(value: string, maxLength: number): string {
+  const compact = value.replace(/\s+/g, " ").replace(/\|/g, "/").trim();
+  return compact.length > maxLength ? `${compact.slice(0, Math.max(0, maxLength - 3))}...` : compact;
+}
+
+function classificationLabel(row: Record<string, unknown>): string {
+  const direct = stringField(row, "controlled_hint") ?? stringField(row, "label") ?? stringField(row, "detail_kind");
+  if (direct) return direct;
+  const classification = isRecord(row.classification) ? row.classification : null;
+  return classification
+    ? stringField(classification, "controlled_hint") ?? stringField(classification, "label") ?? ""
+    : "";
+}
+
+function statusField(row: Record<string, unknown>): string {
+  const status = row.status_code;
+  if (typeof status === "number") return String(status);
+  if (typeof status === "string") return status;
+  return stringField(row, "status") ?? "";
+}
+
+function compactSignals(value: unknown): string {
+  return asStringArray(value).slice(0, 3).join(", ");
+}
+
+function parsedSummary(row: Record<string, unknown>): string {
+  const parsed = isRecord(row.parsed) ? row.parsed : row;
+  return Object.entries(parsed)
+    .filter(([, value]) => typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+    .slice(0, 3)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(", ");
+}
+
+function signalBasis(row: Record<string, unknown>): string {
+  const basis = row.basis;
+  if (typeof basis === "string") return basis;
+  if (Array.isArray(basis)) return basis.filter((item): item is string => typeof item === "string").slice(0, 2).join(", ");
+  return compactSignals(row.signals);
+}
+
+function basenameFromPath(value: string): string {
+  if (!value) return "";
+  const withoutQuery = value.split("?")[0] ?? value;
+  return withoutQuery.split("/").filter(Boolean).pop() ?? withoutQuery;
 }
 
 function formatBusinessOperationPage(value: Record<string, unknown>): string {

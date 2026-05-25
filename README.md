@@ -118,6 +118,7 @@ The smoke commands post to `https://probe.9shi.cc` by default, read `PROBE_API_K
 
 Latest remote verification:
 
+- Section-specific target tables verification: Worker version `dd8fd8bd-0513-4368-94f7-afe5dd617738` passed the full selected AI report smoke against `https://poixe.com`: job `scan-poixe.com-d8d7598c-4a63-4f92-b15e-d7eb9a5d6ded`, 57 records, Layers 1-10, PageSpeed / Lighthouse / browser runtime / live TLS completed, 10 AI sections, exact JSON/direct Markdown match, no unknown refs, 12 compact section-specific tables, and 0 raw inline `Evidence: key=value` prose lines. Artifacts: `smoke-results/persisted-selected-full-ai-report-poixe.com-2026-05-25T00-49-17-087Z.json` and `.md`.
 - Worker version: `92f852eb-db6e-41e6-a28c-5d1361c7cea2`
 - Target: `https://example.com`
 - Result: `site-10-layer-scan-ai-report/v0.1`, 20 deterministic records, 6 AI report sections, 1766-character Markdown, no unknown evidence or missing-data refs.

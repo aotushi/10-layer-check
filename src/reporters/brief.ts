@@ -398,8 +398,70 @@ function compactEvidenceItems(items: Evidence[]): ReportBriefEvidenceItem[] {
 }
 
 function compactValue(value: unknown): string {
+  if (Array.isArray(value)) return compactArrayValue(value);
   const text = typeof value === "string" ? value : JSON.stringify(value);
   return text.length > 900 ? `${text.slice(0, 900)}...` : text;
+}
+
+function compactArrayValue(value: unknown[]): string {
+  const compacted = value.map(compactBriefJsonValue);
+  for (let size = Math.min(compacted.length, 8); size >= 1; size -= 1) {
+    const text = JSON.stringify(compacted.slice(0, size));
+    if (text.length <= 900) return text;
+  }
+  return JSON.stringify([]);
+}
+
+function compactBriefJsonValue(value: unknown): unknown {
+  if (typeof value === "string") return value.length > 80 ? `${value.slice(0, 80)}...` : value;
+  if (typeof value === "number" || typeof value === "boolean" || value === null) return value;
+  if (Array.isArray(value)) return value.slice(0, 3).map(compactBriefJsonValue);
+  if (!isRecord(value)) return value;
+
+  const preferredKeys = [
+    "host",
+    "role_hint",
+    "method",
+    "path",
+    "endpoint",
+    "status_code",
+    "content_type",
+    "kind",
+    "role",
+    "name",
+    "category",
+    "label",
+    "controlled_hint",
+    "confidence",
+    "title",
+    "detail_kind",
+    "source_asset",
+    "route_candidate",
+    "component_candidate",
+    "signals",
+    "parsed",
+    "classification",
+    "wordpress_name",
+    "wordpress_timezone",
+    "wordpress_namespaces",
+    "wordpress_test_cookie",
+    "discourse_route",
+    "discourse_cached",
+    "discourse_runtime",
+    "mint_proxy_version",
+    "mintlify_client_version",
+    "vercel_cache",
+    "next_rsc_vary",
+    "api_error",
+    "api_message",
+    "api_request_id",
+    "api_type",
+    "error",
+  ];
+  const entries = preferredKeys
+    .filter((key) => Object.prototype.hasOwnProperty.call(value, key))
+    .map((key) => [key, compactBriefJsonValue(value[key])] as const);
+  return Object.fromEntries(entries);
 }
 
 function isProviderContractRecord(record: SnapshotRecord): boolean {

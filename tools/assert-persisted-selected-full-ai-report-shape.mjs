@@ -73,6 +73,7 @@ try {
   assertSectionFactOwnership(markdown);
   assertRawEvidenceProseCompressed(markdown);
   assertSectionDensityShape(markdown);
+  assertSectionSpecificTables(markdown);
   assertSectionCitationShape(markdown);
   assertKnownRefs(markdown, brief);
 
@@ -425,7 +426,7 @@ function assertSectionDensityShape(markdown) {
   }
   if (technology.includes("Public SPA asset metadata:")) {
     assert.ok(
-      technology.includes("\n\nPublic SPA asset metadata:"),
+      technology.startsWith("Public SPA asset metadata:") || technology.includes("\n\nPublic SPA asset metadata:"),
       "Technology section should split public SPA metadata into a topical paragraph.",
     );
   }
@@ -465,6 +466,36 @@ function assertSectionDensityShape(markdown) {
       "Missing-data section should split grouped gaps into a topical paragraph.",
     );
   }
+}
+
+function assertSectionSpecificTables(markdown) {
+  const publicIa = sectionText(markdown, "Public Information Architecture");
+  const technology = sectionText(markdown, "Technology Stack");
+  const api = sectionText(markdown, "API and Protocol Surface");
+  const subdomains = sectionText(markdown, "Subdomains and Attack Surface");
+  const organization = sectionText(markdown, "Organization and Operations Signals");
+  const security = sectionText(markdown, "Security Posture");
+
+  for (const expected of [
+    "Public content surface table:",
+    "Public detail page table:",
+    "SPA route candidate table:",
+  ]) {
+    assert.ok(publicIa.includes(expected), `Public IA should include ${expected}`);
+  }
+  for (const expected of ["SPA signal table:", "SPA asset preview table:", "Public app marker table:"]) {
+    assert.ok(technology.includes(expected), `Technology section should include ${expected}`);
+  }
+  for (const expected of ["API endpoint table:", "CORS observation table:"]) {
+    assert.ok(api.includes(expected), `API section should include ${expected}`);
+  }
+  assert.ok(subdomains.includes("Public host table:"), "Subdomain section should include public host table.");
+  assert.ok(organization.includes("Public business page table:"), "Organization section should include public business page table.");
+  assert.ok(security.includes("Security control table:"), "Security section should include security control table.");
+  assert.ok(security.includes("Cookie observation table:"), "Security section should include cookie observation table.");
+
+  assert.ok(!publicIa.includes("CORS observation table:"), "Public IA should not own API/CORS tables.");
+  assert.ok(!organization.includes("Public content surface table:"), "Organization should not duplicate public content map tables.");
 }
 
 function assertSectionCitationShape(markdown) {
@@ -612,6 +643,137 @@ function createFullSelectedFixtureRun() {
         evidence: [{ type: "browser_runtime", name: "title", value: "Poixe Fixture" }],
       }),
       record(target, normalizedTarget, snapshotAt, {
+        layer: 4,
+        probe: "public_content_surface_probe",
+        item: "public_content_surfaces",
+        source: "cloudflare_worker_public_content_surface",
+        summary: "Collected 2 bounded public content surface(s): Poixe home; Docs overview.",
+        value: {
+          surfaces: [
+            { host: "poixe.example", path: "/", status_code: 200 },
+            { host: "docs.poixe.example", path: "/introduction", status_code: 200 },
+          ],
+          coverage: { collected: ["public_content_surfaces"], missing: ["deep_public_crawl"] },
+        },
+        evidence: [
+          {
+            type: "public_content_surface",
+            name: "public_content_surfaces",
+            value: [
+              {
+                host: "poixe.example",
+                path: "/",
+                status_code: 200,
+                title: "Poixe home",
+                classification: { label: "homepage", controlled_hint: "homepage", confidence: "high" },
+              },
+              {
+                host: "docs.poixe.example",
+                path: "/introduction",
+                status_code: 200,
+                title: "Docs overview",
+                classification: { label: "documentation", controlled_hint: "docs", confidence: "medium" },
+              },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 4,
+        probe: "public_content_detail_probe",
+        item: "public_content_detail",
+        source: "cloudflare_worker_public_content_detail",
+        summary: "Collected 2 public content detail page(s): Supplier onboarding; Provider routing.",
+        value: {
+          detail_pages: [
+            { host: "docs.poixe.example", path: "/products/vendor/application", status_code: 200 },
+            { host: "docs.poixe.example", path: "/docs/route-provider", status_code: 200 },
+          ],
+          coverage: { collected: ["public_content_detail_pages"], missing: ["authenticated_docs"] },
+        },
+        evidence: [
+          {
+            type: "public_content_detail",
+            name: "detail_pages",
+            value: [
+              {
+                host: "docs.poixe.example",
+                path: "/products/vendor/application",
+                status_code: 200,
+                title: "Supplier onboarding",
+                detail_kind: "product",
+                classification: { label: "vendor onboarding", controlled_hint: "product", confidence: "high" },
+              },
+              {
+                host: "docs.poixe.example",
+                path: "/docs/route-provider",
+                status_code: 200,
+                title: "Provider routing",
+                detail_kind: "docs",
+                classification: { label: "provider routing", controlled_hint: "docs", confidence: "medium" },
+              },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 4,
+        probe: "public_spa_asset_metadata_probe",
+        item: "public_spa_asset_metadata",
+        source: "cloudflare_worker_public_spa_metadata",
+        summary: "Collected bounded SPA asset metadata: Next.js, React, Vite, React Router, and CSR candidate signals.",
+        value: {
+          detected_signals: ["Next.js", "React", "Vite"],
+          coverage: { collected: ["spa_asset_metadata"], missing: ["runtime_route_confirmation"] },
+        },
+        evidence: [
+          {
+            type: "spa_asset_preview",
+            name: "asset_previews",
+            value: [
+              {
+                host: "poixe.example",
+                path: "/assets/index-abcd.js",
+                kind: "script",
+                role: "main",
+                status_code: 200,
+                signals: ["nextjs", "react", "vite_manifest", "client_router"],
+              },
+            ],
+          },
+          {
+            type: "spa_signal",
+            name: "detected_signals",
+            value: [
+              { category: "frontend_framework", label: "Next.js", confidence: "medium", basis: ["route manifest"] },
+              { category: "frontend_framework", label: "React", confidence: "high", basis: ["jsx runtime"] },
+              { category: "build_tool", label: "Vite", confidence: "medium", basis: ["asset naming"] },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 4,
+        probe: "public_spa_route_metadata_probe",
+        item: "public_spa_route_metadata",
+        source: "cloudflare_worker_public_spa_metadata",
+        summary: "Extracted 2 route-like string candidate(s) and component/page-like symbol candidate(s).",
+        value: {
+          route_candidates: ["/products", "/products/vendor"],
+          coverage: { collected: ["route_like_string_candidates"], missing: ["route_reachability_confirmation"] },
+        },
+        evidence: [
+          {
+            type: "spa_route_candidate",
+            name: "route_candidates",
+            value: [
+              { route_candidate: "/products", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/products/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
         layer: 5,
         probe: "performance_probe",
         item: "pagespeed_mobile",
@@ -730,6 +892,30 @@ function createFullSelectedFixtureRun() {
         ],
       }),
       record(target, normalizedTarget, snapshotAt, {
+        layer: 6,
+        probe: "bounded_public_api_endpoint_inventory_probe",
+        item: "bounded_public_api_endpoint_inventory",
+        source: "cloudflare_worker_public_security_details",
+        summary: "Preserved 2 bounded public API endpoint observation(s): /health, /v1/models.",
+        value: {
+          endpoints: [
+            { host: "api.poixe.example", method: "GET", path: "/health", status_code: 200 },
+            { host: "api.poixe.example", method: "GET", path: "/v1/models", status_code: 200 },
+          ],
+          coverage: { collected: ["bounded_public_api_endpoint_inventory"], missing: ["authenticated_api_behavior"] },
+        },
+        evidence: [
+          {
+            type: "api_endpoint",
+            name: "public_api_endpoint_inventory",
+            value: [
+              { host: "api.poixe.example", method: "GET", path: "/health", status_code: 200, signals: [] },
+              { host: "api.poixe.example", method: "GET", path: "/v1/models", status_code: 200, signals: [] },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
         layer: 7,
         probe: "subdomain_attack_surface_probe",
         item: "ct_subdomains",
@@ -753,6 +939,54 @@ function createFullSelectedFixtureRun() {
           coverage: { collected: ["static_technology_candidates"], missing: ["runtime_framework_confirmation"] },
         },
         evidence: [{ type: "technology", name: "frontend", value: "Next.js" }],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 7,
+        probe: "public_host_fingerprint_probe",
+        item: "public_host_fingerprint",
+        source: "cloudflare_worker_public_host_fingerprint",
+        summary: "Checked 3 bounded public host candidate(s); observed role hint(s): docs, api, blog.",
+        value: {
+          checked_hosts: [
+            { host: "docs.poixe.example", role_hint: "docs", status_code: 200 },
+            { host: "api.poixe.example", role_hint: "api", status_code: 200 },
+            { host: "blog.poixe.example", role_hint: "blog", status_code: 200 },
+          ],
+          coverage: { collected: ["bounded_public_host_fingerprints"], missing: ["deep_service_inventory"] },
+        },
+        evidence: [
+          {
+            type: "http_observation",
+            name: "public_hosts",
+            value: [
+              { host: "docs.poixe.example", role_hint: "docs", status_code: 200, server: "cloudflare" },
+              { host: "api.poixe.example", role_hint: "api", status_code: 200, server: "cloudflare" },
+              { host: "blog.poixe.example", role_hint: "blog", status_code: 200, server: "nginx" },
+            ],
+          },
+        ],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 8,
+        probe: "public_app_marker_probe",
+        item: "public_app_markers",
+        source: "cloudflare_worker_public_host_fingerprint",
+        summary: "Observed public app marker(s): Mintlify, WordPress, Discourse.",
+        value: {
+          app_markers: ["Mintlify", "WordPress", "Discourse"],
+          coverage: { collected: ["public_app_markers"], missing: [] },
+        },
+        evidence: [
+          {
+            type: "app_marker",
+            name: "public_app_marker_names",
+            value: [
+              { host: "docs.poixe.example", name: "Mintlify", category: "docs", confidence: "high" },
+              { host: "blog.poixe.example", name: "WordPress", category: "cms", confidence: "high" },
+              { host: "community.poixe.example", name: "Discourse", category: "forum", confidence: "medium" },
+            ],
+          },
+        ],
       }),
       record(target, normalizedTarget, snapshotAt, {
         layer: 8,
@@ -857,6 +1091,44 @@ function createFullSelectedFixtureRun() {
           coverage: { collected: ["set_cookie_headers"], missing: ["authenticated_cookie_paths"] },
         },
         evidence: [{ type: "cookie", name: "session", value: "Secure; HttpOnly; SameSite=Lax" }],
+      }),
+      record(target, normalizedTarget, snapshotAt, {
+        layer: 9,
+        probe: "public_product_business_detail_probe",
+        item: "public_product_business_detail",
+        source: "cloudflare_worker_public_content_detail",
+        summary: "Collected public product/business detail snippets from supplier onboarding and provider routing pages.",
+        value: {
+          pages: [
+            { title: "Supplier onboarding", path: "/products/vendor/application" },
+            { title: "Provider routing", path: "/docs/route-provider" },
+          ],
+          coverage: { collected: ["public_product_business_detail"], missing: ["manual_business_confirmation"] },
+        },
+        evidence: [
+          {
+            type: "public_product_business_detail",
+            name: "product_business_detail_snippets",
+            value: [
+              {
+                host: "docs.poixe.example",
+                path: "/products/vendor/application",
+                title: "Supplier onboarding",
+                detail_kind: "product",
+                controlled_hint: "product",
+                snippets: ["Vendors can apply to join the platform."],
+              },
+              {
+                host: "docs.poixe.example",
+                path: "/docs/route-provider",
+                title: "Provider routing",
+                detail_kind: "docs",
+                controlled_hint: "docs",
+                snippets: ["Model provider routing can be configured."],
+              },
+            ],
+          },
+        ],
       }),
       record(target, normalizedTarget, snapshotAt, {
         layer: 10,
