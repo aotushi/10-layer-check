@@ -390,16 +390,38 @@ function extractExplicitGaps(value: unknown, path = ""): string[] {
 }
 
 function compactEvidenceItems(items: Evidence[]): ReportBriefEvidenceItem[] {
-  return items.slice(0, 20).map((item) => ({
-    type: item.type,
-    ...(item.name ? { name: item.name } : {}),
-    value: compactEvidenceValue(item),
-  }));
+  const result: ReportBriefEvidenceItem[] = [];
+  for (const item of items.slice(0, 20)) {
+    result.push({
+      type: item.type,
+      ...(item.name ? { name: item.name } : {}),
+      value: compactEvidenceValue(item),
+    });
+    result.push(...createDerivedBriefEvidenceItems(item));
+  }
+  return result.slice(0, 20);
 }
 
 function compactEvidenceValue(item: Evidence): string {
   const tableRows = compactTableRowsForEvidenceItem(item);
   return tableRows ? compactArrayValue(tableRows) : compactValue(item.value);
+}
+
+function createDerivedBriefEvidenceItems(item: Evidence): ReportBriefEvidenceItem[] {
+  const name = item.name ?? item.type;
+  if (name !== "route_candidates" || !Array.isArray(item.value)) return [];
+
+  const rows = item.value.filter(isRecord).map(compactRouteCandidateRow);
+  const operationHints = createSpaOperationHintRows(rows);
+  if (operationHints.length === 0) return [];
+
+  return [
+    {
+      type: "spa_operation_hint",
+      name: "spa_operation_hints",
+      value: compactArrayValue(operationHints),
+    },
+  ];
 }
 
 function compactValue(value: unknown): string {
@@ -487,6 +509,84 @@ function deriveRouteAliasRows(rows: Record<string, unknown>[]): Record<string, u
   ];
 }
 
+function createSpaOperationHintRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const hints: Record<string, unknown>[] = [];
+
+  for (const row of rows) {
+    const text = rowSearchText(row);
+    const route = stringField(row, "route_candidate");
+    const sourceAsset = stringField(row, "source_asset");
+    const signal = route ?? sourceAsset;
+    if (!signal) continue;
+
+    for (const operation of classifySpaOperationHints(text)) {
+      hints.push(removeEmptyFields({
+        operation,
+        signal,
+        source_asset: sourceAsset,
+        confidence: spaOperationConfidence(operation, row),
+        basis: "SPA string; not route proof",
+      }));
+    }
+  }
+
+  return rankBriefRows(dedupeOperationHints(hints), scoreSpaOperationHintRow);
+}
+
+function classifySpaOperationHints(text: string): string[] {
+  const operations: string[] = [];
+  if (/model[_/-]?load|model[_/-]?stat|\/dash\/model|\/v1\/models|provider[_/-]?routing|provider|routing|厂商|路由/.test(text)) {
+    operations.push("model-load/provider routing");
+  }
+  if (/channel[_/-]?manage[_/-]?log|\/log\b|[_/-]log\b|log[_/-]|日志/.test(text)) {
+    operations.push("log-management");
+  }
+  if (/revenue|earning|payout|withdraw|withdrawal|settlement|收益|提现/.test(text)) {
+    operations.push("vendor revenue/payout");
+  }
+  if (/vendor|supplier|onboarding|入驻/.test(text)) {
+    operations.push("supplier/vendor onboarding");
+  }
+  if (/payment|billing|wallet|recharge|token|账单|钱包|充值|令牌/.test(text)) {
+    operations.push("payment/billing");
+  }
+  return uniqueStrings(operations).slice(0, 3);
+}
+
+function spaOperationConfidence(operation: string, row: Record<string, unknown>): string {
+  const confidence = (stringField(row, "confidence") ?? "").toLowerCase();
+  if (operation === "log-management") return "low";
+  if (operation === "model-load/provider routing" && confidence === "medium") return "medium";
+  if (confidence === "medium") return "medium";
+  return "low";
+}
+
+function dedupeOperationHints(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const byKey = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const key = [
+      stringField(row, "operation"),
+      stringField(row, "signal"),
+      stringField(row, "source_asset"),
+    ].join(":");
+    if (!byKey.has(key)) byKey.set(key, row);
+  }
+  return Array.from(byKey.values());
+}
+
+function scoreSpaOperationHintRow(row: Record<string, unknown>): number {
+  const operation = (stringField(row, "operation") ?? "").toLowerCase();
+  const text = rowSearchText(row);
+  let score = confidenceScore(stringField(row, "confidence"));
+  if (operation === "model-load/provider routing") score += 50;
+  if (operation === "vendor revenue/payout") score += 40;
+  if (operation === "supplier/vendor onboarding") score += 34;
+  if (operation === "payment/billing") score += 28;
+  if (operation === "log-management") score += 44;
+  if (/model_load|provider[_/-]?routing|\/v1\/models|channel[_/-]?manage[_/-]?log/.test(text)) score += 12;
+  return score;
+}
+
 function rankBriefRows(
   rows: Record<string, unknown>[],
   scoreRow: (row: Record<string, unknown>) => number,
@@ -538,7 +638,7 @@ function scoreRouteCandidateRow(row: Record<string, unknown>): number {
 function isReportableRouteCandidateRow(row: Record<string, unknown>): boolean {
   const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
   if (!route) return false;
-  if (/^\/(?:admin|api|auth|tool|agent|affiliate)\//.test(route)) return false;
+  if (/^\/(?:admin|api|auth|tool|agent|affiliate|dash)\//.test(route)) return false;
   if (/^\/setting\/payment\/.+/.test(route)) return false;
   return route.split("/").filter(Boolean).length <= 3;
 }
@@ -582,6 +682,10 @@ function removeEmptyFields(value: Record<string, string | null>): Record<string,
   return result;
 }
 
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
 function compactBriefJsonValue(value: unknown): unknown {
   if (typeof value === "string") return value.length > 80 ? `${value.slice(0, 80)}...` : value;
   if (typeof value === "number" || typeof value === "boolean" || value === null) return value;
@@ -607,6 +711,8 @@ function compactBriefJsonValue(value: unknown): unknown {
     "detail_kind",
     "source_asset",
     "route_candidate",
+    "operation",
+    "signal",
     "derivation",
     "basis",
     "component_candidate",

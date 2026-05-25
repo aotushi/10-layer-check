@@ -285,6 +285,9 @@ function createEvidenceFactHint(item: ReportBrief["evidence_index"][number]): st
   if (item.probe === "public_product_business_detail_probe") {
     return createPublicProductBusinessDetailFactHint(item);
   }
+  if (item.probe === "public_spa_route_metadata_probe") {
+    return createPublicSpaRouteMetadataFactHint(item);
+  }
 
   const evidenceItems = item.evidence_items
     .slice(0, 4)
@@ -310,6 +313,10 @@ function createPublicProductBusinessDetailFactHint(item: ReportBrief["evidence_i
     ? ` Evidence pages: ${pages.slice(0, 6).join("; ")}${pages.length > 6 ? `; +${pages.length - 6} more` : ""}.`
     : "";
   return truncateFactHint(`Public product/business detail: ${normalizeFactText(item.summary)}${operationText}${pageText}`);
+}
+
+function createPublicSpaRouteMetadataFactHint(item: ReportBrief["evidence_index"][number]): string {
+  return truncateFactHint(`Public SPA route metadata: ${normalizeFactText(item.summary)}`);
 }
 
 function extractDetailPageLabelsFromSummary(value: string): string[] {
@@ -362,6 +369,7 @@ function extractBusinessOperationLabels(values: string[]): string[] {
   const labels: string[] = [];
   if (/supplier|vendor|onboarding|入驻/.test(text)) labels.push("supplier/vendor onboarding");
   if (/payout|withdraw|withdrawal|提现|settlement/.test(text)) labels.push("payouts/withdrawals");
+  if (/model[_/-]?load|model[_/-]?stat|\/v1\/models|\/dash\/model/.test(text)) labels.push("model-load/provider routing");
   if (/routing|provider|厂商|路由/.test(text)) labels.push("provider routing");
   if (/about|platform|关于|平台/.test(text)) labels.push("platform overview");
   if (/cost|成本|降/.test(text)) labels.push("cost reduction content");
@@ -405,6 +413,7 @@ function scoreFactHint(sectionId: string, value: string): number {
   }
 
   if (sectionId === "organization_operations") {
+    if (/spa operation evidence|model-load\/provider routing|log-management/.test(normalized)) score += 95;
     if (/public product\/business detail|public business\/product content|business\/product text|public content detail|public content|content surface|product|pricing|platform|solution|documentation|detail snippets/.test(normalized)) score += 85;
     if (/larksuite|onlarksuite|mx\d|spf|txt=/.test(normalized)) score += 80;
     if (/rdap|whois|namesilo|registrar/.test(normalized)) score += 60;
@@ -1097,7 +1106,7 @@ const SECTION_EVIDENCE_SELECTION: Record<
     items: ["subdomain", "service", "fingerprint", "public_host"],
   },
   organization_operations: {
-    layers: [9],
+    layers: [4, 6, 9],
     probes: [
       "organization_intelligence_probe",
       "rdap_whois_lite_probe",
@@ -1105,9 +1114,11 @@ const SECTION_EVIDENCE_SELECTION: Record<
       "related_domain_confirmation_probe",
       "public_business_content_probe",
       "public_product_business_detail_probe",
+      "public_spa_route_metadata_probe",
+      "bounded_public_api_endpoint_inventory_probe",
     ],
     exclude_probes: ["public_content_surface_probe", "public_content_detail_probe"],
-    items: ["rdap", "whois", "mx", "txt", "wayback", "related", "organization", "business", "product_business"],
+    items: ["rdap", "whois", "mx", "txt", "wayback", "related", "organization", "business", "product_business", "public_spa", "bounded_public_api"],
   },
   security_posture: {
     layers: [10],

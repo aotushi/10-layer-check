@@ -514,7 +514,13 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
     ],
     technology_stack: ["bounded_public_metadata_probe", "bounded_public_app_header_metadata_probe", "public_spa_asset_metadata_probe"],
     public_information_architecture: ["public_content_surface_probe", "public_content_detail_probe", "public_spa_route_metadata_probe"],
-    organization_operations: ["public_business_content_probe", "public_product_business_detail_probe", "organization_intelligence_probe"],
+    organization_operations: [
+      "public_business_content_probe",
+      "public_product_business_detail_probe",
+      "public_spa_route_metadata_probe",
+      "bounded_public_api_endpoint_inventory_probe",
+      "organization_intelligence_probe",
+    ],
     security_posture: [
       "cookie_security_probe",
       "security_headers_probe",
@@ -533,6 +539,9 @@ function createForcedSectionFactHints(contract: AiNarrativeReportContract, secti
 function createBriefEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
   if (item.probe === "public_product_business_detail_probe") {
     return createBusinessOperationEvidenceFact(item);
+  }
+  if (item.probe === "public_spa_route_metadata_probe") {
+    return createSpaOperationEvidenceFact(item);
   }
   if (item.probe === "performance_probe") {
     return createPerformanceEvidenceFact(item);
@@ -609,6 +618,25 @@ function createBusinessOperationEvidenceFact(item: ReportBrief["evidence_index"]
   return truncate(`Public product/business detail: ${item.summary}.${operationText}${pageText}`, 800);
 }
 
+function createSpaOperationEvidenceFact(item: ReportBrief["evidence_index"][number]): string {
+  const rows = item.evidence_items
+    .filter((evidence) => (evidence.name ?? evidence.type) === "spa_operation_hints")
+    .flatMap((evidence) => parseEvidenceArray(evidence.value))
+    .filter(isRecord);
+  const operations = uniqueStrings(rows.map((row) => stringField(row, "operation")).filter((value): value is string => Boolean(value)));
+  const signals = rows
+    .map((row) => {
+      const operation = stringField(row, "operation");
+      const signal = stringField(row, "signal");
+      return operation && signal ? `${operation}: ${signal}` : "";
+    })
+    .filter(Boolean)
+    .slice(0, 5);
+  const operationText = operations.length > 0 ? ` Operation hints: ${operations.join(", ")}.` : "";
+  const signalText = signals.length > 0 ? ` Signals: ${signals.join("; ")}.` : "";
+  return truncate(`Public SPA operation evidence: ${item.summary}.${operationText}${signalText}`, 800);
+}
+
 function extractDetailPageLabelsFromSummary(value: string): string[] {
   const match = value.match(/page\(s\):\s*([\s\S]+)$/i);
   if (!match?.[1]) return [];
@@ -661,7 +689,12 @@ function createSectionTables(contract: AiNarrativeReportContract, sectionId: str
     ].filter(hasText);
   }
   if (sectionId === "subdomain_attack_surface") return [createPublicHostTable(contract)].filter(hasText);
-  if (sectionId === "organization_operations") return [createPublicBusinessPageTable(contract)].filter(hasText);
+  if (sectionId === "organization_operations") {
+    return [
+      createPublicBusinessPageTable(contract),
+      createSpaOperationEvidenceTable(contract),
+    ].filter(hasText);
+  }
   if (sectionId === "security_posture") {
     return [
       createSecurityControlTable(contract),
@@ -717,7 +750,7 @@ function createSpaRouteCandidateTable(contract: AiNarrativeReportContract): stri
 function isReportableSpaRouteCandidateRow(row: Record<string, unknown>): boolean {
   const route = (stringField(row, "route_candidate") ?? "").toLowerCase();
   if (!route) return false;
-  if (/^\/(?:admin|api|auth|tool|agent|affiliate)\//.test(route)) return false;
+  if (/^\/(?:admin|api|auth|tool|agent|affiliate|dash)\//.test(route)) return false;
   if (/^\/setting\/payment\/.+/.test(route)) return false;
   return route.split("/").filter(Boolean).length <= 3;
 }
@@ -863,6 +896,79 @@ function createPublicBusinessPageTable(contract: AiNarrativeReportContract): str
   return markdownTable("Public business page table:", ["Kind", "Hint", "Path", "Title"], rows);
 }
 
+function createSpaOperationEvidenceTable(contract: AiNarrativeReportContract): string {
+  const spaRows = evidenceRows(contract, "public_spa_route_metadata_probe", ["spa_operation_hints"]);
+  const rows = rankRows(
+    [...spaRows, ...deriveCrossSourceOperationEvidenceRows(contract, spaRows)],
+    scoreSpaOperationEvidenceRow,
+  )
+    .slice(0, 6)
+    .map((row) => [
+      stringField(row, "operation") ?? "",
+      stringField(row, "signal") ?? "",
+      operationSupportLabel(contract, row),
+      operationConfidenceLabel(contract, row),
+    ]);
+  return markdownTable("SPA operation evidence table:", ["Operation", "Signal", "Support", "Confidence"], rows);
+}
+
+function deriveCrossSourceOperationEvidenceRows(
+  contract: AiNarrativeReportContract,
+  existingRows: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const rows: Record<string, unknown>[] = [];
+  const hasModelOperation = existingRows.some((row) => stringField(row, "operation") === "model-load/provider routing");
+
+  if (!hasModelOperation && hasProviderRoutingPublicDocs(contract) && hasPublicModelsApiEndpoint(contract)) {
+    rows.push({
+      operation: "model-load/provider routing",
+      signal: "/v1/models + provider-routing docs",
+      support: "public docs + public API endpoint",
+      confidence: "medium",
+      basis: "docs/API evidence; no exact query-tab route",
+    });
+  }
+
+  return rows;
+}
+
+function operationSupportLabel(contract: AiNarrativeReportContract, row: Record<string, unknown>): string {
+  const support = stringField(row, "support");
+  if (support) return support;
+
+  const operation = (stringField(row, "operation") ?? "").toLowerCase();
+  const sources = ["SPA asset string"];
+  if (operation === "model-load/provider routing") {
+    if (hasProviderRoutingPublicDocs(contract)) sources.push("public docs");
+    if (hasPublicModelsApiEndpoint(contract)) sources.push("public API endpoint");
+  }
+  if (operation === "vendor revenue/payout" && vendorRevenueAliasContentBasis(contract)) {
+    sources.push("public payout docs");
+  }
+  return sources.join(" + ");
+}
+
+function operationConfidenceLabel(contract: AiNarrativeReportContract, row: Record<string, unknown>): string {
+  const operation = (stringField(row, "operation") ?? "").toLowerCase();
+  if (operation === "model-load/provider routing" && hasProviderRoutingPublicDocs(contract) && hasPublicModelsApiEndpoint(contract)) {
+    return "medium";
+  }
+  if (operation === "log-management") return "low";
+  return stringField(row, "confidence") ?? "low";
+}
+
+function hasProviderRoutingPublicDocs(contract: AiNarrativeReportContract): boolean {
+  return [
+    ...evidenceRows(contract, "public_product_business_detail_probe", ["product_business_detail_snippets"]),
+    ...evidenceRows(contract, "public_content_detail_probe", ["detail_pages"]),
+  ].some((row) => /provider|routing|厂商|路由|model/.test(rowSearchText(row)));
+}
+
+function hasPublicModelsApiEndpoint(contract: AiNarrativeReportContract): boolean {
+  return evidenceRows(contract, "bounded_public_api_endpoint_inventory_probe", ["public_api_endpoint_inventory"])
+    .some((row) => (stringField(row, "path") ?? "").toLowerCase() === "/v1/models");
+}
+
 function createSecurityControlTable(contract: AiNarrativeReportContract): string {
   const securityHeaderItem = contract.input.brief.evidence_index.find((item) => item.probe === "security_headers_probe");
   if (!securityHeaderItem) return "";
@@ -993,6 +1099,19 @@ function scoreSpaAssetPreviewRow(row: Record<string, unknown>): number {
   return score;
 }
 
+function scoreSpaOperationEvidenceRow(row: Record<string, unknown>): number {
+  const operation = (stringField(row, "operation") ?? "").toLowerCase();
+  const text = rowSearchText(row);
+  let score = confidenceScore(stringField(row, "confidence"));
+  if (operation === "model-load/provider routing") score += 60;
+  if (operation === "vendor revenue/payout") score += 46;
+  if (operation === "supplier/vendor onboarding") score += 34;
+  if (operation === "payment/billing") score += 28;
+  if (operation === "log-management") score += 44;
+  if (/model_load|provider[_/-]?routing|\/v1\/models|channel[_/-]?manage[_/-]?log/.test(text)) score += 12;
+  return score;
+}
+
 function confidenceScore(value: string | null): number {
   const normalized = (value ?? "").toLowerCase();
   if (normalized === "confirmed" || normalized === "high") return 30;
@@ -1020,6 +1139,9 @@ function rowSearchText(row: Record<string, unknown>): string {
     stringField(row, "detail_kind"),
     stringField(row, "controlled_hint"),
     stringField(row, "route_candidate"),
+    stringField(row, "operation"),
+    stringField(row, "signal"),
+    stringField(row, "basis"),
     stringField(row, "source_asset"),
     stringField(row, "role"),
     compactSignals(row.signals),
@@ -1124,6 +1246,7 @@ function extractBusinessOperationTopics(values: string[]): string[] {
   const labels: string[] = [];
   if (/supplier|vendor|onboarding|入驻/.test(text)) labels.push("supplier/vendor onboarding");
   if (/payout|withdraw|withdrawal|提现|settlement/.test(text)) labels.push("payouts/withdrawals");
+  if (/model[_/-]?load|model[_/-]?stat|\/v1\/models|\/dash\/model/.test(text)) labels.push("model-load/provider routing");
   if (/routing|provider|厂商|路由/.test(text)) labels.push("provider routing");
   if (/about|platform|关于|平台/.test(text)) labels.push("platform overview");
   if (/cost|成本|降/.test(text)) labels.push("cost-reduction content");

@@ -517,11 +517,20 @@ function assertSectionSpecificTables(markdown) {
   }
   assert.ok(subdomains.includes("Public host table:"), "Subdomain section should include public host table.");
   assert.ok(organization.includes("Public business page table:"), "Organization section should include public business page table.");
+  assert.ok(organization.includes("SPA operation evidence table:"), "Organization section should include SPA operation evidence table.");
   assert.ok(security.includes("Security control table:"), "Security section should include security control table.");
   assert.ok(security.includes("Cookie observation table:"), "Security section should include cookie observation table.");
 
   assert.ok(!publicIa.includes("CORS observation table:"), "Public IA should not own API/CORS tables.");
   assert.ok(!organization.includes("Public content surface table:"), "Organization should not duplicate public content map tables.");
+  assert.ok(
+    organization.includes("| model-load/provider routing | /dash/model/model_load_stats | SPA asset string + public docs + public API endpoint | medium |"),
+    "Organization section should summarize model-load/provider-routing as operation evidence, not an exact route.",
+  );
+  assert.ok(
+    organization.includes("| log-management | /channel/manage/log | SPA asset string | low |"),
+    "Organization section should keep log-related SPA strings as low-confidence operation hints.",
+  );
   assert.ok(
     !api.includes("| poixe.example | GET | / | 200 |  |"),
     "CORS table should hide low-signal empty rows when stronger CORS rows exist.",
@@ -558,6 +567,10 @@ function assertSectionSpecificTables(markdown) {
     "SPA route table should expose supported route aliases as explicit derived aliases.",
   );
   assert.ok(publicIa.includes("| /pricing | index-abcd.js | medium | direct |"), "SPA route table should include the pricing route.");
+  assert.ok(
+    !publicIa.includes("/dash/model/model_load_stats") && !publicIa.includes("/channel/manage/log"),
+    "SPA route table should not expose internal operation strings as public route rows.",
+  );
   assert.ok(
     publicIa.indexOf("| /products/vendor/application | index-abcd.js | medium | direct |") <
       publicIa.indexOf("| /pricing | index-abcd.js | medium | direct |"),
@@ -858,6 +871,9 @@ function createFullSelectedFixtureRun() {
               { route_candidate: "/products/user", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/token", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
+              { route_candidate: "/dash/model/model_load_stats", source_asset: "/assets/model-abcd.js", confidence: "low" },
+              { route_candidate: "/dash/model/system_model_stat", source_asset: "/assets/model-abcd.js", confidence: "low" },
+              { route_candidate: "/channel/manage/log", source_asset: "/assets/channel_manage_log-abcd.js", confidence: "low" },
               { route_candidate: "/agent/revenue/basic_info", source_asset: "/assets/revenue-abcd.js", confidence: "low" },
               { route_candidate: "/products/vendor", source_asset: "/assets/index-abcd.js", confidence: "medium" },
               { route_candidate: "/products/vendor/application", source_asset: "/assets/index-abcd.js", confidence: "medium" },
