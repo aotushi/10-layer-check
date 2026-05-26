@@ -74,18 +74,23 @@ export async function handleProbeRoute(pathname: string, target: string, body: R
   return result === null ? null : jsonResponse(result);
 }
 
-export async function executeSiteScanSyncProbe(probe: SiteScanSyncProbe, target: string, maxRedirects: number): Promise<unknown> {
+export async function executeSiteScanSyncProbe(
+  probe: SiteScanSyncProbe,
+  target: string,
+  maxRedirects: number,
+  options?: Record<string, unknown>,
+): Promise<unknown> {
   if (probe === "dns_infrastructure") return dnsInfrastructureProbe(target);
   if (probe === "tls_certificate") return tlsCertificateProbe(target);
   if (probe === "subdomain_attack_surface") return subdomainAttackSurfaceProbe(target);
   if (probe === "service_fingerprint") return serviceFingerprintProbe(target);
   if (probe === "public_host_fingerprint") return publicHostFingerprintProbe(target);
-  if (probe === "public_security_details") return publicSecurityDetailsProbe(target);
+  if (probe === "public_security_details") return publicSecurityDetailsProbe(target, options ?? {});
   if (probe === "public_content_surface") return publicContentSurfaceProbe(target);
   if (probe === "public_content_detail") return publicContentDetailProbe(target);
   if (probe === "public_spa_metadata") return publicSpaMetadataProbe(target);
   if (probe === "organization_intelligence") return organizationIntelligenceProbe(target);
-  if (probe === "api_reachability") return apiReachabilityProbe(target);
+  if (probe === "api_reachability") return apiReachabilityProbe(target, options ?? {});
   if (probe === "performance_basic") return performanceBasicProbe(target);
   return remoteFetch(target, maxRedirects);
 }

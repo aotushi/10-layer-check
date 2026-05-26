@@ -19,6 +19,9 @@ type PlannedCheck = CandidateHost & {
 
 export type PublicSecurityDetailsOptions = {
   maxHosts?: unknown;
+  /** 覆盖 api.* 子主机上的 API 路径检查列表。
+   *  空数组 = 跳过 API 端点检查；undefined = 使用默认 ["/health", "/v1/models"]。 */
+  api_paths?: string[];
 };
 
 const DEFAULT_MAX_HOSTS = 6;
@@ -38,7 +41,8 @@ export async function publicSecurityDetailsProbe(
   const host = new URL(normalizedUrl).hostname.toLowerCase();
   const maxHosts = parseMaxHosts(options.maxHosts);
   const candidates = createCandidateHosts(host).slice(0, maxHosts);
-  const plannedChecks = candidates.flatMap(createPlannedChecks);
+  const apiPaths = Array.isArray(options.api_paths) ? (options.api_paths as string[]) : undefined;
+  const plannedChecks = candidates.flatMap((c) => createPlannedChecks(c, apiPaths));
   const checks = await runWithConcurrency(plannedChecks, MAX_CONCURRENCY, runPlannedCheck);
 
   return {
@@ -91,7 +95,9 @@ function createCandidateHosts(rootHost: string): CandidateHost[] {
   ];
 }
 
-function createPlannedChecks(candidate: CandidateHost): PlannedCheck[] {
+const DEFAULT_API_PATHS = ["/health", "/v1/models"] as const;
+
+function createPlannedChecks(candidate: CandidateHost, apiPaths?: string[]): PlannedCheck[] {
   const originHeader = { origin: "https://site-10-layer-check.invalid" };
   const checks: PlannedCheck[] = [
     { ...candidate, kind: "cors", method: "GET", path: "/", headers: originHeader },
@@ -99,11 +105,14 @@ function createPlannedChecks(candidate: CandidateHost): PlannedCheck[] {
   ];
 
   if (candidate.role_hint === "api") {
-    checks.push(
-      { ...candidate, kind: "api_endpoint", method: "GET", path: "/health", headers: originHeader },
-      { ...candidate, kind: "api_endpoint", method: "GET", path: "/v1/models", headers: originHeader },
-      { ...candidate, kind: "cors", method: "OPTIONS", path: "/v1/models", headers: createPreflightHeaders() },
-    );
+    const paths = apiPaths ?? [...DEFAULT_API_PATHS];
+    for (const path of paths) {
+      checks.push({ ...candidate, kind: "api_endpoint", method: "GET", path, headers: originHeader });
+      // /v1/models 额外做 CORS preflight（只对此路径有意义）
+      if (path === "/v1/models") {
+        checks.push({ ...candidate, kind: "cors", method: "OPTIONS", path, headers: createPreflightHeaders() });
+      }
+    }
   }
 
   if (candidate.role_hint === "blog") {
