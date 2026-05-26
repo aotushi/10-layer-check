@@ -17,6 +17,13 @@ export type AiNarrativeReportContract = {
   input: {
     brief: ReportBrief;
     instruction: string;
+    site_type_context?: {
+      is_spa: boolean;
+      is_cms: string | null;
+      is_api_service: boolean;
+      is_static: boolean;
+      probe_notes: string;
+    };
   };
   output_contract: {
     required_fields: ["sections", "markdown"];
@@ -130,6 +137,9 @@ export const AI_NARRATIVE_REPORT_SECTION_GUIDANCE = [
 
 export function createAiNarrativeReportContract(brief: ReportBrief): AiNarrativeReportContract {
   const sectionGuidance = createSectionGuidance(brief);
+  const site_type_context = brief.probe_strategy
+    ? buildSiteTypeContext(brief.probe_strategy)
+    : undefined;
 
   return {
     schema_version: "site-10-layer-ai-narrative-report-contract/v0.1",
@@ -140,6 +150,7 @@ export function createAiNarrativeReportContract(brief: ReportBrief): AiNarrative
       brief,
       instruction:
         "Write a technical site analysis report from the supplied ReportBrief. Do not write one section per raw layer; merge evidence into topical sections from output_contract.section_guidance. Cite only evidence_refs and missing_data_refs present in the input. Keep unsupported ownership, business-model, related-domain, and vulnerability conclusions provisional or mark them as missing/manual review.",
+      site_type_context,
     },
     output_contract: {
       required_fields: ["sections", "markdown"],
@@ -168,11 +179,50 @@ export function createAiNarrativeReportContract(brief: ReportBrief): AiNarrative
         "Keep CMS-specific, framework-specific, and public application metadata facts in Technology Stack or Subdomains sections, not Public Information Architecture.",
       ],
       section_guidance: sectionGuidance,
-      required_section_ids: sectionGuidance
-        .filter((section) => section.id === "summary" || section.evidence_ref_hints.length > 0 || section.missing_data_ref_hints.length > 0)
-        .map((section) => section.id),
+      required_section_ids: buildRequiredSectionIds(sectionGuidance, brief.probe_strategy?.site_type_hints),
     },
   };
+}
+
+function buildSiteTypeContext(strategy: import("../../scan/probe-strategy").ProbeStrategy): {
+  is_spa: boolean;
+  is_cms: string | null;
+  is_api_service: boolean;
+  is_static: boolean;
+  probe_notes: string;
+} {
+  const hints = strategy.site_type_hints;
+  const skipped = strategy.probe_manifest.filter((e) => e.status === "skipped");
+  const probe_notes =
+    skipped.length > 0
+      ? `${skipped.length} probe(s) skipped: ${skipped.map((e) => `${e.probe} (${e.reason.slice(0, 80)})`).join("; ")}`
+      : "All requested probes ran.";
+  return {
+    is_spa: hints.is_spa,
+    is_cms: hints.is_cms,
+    is_api_service: hints.is_api_service,
+    is_static: hints.is_static,
+    probe_notes,
+  };
+}
+
+function buildRequiredSectionIds(
+  sectionGuidance: AiNarrativeReportContract["output_contract"]["section_guidance"],
+  hints?: import("../../scan/probe-strategy").SiteTypeHints,
+): string[] {
+  const evidenceBacked = sectionGuidance
+    .filter((s) => s.id === "summary" || s.evidence_ref_hints.length > 0 || s.missing_data_ref_hints.length > 0)
+    .map((s) => s.id);
+
+  if (hints?.confidence === "high") {
+    const deprioritized = new Set<string>();
+    if (hints.is_static && !hints.is_api_service) {
+      deprioritized.add("api_protocol_surface");
+    }
+    return evidenceBacked.filter((id) => !deprioritized.has(id));
+  }
+
+  return evidenceBacked;
 }
 
 export function validateAiNarrativeReportResult(

@@ -207,14 +207,46 @@ function createMessages(contract: AiNarrativeReportContract): WorkersAiChatInput
   return [
     {
       role: "system",
-      content:
-        "Return only valid compact JSON matching site-10-layer-ai-narrative-report-result/v0.1. Do not wrap in markdown fences. Use only section ids from output_contract.section_ids, include every id from output_contract.required_section_ids, and follow output_contract.section_guidance. Do not write one section per raw layer; merge evidence into poixe-style topical sections. Prefer complete 8-10 section coverage when the brief has evidence or missing-data refs for those topics: summary, public_information_architecture, technology_stack, deployment_network_surface, request_rendering_chain, api_protocol_surface, subdomain_attack_surface, organization_operations, security_posture, missing_data_next_steps. Use each section_guidance fact_hints as concrete section material before generic layer-count prose. Use each section_guidance evidence_ref_hints and missing_data_ref_hints as primary refs for that section so generic CDN/header refs do not dominate unrelated sections. Put content maps primarily in public_information_architecture, public business-operation interpretation primarily in organization_operations, CORS/Access-Control/API endpoint facts primarily in api_protocol_surface, and cookie/security-header/runtime security facts primarily in security_posture. Do not add generic Missing data or Remaining gaps prose to topical sections; reserve those gaps for missing_data_next_steps unless a section-specific absence is directly relevant. Do not put CORS, Access-Control, Set-Cookie, API error-surface, WordPress, Discourse, Mintlify, or wp-json details in public_information_architecture. Each section content must be under 1000 characters. Keep markdown short or set it to an empty string; the service will synthesize final Markdown from sections. Cite only evidence_refs and missing_data_refs present in the input. Use E### only in evidence_refs and M### only in missing_data_refs. Do not invent ownership, business, vulnerability, or related-domain claims.",
+      content: buildNarrativeSystemPrompt(contract),
     },
     {
       role: "user",
       content: JSON.stringify(contract),
     },
   ];
+}
+
+function buildNarrativeSystemPrompt(contract: AiNarrativeReportContract): string {
+  const base =
+    "Return only valid compact JSON matching site-10-layer-ai-narrative-report-result/v0.1. Do not wrap in markdown fences. Use only section ids from output_contract.section_ids, include every id from output_contract.required_section_ids, and follow output_contract.section_guidance. Do not write one section per raw layer; merge evidence into topical sections. Prefer complete 8-10 section coverage when the brief has evidence or missing-data refs for those topics: summary, public_information_architecture, technology_stack, deployment_network_surface, request_rendering_chain, api_protocol_surface, subdomain_attack_surface, organization_operations, security_posture, missing_data_next_steps. Use each section_guidance fact_hints as concrete section material before generic layer-count prose. Use each section_guidance evidence_ref_hints and missing_data_ref_hints as primary refs for that section so generic CDN/header refs do not dominate unrelated sections. Put content maps primarily in public_information_architecture, public business-operation interpretation primarily in organization_operations, CORS/Access-Control/API endpoint facts primarily in api_protocol_surface, and cookie/security-header/runtime security facts primarily in security_posture. Do not add generic Missing data or Remaining gaps prose to topical sections; reserve those gaps for missing_data_next_steps unless a section-specific absence is directly relevant. Do not put CORS, Access-Control, Set-Cookie, API error-surface, WordPress, Discourse, Mintlify, or wp-json details in public_information_architecture. Each section content must be under 1000 characters. Keep markdown short or set it to an empty string; the service will synthesize final Markdown from sections. Cite only evidence_refs and missing_data_refs present in the input. Use E### only in evidence_refs and M### only in missing_data_refs. Do not invent ownership, business, vulnerability, or related-domain claims.";
+
+  const ctx = contract.input.site_type_context;
+  if (!ctx) return base;
+
+  const typeDesc = [
+    ctx.is_spa && "SPA (JavaScript-rendered)",
+    ctx.is_cms && `CMS (${ctx.is_cms})`,
+    ctx.is_api_service && "API service",
+    ctx.is_static && "static site",
+  ]
+    .filter(Boolean)
+    .join(", ") || "unknown type";
+
+  const adjustment = [
+    ctx.is_static && !ctx.is_api_service
+      ? "De-emphasize api_protocol_surface if evidence is sparse."
+      : null,
+    ctx.is_spa
+      ? "Emphasize request_rendering_chain and public_information_architecture for SPA routing."
+      : null,
+    ctx.is_api_service
+      ? "Emphasize api_protocol_surface and organization_operations for API business surface."
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return `${base} Site type detected: ${typeDesc}. ${ctx.probe_notes} ${adjustment}`.trimEnd();
 }
 
 function normalizeModelResult(contract: AiNarrativeReportContract, value: unknown): AiNarrativeReportResult {

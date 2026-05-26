@@ -57,7 +57,10 @@ export type AiClassifierContract = {
   };
 };
 
-export function createAiClassifierContract(run: Run): AiClassifierContract {
+export function createAiClassifierContract(
+  run: Run,
+  probeStrategy?: import("../../scan/probe-strategy").ProbeStrategy,
+): AiClassifierContract {
   const evidence = run.records
     .filter(isAiClassifierInputRecord)
     .map((record, index) => createEvidenceInput(record, `AIC${String(index + 1).padStart(3, "0")}`));
@@ -70,8 +73,7 @@ export function createAiClassifierContract(run: Run): AiClassifierContract {
     input: {
       layers: [4, 8],
       evidence,
-      instruction:
-        "Classify frontend/application technologies only from the supplied evidence refs. Do not infer ownership, deployment platform, or full stack inventory from weak or missing evidence.",
+      instruction: buildClassifierInstruction(probeStrategy),
     },
     output_contract: {
       required_fields: ["technology", "category", "confidence", "reasoning", "evidence_refs", "limitations"],
@@ -92,6 +94,26 @@ export function createAiClassifierContract(run: Run): AiClassifierContract {
       },
     },
   };
+}
+
+function buildClassifierInstruction(
+  probeStrategy?: import("../../scan/probe-strategy").ProbeStrategy,
+): string {
+  const base =
+    "Classify frontend/application technologies only from the supplied evidence refs. Do not infer ownership, deployment platform, or full stack inventory from weak or missing evidence.";
+  if (!probeStrategy) return base;
+
+  const runProbes = probeStrategy.probe_manifest
+    .filter((e) => e.status === "run")
+    .map((e) => `${e.probe}: ${e.intent}`)
+    .join("; ");
+  const skippedProbes = probeStrategy.probe_manifest.filter((e) => e.status === "skipped");
+  const skippedNote =
+    skippedProbes.length > 0
+      ? ` Note: ${skippedProbes.map((e) => e.probe).join(", ")} were not run (${probeStrategy.site_type_hints.is_static ? "static site detected" : "site type mismatch"}).`
+      : "";
+
+  return `${base} Probes run and their intents: ${runProbes}.${skippedNote}`;
 }
 
 function isAiClassifierInputRecord(record: SnapshotRecord): boolean {
