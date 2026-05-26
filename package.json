@@ -45,6 +45,7 @@
     "check:subdomain-attack-surface-probe-module": "node tools/assert-subdomain-attack-surface-probe-module.mjs",
     "check:layer-07-service-fingerprint-boundary": "node tools/assert-layer-07-service-fingerprint-boundary.mjs",
     "check:service-fingerprint-probe-module": "node tools/assert-service-fingerprint-probe-module.mjs",
+    "check:probe-strategy": "node --experimental-strip-types tools/assert-probe-strategy.mjs",
     "check:public-host-fingerprint-probe-module": "node tools/assert-public-host-fingerprint-probe-module.mjs",
     "check:public-security-details-probe-module": "node tools/assert-public-security-details-probe-module.mjs",
     "check:public-content-surface-probe-module": "node tools/assert-public-content-surface-probe-module.mjs",
