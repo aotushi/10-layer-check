@@ -6,6 +6,7 @@ import type { ReportBrief } from "./brief";
 import { createReportBrief } from "./brief";
 import { renderAnalysisMarkdown, renderNarrativeMarkdown } from "./markdown";
 import { createDefaultScanPolicy, type ScanPolicy } from "../scan/policy";
+import { type ProbeStrategy } from "../scan/probe-strategy";
 
 export type ScanExportArtifactInput = {
   id: string;
@@ -48,6 +49,7 @@ export type ScanExportArtifact = {
     analysis: string;
     narrative: string;
   };
+  probe_strategy?: ProbeStrategy;
 };
 
 export function createScanExportArtifact(input: ScanExportArtifactInput): ScanExportArtifact {
@@ -83,7 +85,8 @@ export function createScanExportArtifact(input: ScanExportArtifactInput): ScanEx
     records,
   };
   const analysis = createAnalysisReport(run);
-  const brief = createReportBrief(run, analysis);
+  const probe_strategy = readProbeStrategyFromEnvelope(input.scanStartEnvelope);
+  const brief = createReportBrief(run, analysis, probe_strategy);
 
   return {
     schema_version: "site-10-layer-scan-export-artifact/v0.1",
@@ -113,6 +116,7 @@ export function createScanExportArtifact(input: ScanExportArtifactInput): ScanEx
       analysis: renderAnalysisMarkdown(analysis),
       narrative: renderNarrativeMarkdown(brief),
     },
+    probe_strategy,
   };
 }
 
@@ -129,6 +133,18 @@ function readStringArray(value: unknown, key: string): string[] {
   if (!value || typeof value !== "object" || Array.isArray(value)) return [];
   const entry = (value as Record<string, unknown>)[key];
   return Array.isArray(entry) ? entry.filter((item): item is string => typeof item === "string") : [];
+}
+
+function readProbeStrategyFromEnvelope(scanStartEnvelope: unknown): ProbeStrategy | undefined {
+  const envelope = typeof scanStartEnvelope === "object" && scanStartEnvelope !== null
+    ? (scanStartEnvelope as Record<string, unknown>)
+    : null;
+  if (!envelope) return undefined;
+  const ps = envelope["probe_strategy"];
+  if (!ps || typeof ps !== "object" || Array.isArray(ps)) return undefined;
+  const record = ps as Record<string, unknown>;
+  if (record["schema_version"] !== "site-10-layer-probe-strategy/v0.1") return undefined;
+  return ps as ProbeStrategy;
 }
 
 function readScanPolicy(value: unknown): ScanPolicy | null {

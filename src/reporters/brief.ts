@@ -1,6 +1,7 @@
 import { LAYERS } from "../core/layers";
 import type { Evidence, EvidenceMetadata, Run, SnapshotRecord } from "../core/types";
 import { type AnalysisReport, createAnalysisReport } from "./analysis";
+import { type ProbeStrategy } from "../scan/probe-strategy";
 
 export type MissingDataClassification =
   | "add_provider"
@@ -65,9 +66,14 @@ export type ReportBrief = {
   missing_data: ReportBriefMissingData[];
   risks: AnalysisReport["risks"];
   next_steps: string[];
+  probe_strategy?: ProbeStrategy;
 };
 
-export function createReportBrief(run: Run, analysis: AnalysisReport = createAnalysisReport(run)): ReportBrief {
+export function createReportBrief(
+  run: Run,
+  analysis: AnalysisReport = createAnalysisReport(run),
+  probe_strategy?: ProbeStrategy,
+): ReportBrief {
   const evidenceIndex = createBriefEvidenceIndex(run, analysis);
   const missingData = createMissingData(run, analysis);
   const missingByLayer = groupMissingByLayer(missingData);
@@ -104,6 +110,7 @@ export function createReportBrief(run: Run, analysis: AnalysisReport = createAna
     missing_data: missingData,
     risks: analysis.risks,
     next_steps: analysis.next_steps,
+    probe_strategy,
   };
 }
 
