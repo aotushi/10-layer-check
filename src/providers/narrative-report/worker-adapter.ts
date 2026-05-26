@@ -197,10 +197,6 @@ async function callCloudflareWorkersAi(
 ): Promise<unknown> {
   const body = await ai.run(model, {
     messages: createMessages(contract),
-    response_format: {
-      type: "json_schema",
-      json_schema: createJsonSchema(),
-    },
     temperature: 0,
     max_tokens: 9000,
   });
@@ -219,30 +215,6 @@ function createMessages(contract: AiNarrativeReportContract): WorkersAiChatInput
       content: JSON.stringify(contract),
     },
   ];
-}
-
-function createJsonSchema(): Record<string, unknown> {
-  const section = {
-    type: "object",
-    properties: {
-      id: { type: "string", enum: [...AI_NARRATIVE_REPORT_SECTION_IDS] },
-      title: { type: "string", maxLength: 120 },
-      content: { type: "string", maxLength: 1200 },
-      evidence_refs: { type: "array", maxItems: 12, items: { type: "string" } },
-      missing_data_refs: { type: "array", maxItems: 12, items: { type: "string" } },
-      limitations: { type: "array", maxItems: 8, items: { type: "string", maxLength: 240 } },
-    },
-    required: ["id", "title", "content", "evidence_refs", "missing_data_refs", "limitations"],
-  };
-
-  return {
-    type: "object",
-    properties: {
-      sections: { type: "array", minItems: 1, maxItems: 10, items: section },
-      markdown: { type: "string", maxLength: 1200 },
-    },
-    required: ["sections", "markdown"],
-  };
 }
 
 function normalizeModelResult(contract: AiNarrativeReportContract, value: unknown): AiNarrativeReportResult {

@@ -177,10 +177,6 @@ async function callCloudflareWorkersAiClassifier(
 ): Promise<unknown> {
   const body = await ai.run(model, {
     messages: createClassifierMessages(contract),
-    response_format: {
-      type: "json_schema",
-      json_schema: createClassifierJsonSchema(),
-    },
     temperature: 0,
     max_tokens: 1200,
   });
@@ -199,30 +195,6 @@ function createClassifierMessages(contract: AiClassifierContract): WorkersAiChat
       content: JSON.stringify(contract),
     },
   ];
-}
-
-function createClassifierJsonSchema(): Record<string, unknown> {
-  return {
-    type: "object",
-    properties: {
-      results: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            technology: { type: "string" },
-            category: { type: "string" },
-            confidence: { type: "string", enum: ["confirmed", "likely", "possible", "unknown"] },
-            reasoning: { type: "string" },
-            evidence_refs: { type: "array", items: { type: "string" } },
-            limitations: { type: "array", items: { type: "string" } },
-          },
-          required: ["technology", "category", "confidence", "reasoning", "evidence_refs", "limitations"],
-        },
-      },
-    },
-    required: ["results"],
-  };
 }
 
 function extractModelContent(value: unknown): string {
