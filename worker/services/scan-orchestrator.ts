@@ -1,6 +1,14 @@
 import { createScanExportArtifact } from "../../src/reporters/artifact";
 import { createDefaultScanPolicy, type ScanPolicy } from "../../src/scan/policy";
 import {
+  FAST_PROBES,
+  inferSiteTypeHints,
+  selectTargetedProbes,
+  createProbeStrategy,
+  createProbeOptions,
+  type ProbeStrategy,
+} from "../../src/scan/probe-strategy";
+import {
   applyProviderResultEnvelopes,
   createScanJobArtifact,
   createScanJobFromStartEnvelope,
@@ -93,6 +101,7 @@ export type SiteScanStartEnvelope = {
     failed: string[];
     limitations: string[];
   };
+  probe_strategy?: ProbeStrategy;
 };
 
 export type SiteScanJobEnvelope = {
@@ -115,7 +124,7 @@ export type SiteScanPerformanceOptions = {
 };
 
 export type ScanOrchestratorDependencies<TEnv> = {
-  executeSyncProbe(probe: SiteScanSyncProbe, target: string, maxRedirects: number): Promise<unknown>;
+  executeSyncProbe(probe: SiteScanSyncProbe, target: string, maxRedirects: number, options?: Record<string, unknown>): Promise<unknown>;
   executeAsyncProvider(
     env: TEnv,
     provider: SiteScanAsyncProvider,
@@ -152,12 +161,51 @@ export async function createSiteScanStart<TEnv>(input: {
     strategy: parseLighthouseStrategy(input.body.strategy),
     location: typeof input.body.location === "string" && input.body.location.trim() ? input.body.location.trim() : null,
   };
-  const syncEntries = await Promise.all(
-    syncProbes.map(async (probe) => [
+  // Phase 1: 快探（dns_infrastructure, service_fingerprint, remote_fetch）
+  const fastProbeNames = (FAST_PROBES as readonly string[]).filter(
+    (p): p is SiteScanSyncProbe => syncProbes.includes(p as SiteScanSyncProbe),
+  );
+  const fastEntries = await Promise.all(
+    fastProbeNames.map(async (probe) => [
       probe,
       await runSiteScanSyncProbe(input.dependencies, probe, input.target, maxRedirects),
     ] as const),
   );
+
+  // 从 Phase 1 结果推断站点类型
+  const fastResultMap: Record<string, unknown> = Object.fromEntries(
+    fastEntries
+      .filter((entry): entry is [SiteScanSyncProbe, { status: "fulfilled"; result: unknown }] =>
+        entry[1].status === "fulfilled",
+      )
+      .map(([probe, r]) => [probe, r.result]),
+  );
+  const siteTypeHints = inferSiteTypeHints({
+    service_fingerprint: fastResultMap["service_fingerprint"] ?? null,
+    remote_fetch: fastResultMap["remote_fetch"] ?? null,
+  });
+  const { run: selectedProbes, skipped: skippedProbes } = selectTargetedProbes(siteTypeHints, syncProbes);
+  const probe_options = createProbeOptions(siteTypeHints);
+  // selectedProbes 返回 string[]，过滤出未在 Phase 1 运行的探针
+  const remainingProbes = selectedProbes
+    .filter((p) => !fastProbeNames.includes(p as SiteScanSyncProbe)) as SiteScanSyncProbe[];
+
+  // Phase 2: 目标探针（带选项）
+  const phase2Entries = await Promise.all(
+    remainingProbes.map(async (probe) => [
+      probe,
+      await runSiteScanSyncProbe(
+        input.dependencies,
+        probe,
+        input.target,
+        maxRedirects,
+        (probe_options as Record<string, Record<string, unknown> | undefined>)[probe],
+      ),
+    ] as const),
+  );
+
+  const syncEntries = [...fastEntries, ...phase2Entries];
+  const probe_strategy = createProbeStrategy(siteTypeHints, selectedProbes, skippedProbes);
   const asyncJobs = await Promise.all(
     asyncProviders.map((provider) =>
       runSiteScanAsyncProvider(input.dependencies, input.env, provider, input.target, input.requestUrl, performanceOptions),
@@ -207,8 +255,12 @@ export async function createSiteScanStart<TEnv>(input: {
         "This backend contract returns raw provider results and async job descriptors; SnapshotRecord normalization remains in the Web App/core adapter layer.",
         "Long-running GitHub Actions providers are started asynchronously and must be polled through their status/result endpoints.",
         "PageSpeed is a synchronous external provider and may return a completed result envelope directly inside async_jobs.",
+        ...(skippedProbes.length > 0
+          ? [`Probe strategy skipped: ${skippedProbes.join(", ")} (site type: ${siteTypeHints.is_static ? "static" : siteTypeHints.is_spa ? "spa" : siteTypeHints.is_cms ?? "unknown"}, confidence: ${siteTypeHints.confidence}).`]
+          : []),
       ],
     },
+    probe_strategy,
   };
 }
 
@@ -287,9 +339,10 @@ async function runSiteScanSyncProbe<TEnv>(
   probe: SiteScanSyncProbe,
   target: string,
   maxRedirects: number,
+  options?: Record<string, unknown>,
 ): Promise<SiteScanResultEnvelope<unknown>> {
   try {
-    const result = await dependencies.executeSyncProbe(probe, target, maxRedirects);
+    const result = await dependencies.executeSyncProbe(probe, target, maxRedirects, options);
     return {
       status: "fulfilled",
       result,
