@@ -1,4 +1,5 @@
-import type { Env, WorkerKvNamespace } from "../env";
+import type { KVNamespace } from "@cloudflare/workers-types";
+import type { Env } from "../env";
 import type { ProbeRequest, SiteScanJobEnvelope } from "./scan-orchestrator";
 import {
   githubBrowserRuntimeResult,
@@ -338,13 +339,13 @@ export async function putPersistedAiNarrativeReport(input: {
 }
 
 class KvScanStore implements ScanJobStore, ScanArtifactStore {
-  private readonly kv: WorkerKvNamespace;
+  private readonly kv: KVNamespace;
   private readonly ttlSeconds: number;
   private readonly maxObjectBytes: number;
   private readonly now: () => Date;
 
   constructor(
-    kv: WorkerKvNamespace,
+    kv: KVNamespace,
     options: {
       ttlSeconds: number;
       maxObjectBytes: number;

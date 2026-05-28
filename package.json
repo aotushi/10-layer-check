@@ -23,6 +23,7 @@
     "check:worker-scan-export": "node tools/assert-worker-scan-export.mjs",
     "check:worker-http-helpers": "node tools/assert-worker-http-helpers.mjs",
     "check:worker-route-modules": "node tools/assert-worker-route-modules.mjs",
+    "check:user-auth": "node tools/assert-user-auth.mjs",
     "check:backend-scan-job-v2-spec": "node tools/assert-backend-scan-job-v2-spec.mjs",
     "check:backend-scan-job-v2-model": "node tools/assert-backend-scan-job-v2-model.mjs",
     "check:backend-scan-job-v2-endpoint": "node tools/assert-backend-scan-job-v2-endpoint.mjs",
@@ -90,6 +91,7 @@
     "vite": "^6.0.6"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260528.1",
     "typescript": "^5.7.2",
     "wrangler": "^4.50.0"
   }

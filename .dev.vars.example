@@ -1,5 +1,6 @@
 ALLOW_LOCAL_DEV_NO_AUTH=true
 # PROBE_API_KEY=replace-with-a-local-probe-key
+JWT_SECRET=replace-with-a-long-local-secret
 # GITHUB_TOKEN=github_pat_or_fine_grained_token
 GITHUB_OWNER=aotushi
 GITHUB_REPO=02-browser-runtime-remote-git

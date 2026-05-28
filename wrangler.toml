@@ -27,6 +27,7 @@ id = "bb485af9804a448b91b5e09103dce877"
 binding = "SCAN_JOB_DB"
 database_name = "db-for-site10layer"
 database_id = "bf7c75e1-5108-4088-951a-780824bf541a"
+migrations_dir = "migrations"
 
 [vars]
 GITHUB_OWNER = "aotushi"
@@ -36,3 +37,4 @@ GITHUB_LIGHTHOUSE_WORKFLOW = "site-10-layer-check-lighthouse.yml"
 GITHUB_BROWSER_RUNTIME_WORKFLOW = "site-10-layer-check-browser.yml"
 GITHUB_REF = "main"
 AI_PROVIDER_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct"
+JWT_EXPIRES_SECONDS = "604800"

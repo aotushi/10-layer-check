@@ -1,19 +1,12 @@
+import type { D1Database, KVNamespace } from "@cloudflare/workers-types";
 import type { WorkersAiBinding } from "./services/ai-classifier";
-
-export type WorkerKvNamespace = {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-  delete(key: string): Promise<void>;
-};
-
-export type WorkerD1Database = {
-  prepare(query: string): unknown;
-};
 
 export type Env = {
   AI?: WorkersAiBinding;
-  SCAN_JOB_KV?: WorkerKvNamespace;
-  SCAN_JOB_DB?: WorkerD1Database;
+  SCAN_JOB_KV?: KVNamespace;
+  SCAN_JOB_DB?: D1Database;
+  JWT_SECRET?: string;
+  JWT_EXPIRES_SECONDS?: string;
   PROBE_API_KEY?: string;
   ALLOW_LOCAL_DEV_NO_AUTH?: string;
   GITHUB_TOKEN?: string;

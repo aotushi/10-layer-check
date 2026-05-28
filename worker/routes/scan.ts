@@ -13,6 +13,7 @@ import {
   type SiteScanPerformanceOptions,
 } from "../services/scan-orchestrator";
 import { createStorageNotConfiguredResponse } from "../../src/scan/storage";
+import type { ScanJob } from "../../src/scan/job";
 import {
   cancelPersistedScanJob,
   collectPersistedScanJob,
@@ -25,7 +26,9 @@ import {
 } from "../services/scan-storage";
 import { createScanRunId } from "../http/request";
 import { jsonResponse, markdownResponse } from "../http/response";
+import { updateScanHistoryStatus, upsertScanHistory } from "../services/user-db";
 import { executeSiteScanSyncProbe } from "./probes";
+import type { AuthenticatedUser } from "./user";
 import {
   githubBrowserRuntimeStart,
   githubLighthouseStart,
@@ -48,6 +51,7 @@ export async function handleScanRoute(
   target: string,
   body: ProbeRequest,
   requestUrl: URL,
+  authenticatedUser?: AuthenticatedUser | null,
 ): Promise<Response | null> {
   if (pathname === "/scan/site/start") {
     return jsonResponse(
@@ -137,16 +141,19 @@ export async function handleScanRoute(
   }
 
   if (pathname === "/scan/jobs") {
+    const envelope = await createSiteScanJob({
+      env,
+      target,
+      body,
+      requestUrl,
+      dependencies: scanOrchestratorDependencies,
+    });
+    await recordAuthenticatedScanHistory(env, authenticatedUser, envelope.job);
+
     return jsonResponse(
       await persistScanJobEnvelope({
         env,
-        envelope: await createSiteScanJob({
-          env,
-          target,
-          body,
-          requestUrl,
-          dependencies: scanOrchestratorDependencies,
-        }),
+        envelope,
       }),
     );
   }
@@ -234,10 +241,52 @@ export async function handleScanRoute(
       : pathname.endsWith("/poll")
         ? await pollPersistedScanJob({ env, id, requestUrl })
         : await collectPersistedScanJob({ env, id, body });
+    await syncAuthenticatedScanHistoryStatus(env, authenticatedUser, result.body);
     return jsonResponse(result.body, result.status);
   }
 
   return null;
+}
+
+async function recordAuthenticatedScanHistory(
+  env: Env,
+  authenticatedUser: AuthenticatedUser | null | undefined,
+  job: ScanJob,
+): Promise<void> {
+  if (!authenticatedUser || !env.SCAN_JOB_DB) return;
+
+  await upsertScanHistory(env.SCAN_JOB_DB, {
+    userId: authenticatedUser.id,
+    jobId: job.id,
+    target: job.normalized_target || job.target,
+    status: job.status,
+    createdAt: job.created_at,
+    completedAt: job.completed_at,
+  });
+}
+
+async function syncAuthenticatedScanHistoryStatus(
+  env: Env,
+  authenticatedUser: AuthenticatedUser | null | undefined,
+  body: unknown,
+): Promise<void> {
+  if (!authenticatedUser || !env.SCAN_JOB_DB) return;
+  const job = readScanJob(body);
+  if (!job) return;
+
+  await updateScanHistoryStatus(env.SCAN_JOB_DB, {
+    userId: authenticatedUser.id,
+    jobId: job.id,
+    status: job.status,
+    completedAt: job.completed_at,
+  });
+}
+
+function readScanJob(value: unknown): ScanJob | null {
+  if (!isRecord(value) || !isRecord(value.job)) return null;
+  const job = value.job;
+  if (typeof job.id !== "string" || typeof job.status !== "string") return null;
+  return job as ScanJob;
 }
 
 async function getOrCreatePersistedAiReport(input: {

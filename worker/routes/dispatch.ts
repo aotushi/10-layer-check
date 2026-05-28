@@ -9,6 +9,7 @@ import { handlePerformanceGetRoute, handlePerformancePostRoute } from "./perform
 import { handleProbeRoute } from "./probes";
 import { handleRelatedDomainsRoute } from "./related-domains";
 import { handleScanGetRoute, handleScanRoute, isScanJobIdGetRoute, isScanJobIdPostRoute, isScanJobIdRoute } from "./scan";
+import { authenticateUserRequest, handleUserRoute } from "./user";
 
 const POST_ENDPOINTS = new Set([
   "/probe/remote-fetch",
@@ -64,21 +65,27 @@ export async function handleWorkerRequest(request: Request, env: Env): Promise<R
       ok: true,
       provider: "cloudflare_worker_fetch",
       auth: {
+        jwt_secret_configured: Boolean(env.JWT_SECRET),
+        db_configured: Boolean(env.SCAN_JOB_DB),
         probe_api_key_configured: Boolean(env.PROBE_API_KEY),
         local_no_auth_enabled: env.ALLOW_LOCAL_DEV_NO_AUTH === "true",
       },
     });
   }
 
-  if (!POST_ENDPOINTS.has(url.pathname) && !GET_ENDPOINTS.has(url.pathname) && !isScanJobIdRoute(url.pathname)) {
-    return jsonResponse({ error: "Not found" }, 404);
-  }
-
-  const methodError = validateMethod(url.pathname, request.method);
-  if (methodError) return methodError;
-
   try {
-    const authError = authenticate(request, env);
+    const userResponse = await handleUserRoute(url.pathname, request, env);
+    if (userResponse) return userResponse;
+
+    if (!POST_ENDPOINTS.has(url.pathname) && !GET_ENDPOINTS.has(url.pathname) && !isScanJobIdRoute(url.pathname)) {
+      return jsonResponse({ error: "Not found" }, 404);
+    }
+
+    const methodError = validateMethod(url.pathname, request.method);
+    if (methodError) return methodError;
+
+    const authenticatedUser = await authenticateUserRequest(request, env);
+    const authError = authenticatedUser ? null : authenticate(request, env);
     if (authError) return authError;
 
     const getResponse =
@@ -97,7 +104,7 @@ export async function handleWorkerRequest(request: Request, env: Env): Promise<R
       ? ""
       : parseTarget(body.target);
     const postResponse =
-      (await handleScanRoute(url.pathname, env, target, body, url)) ??
+      (await handleScanRoute(url.pathname, env, target, body, url, authenticatedUser)) ??
       (await handleGithubPostRoute(url.pathname, env, target, body)) ??
       (await handlePerformancePostRoute(url.pathname, env, target, url, body)) ??
       (await handleProbeRoute(url.pathname, target, body));
