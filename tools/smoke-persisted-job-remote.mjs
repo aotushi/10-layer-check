@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const env = { ...process.env, ...readDevVars(resolve(process.cwd(), ".dev.vars")) };
 
-const endpoint = trimTrailingSlash(env.PERSISTED_JOB_SMOKE_ENDPOINT ?? "https://probe.9shi.cc");
+const endpoint = trimTrailingSlash(env.PERSISTED_JOB_SMOKE_ENDPOINT ?? "https://probe.9shi.cc/api");
 const target = env.PERSISTED_JOB_SMOKE_TARGET ?? "https://example.com";
 const syncProbes = parseList(env.PERSISTED_JOB_SMOKE_SYNC_PROBES ?? "remote_fetch");
 const asyncProviders = parseList(env.PERSISTED_JOB_SMOKE_ASYNC_PROVIDERS ?? "");

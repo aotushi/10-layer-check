@@ -1,3 +1,5 @@
+import { createRouteUrl } from "../http/request";
+
 export type PerformanceProviderEnv = {
   PAGESPEED_API_KEY?: string;
   PAGESPEED_API_URL?: string;
@@ -159,13 +161,11 @@ export async function webPageTestStart(
     };
   }
 
-  const statusUrl = new URL(requestUrl.toString());
-  statusUrl.pathname = "/provider/performance/webpagetest/status";
+  const statusUrl = createRouteUrl(requestUrl, "/provider/performance/webpagetest/status");
   statusUrl.search = "";
   statusUrl.searchParams.set("id", testId);
 
-  const resultUrl = new URL(requestUrl.toString());
-  resultUrl.pathname = "/provider/performance/webpagetest/result";
+  const resultUrl = createRouteUrl(requestUrl, "/provider/performance/webpagetest/result");
   resultUrl.search = "";
   resultUrl.searchParams.set("id", testId);
 
@@ -184,7 +184,7 @@ export async function webPageTestStart(
       result: resultUrl.toString(),
     },
     next_step:
-      "Poll /provider/performance/webpagetest/status?id=<testId>, then /provider/performance/webpagetest/result?id=<testId> when completed.",
+      `Poll ${statusUrl.pathname}?id=<testId>, then ${resultUrl.pathname}?id=<testId> when completed.`,
   };
 }
 

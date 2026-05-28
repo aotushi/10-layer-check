@@ -6,8 +6,8 @@ account_id = "eff602d8715ddb9bcf1b4ba8b2ca0788"
 workers_dev = true
 
 [[routes]]
-pattern = "probe.9shi.cc"
-custom_domain = true
+pattern = "probe.9shi.cc/api/*"
+zone_name = "9shi.cc"
 
 [observability]
 enabled = true

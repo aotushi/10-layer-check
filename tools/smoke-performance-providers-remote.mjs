@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 const env = { ...process.env, ...readDevVars(resolve(process.cwd(), ".dev.vars")) };
 
-const endpoint = trimTrailingSlash(env.PERFORMANCE_SMOKE_ENDPOINT ?? "https://probe.9shi.cc");
+const endpoint = trimTrailingSlash(env.PERFORMANCE_SMOKE_ENDPOINT ?? "https://probe.9shi.cc/api");
 const target = env.PERFORMANCE_SMOKE_TARGET ?? "https://example.com";
 const selectedProviders = parseProviderList(env.PERFORMANCE_SMOKE_PROVIDERS ?? "pagespeed");
 const apiKey = env.PROBE_API_KEY;

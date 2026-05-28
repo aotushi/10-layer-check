@@ -1,6 +1,6 @@
 import type { Env } from "../env";
 import { authenticate } from "../http/auth";
-import { parseTarget } from "../http/request";
+import { parseTarget, stripApiRoutePrefix } from "../http/request";
 import { CORS_HEADERS, jsonResponse } from "../http/response";
 import type { ProbeRequest } from "../services/scan-orchestrator";
 import { handleAiRoute } from "./ai";
@@ -55,12 +55,13 @@ const GET_ENDPOINTS = new Set([
 
 export async function handleWorkerRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  const pathname = stripApiRoutePrefix(url.pathname);
 
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
-  if (url.pathname === "/health") {
+  if (pathname === "/health") {
     return jsonResponse({
       ok: true,
       provider: "cloudflare_worker_fetch",
@@ -74,14 +75,14 @@ export async function handleWorkerRequest(request: Request, env: Env): Promise<R
   }
 
   try {
-    const userResponse = await handleUserRoute(url.pathname, request, env);
+    const userResponse = await handleUserRoute(pathname, request, env);
     if (userResponse) return userResponse;
 
-    if (!POST_ENDPOINTS.has(url.pathname) && !GET_ENDPOINTS.has(url.pathname) && !isScanJobIdRoute(url.pathname)) {
+    if (!POST_ENDPOINTS.has(pathname) && !GET_ENDPOINTS.has(pathname) && !isScanJobIdRoute(pathname)) {
       return jsonResponse({ error: "Not found" }, 404);
     }
 
-    const methodError = validateMethod(url.pathname, request.method);
+    const methodError = validateMethod(pathname, request.method);
     if (methodError) return methodError;
 
     const authenticatedUser = await authenticateUserRequest(request, env);
@@ -89,25 +90,25 @@ export async function handleWorkerRequest(request: Request, env: Env): Promise<R
     if (authError) return authError;
 
     const getResponse =
-      (await handleScanGetRoute(url.pathname, env, authenticatedUser)) ??
-      (await handleGithubGetRoute(url.pathname, env, url)) ??
-      (await handlePerformanceGetRoute(url.pathname, env, url));
+      (await handleScanGetRoute(pathname, env, authenticatedUser)) ??
+      (await handleGithubGetRoute(pathname, env, url)) ??
+      (await handlePerformanceGetRoute(pathname, env, url));
     if (getResponse) return getResponse;
 
     const body = (await request.json()) as ProbeRequest & { contract?: unknown };
-    const aiResponse = await handleAiRoute(url.pathname, env, body);
+    const aiResponse = await handleAiRoute(pathname, env, body);
     if (aiResponse) return aiResponse;
-    const relatedDomainsResponse = await handleRelatedDomainsRoute(url.pathname, env, body);
+    const relatedDomainsResponse = await handleRelatedDomainsRoute(pathname, env, body);
     if (relatedDomainsResponse) return relatedDomainsResponse;
 
-    const target = routeSkipsTarget(url.pathname)
+    const target = routeSkipsTarget(pathname)
       ? ""
       : parseTarget(body.target);
     const postResponse =
-      (await handleScanRoute(url.pathname, env, target, body, url, authenticatedUser)) ??
-      (await handleGithubPostRoute(url.pathname, env, target, body)) ??
-      (await handlePerformancePostRoute(url.pathname, env, target, url, body)) ??
-      (await handleProbeRoute(url.pathname, target, body));
+      (await handleScanRoute(pathname, env, target, body, url, authenticatedUser)) ??
+      (await handleGithubPostRoute(pathname, env, target, body)) ??
+      (await handlePerformancePostRoute(pathname, env, target, url, body)) ??
+      (await handleProbeRoute(pathname, target, body));
 
     return postResponse ?? jsonResponse({ error: "Not found" }, 404);
   } catch (error) {

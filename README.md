@@ -114,7 +114,7 @@ npm run smoke:persisted-ai-narrative-report-remote
 npm run smoke:persisted-selected-full-ai-report-remote
 ```
 
-The smoke commands post to `https://probe.9shi.cc` by default, read `PROBE_API_KEY` from the environment or `.dev.vars`, and verify that the response contains a deterministic scan artifact plus validated AI narrative Markdown with resolvable `[E###]` / `[M###]` citations. The selected full AI report smoke also verifies the direct Markdown endpoint and saves the returned `.md` file under `smoke-results/`.
+The smoke commands post to `https://probe.9shi.cc/api` by default, read `PROBE_API_KEY` from the environment or `.dev.vars`, and verify that the response contains a deterministic scan artifact plus validated AI narrative Markdown with resolvable `[E###]` / `[M###]` citations. The selected full AI report smoke also verifies the direct Markdown endpoint and saves the returned `.md` file under `smoke-results/`.
 
 Latest remote verification:
 

@@ -20,6 +20,7 @@ import {
   type SignedJobHandle,
   type SignedJobHandleConfig,
 } from "../../src/scan/signed-job-handle";
+import { createRouteUrl } from "../http/request";
 
 export type ProbeRequest = {
   target?: unknown;
@@ -455,13 +456,11 @@ function createAsyncProviderEndpoints(requestUrl: URL, provider: SiteScanAsyncPr
       result: null,
     };
   }
-  const statusUrl = new URL(requestUrl.toString());
-  statusUrl.pathname = `${basePath}/status`;
+  const statusUrl = createRouteUrl(requestUrl, `${basePath}/status`);
   statusUrl.search = "";
   statusUrl.searchParams.set("id", requestId);
 
-  const resultUrl = new URL(requestUrl.toString());
-  resultUrl.pathname = `${basePath}/result`;
+  const resultUrl = createRouteUrl(requestUrl, `${basePath}/result`);
   resultUrl.search = "";
   resultUrl.searchParams.set("id", requestId);
 

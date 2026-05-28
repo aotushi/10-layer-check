@@ -1,4 +1,5 @@
 const DEFAULT_MAX_REDIRECTS = 10;
+const API_ROUTE_PREFIX = "/api";
 
 export function parseOptionalString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -34,6 +35,21 @@ export function parseTarget(value: unknown): string {
   return value.trim();
 }
 
+export function stripApiRoutePrefix(pathname: string): string {
+  if (pathname === API_ROUTE_PREFIX) return "/";
+  if (!pathname.startsWith(`${API_ROUTE_PREFIX}/`)) return pathname;
+
+  return pathname.slice(API_ROUTE_PREFIX.length) || "/";
+}
+
+export function createRouteUrl(requestUrl: URL, pathname: string): URL {
+  const url = new URL(requestUrl.toString());
+  const prefix = hasApiRoutePrefix(requestUrl.pathname) ? API_ROUTE_PREFIX : "";
+
+  url.pathname = `${prefix}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+  return url;
+}
+
 export function parseMaxRedirects(value: unknown): number {
   if (value === undefined) return DEFAULT_MAX_REDIRECTS;
   const parsed = Number(value);
@@ -51,4 +67,8 @@ export function parseLighthouseStrategy(value: unknown): "mobile" | "desktop" {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasApiRoutePrefix(pathname: string): boolean {
+  return pathname === API_ROUTE_PREFIX || pathname.startsWith(`${API_ROUTE_PREFIX}/`);
 }

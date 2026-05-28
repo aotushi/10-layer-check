@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const env = { ...process.env, ...readDevVars(resolve(process.cwd(), ".dev.vars")) };
 
-const endpoint = trimTrailingSlash(env.L9_ORG_SMOKE_ENDPOINT ?? "https://probe.9shi.cc");
+const endpoint = trimTrailingSlash(env.L9_ORG_SMOKE_ENDPOINT ?? "https://probe.9shi.cc/api");
 const apiKey = env.PROBE_API_KEY;
 const cases = parseCases(env.L9_ORG_SMOKE_CASES) ?? [
   { target: "https://poixe.com", kind: "baseline", requireRdap: true, requireWayback: true },

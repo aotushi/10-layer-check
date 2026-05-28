@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const env = { ...process.env, ...readDevVars(resolve(process.cwd(), ".dev.vars")) };
 
-const endpoint = trimTrailingSlash(env.PERSISTED_BROWSER_RUNTIME_SMOKE_ENDPOINT ?? "https://probe.9shi.cc");
+const endpoint = trimTrailingSlash(env.PERSISTED_BROWSER_RUNTIME_SMOKE_ENDPOINT ?? "https://probe.9shi.cc/api");
 const target = env.PERSISTED_BROWSER_RUNTIME_SMOKE_TARGET ?? "https://example.com";
 const syncProbes = parseList(env.PERSISTED_BROWSER_RUNTIME_SMOKE_SYNC_PROBES ?? "");
 const timeoutMs = parsePositiveInteger(env.PERSISTED_BROWSER_RUNTIME_SMOKE_TIMEOUT_MS, 20 * 60 * 1000);

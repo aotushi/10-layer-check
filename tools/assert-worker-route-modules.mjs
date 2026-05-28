@@ -36,6 +36,10 @@ try {
   const notFound = await worker.default.fetch(new Request("http://worker.local/not-found"), {});
   assert.equal(notFound.status, 404);
 
+  const apiHealth = await worker.default.fetch(new Request("http://worker.local/api/health"), {});
+  assert.equal(apiHealth.status, 200);
+  assert.equal((await apiHealth.json()).ok, true);
+
   const wrongMethod = await worker.default.fetch(
     new Request("http://worker.local/provider/github/live-tls/status", { method: "POST" }),
     { ALLOW_LOCAL_DEV_NO_AUTH: "true" },
@@ -55,11 +59,14 @@ try {
     }
     if (url === "https://example.com/robots.txt") return new Response("", { status: 404 });
     if (url === "https://example.com/sitemap.xml") return new Response("", { status: 404 });
+    if (url.startsWith("https://www.webpagetest.org/runtest.php?")) {
+      return Response.json({ statusCode: 200, data: { testId: "wpt-route-test" } });
+    }
     throw new Error(`Unexpected fetch in route module check: ${url}`);
   };
 
   const scan = await worker.default.fetch(
-    new Request("http://worker.local/scan/site/start", {
+    new Request("http://worker.local/api/scan/site/start", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ target: "https://example.com", sync_probes: ["remote_fetch"], async_providers: [] }),
@@ -72,6 +79,19 @@ try {
   assert.equal(scanBody.schema_version, "site-10-layer-scan-start/v0.1");
   assert.equal(scanBody.sync_results.remote_fetch.status, "fulfilled");
   assert.equal(scanBody.sync_results.remote_fetch.result.status_code, 200);
+
+  const webPageTest = await worker.default.fetch(
+    new Request("http://worker.local/api/provider/performance/webpagetest/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ target: "https://example.com" }),
+    }),
+    { ALLOW_LOCAL_DEV_NO_AUTH: "true", WEBPAGETEST_API_KEY: "test-key" },
+  );
+  assert.equal(webPageTest.status, 200);
+  const webPageTestBody = await webPageTest.json();
+  assert.equal(webPageTestBody.endpoints.status, "http://worker.local/api/provider/performance/webpagetest/status?id=wpt-route-test");
+  assert.equal(webPageTestBody.endpoints.result, "http://worker.local/api/provider/performance/webpagetest/result?id=wpt-route-test");
 
   console.log("worker route module check passed.");
 } finally {
