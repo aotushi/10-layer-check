@@ -8,12 +8,30 @@ const server = await createServer({
   server: { middlewareMode: true, hmr: false },
 });
 
+class FakeKvNamespace {
+  #values = new Map();
+
+  async get(key) {
+    return this.#values.get(key) ?? null;
+  }
+
+  async put(key, value) {
+    this.#values.set(key, value);
+  }
+
+  async delete(key) {
+    this.#values.delete(key);
+  }
+}
+
 try {
   const worker = await server.ssrLoadModule("/worker/remote-fetch.ts");
   const env = {
     JWT_SECRET: "local-user-auth-test-secret-with-enough-entropy",
     JWT_EXPIRES_SECONDS: "604800",
     SCAN_JOB_DB: createMemoryD1(),
+    SCAN_JOB_KV: new FakeKvNamespace(),
+    SCAN_JOB_TTL_SECONDS: "3600",
   };
 
   const missingConfig = await request(worker, "POST", "http://worker.local/user/register", {
@@ -45,6 +63,13 @@ try {
   assert.equal(login.status, 200);
   assert.equal(typeof login.body.token, "string");
 
+  const intruderRegister = await request(worker, "POST", "http://worker.local/user/register", {
+    email: "intruder@example.com",
+    password: "password-1234",
+  }, env);
+  assert.equal(intruderRegister.status, 200);
+  assert.equal(typeof intruderRegister.body.token, "string");
+
   const scan = await request(worker, "POST", "http://worker.local/scan/jobs", {
     target: "overreacted.io",
     sync_probes: [],
@@ -58,6 +83,30 @@ try {
   assert.equal(history.body.history.length, 1);
   assert.equal(history.body.history[0].job_id, scan.body.job.id);
   assert.equal(history.body.history[0].target, "overreacted.io");
+
+  const ownerHistoryDetail = await request(worker, "GET", `http://worker.local/user/history/${encodeURIComponent(scan.body.job.id)}`, null, env, register.body.token);
+  assert.equal(ownerHistoryDetail.status, 200);
+  assert.equal(ownerHistoryDetail.body.item.job_id, scan.body.job.id);
+
+  const intruderHistoryDetail = await request(worker, "GET", `http://worker.local/user/history/${encodeURIComponent(scan.body.job.id)}`, null, env, intruderRegister.body.token);
+  assert.equal(intruderHistoryDetail.status, 404);
+  assert.equal(intruderHistoryDetail.body.code, "not_found");
+
+  const ownerPersistedJob = await request(worker, "GET", `http://worker.local/scan/jobs/${encodeURIComponent(scan.body.job.id)}`, null, env, register.body.token);
+  assert.equal(ownerPersistedJob.status, 200);
+  assert.equal(ownerPersistedJob.body.meta.id, scan.body.job.id);
+
+  const intruderPersistedJob = await request(worker, "GET", `http://worker.local/scan/jobs/${encodeURIComponent(scan.body.job.id)}`, null, env, intruderRegister.body.token);
+  assert.equal(intruderPersistedJob.status, 404);
+  assert.equal(intruderPersistedJob.body.code, "not_found");
+
+  const intruderArtifact = await request(worker, "GET", `http://worker.local/scan/jobs/${encodeURIComponent(scan.body.job.id)}/artifact`, null, env, intruderRegister.body.token);
+  assert.equal(intruderArtifact.status, 404);
+  assert.equal(intruderArtifact.body.code, "not_found");
+
+  const intruderPoll = await request(worker, "POST", `http://worker.local/scan/jobs/${encodeURIComponent(scan.body.job.id)}/poll`, {}, env, intruderRegister.body.token);
+  assert.equal(intruderPoll.status, 404);
+  assert.equal(intruderPoll.body.code, "not_found");
 
   console.log("user auth and scan history check passed.");
 } finally {

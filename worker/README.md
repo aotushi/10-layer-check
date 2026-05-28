@@ -76,7 +76,9 @@ worker/
 - Long-running async jobs, such as queued WebPageTest or GitHub Actions jobs, remain provider state until completed result envelopes are available.
 - Failed, missing-config, pending, malformed, or unsupported provider results become status-only evidence boundaries.
 - `POST /scan/jobs` may persist through `SCAN_JOB_KV` when the binding is configured; without KV, id-based routes must return structured `storage_not_configured`.
+- When a request carries a valid user JWT, persisted scan job id routes must enforce D1 ownership through `scan_history.user_id + job_id` before returning job state, artifacts, or derived report output. Cross-user access returns `not_found` to avoid exposing whether another user's job exists.
 - `POST /scan/jobs/:id/poll` may poll pending persisted provider jobs by reusing existing provider service functions; it must only merge completed result envelopes and must not convert pending provider state into positive evidence.
+- API-key and local service flows keep service-level access to persisted scan jobs; they are operational integration paths, not end-user dashboard authorization.
 - D1 is reserved for future login/history/query needs. No route may run D1 schema changes, migrations, remote writes, or hidden database side effects without explicit approval.
 
 ## Framework Policy

@@ -26,7 +26,7 @@ import {
 } from "../services/scan-storage";
 import { createScanRunId } from "../http/request";
 import { jsonResponse, markdownResponse } from "../http/response";
-import { updateScanHistoryStatus, upsertScanHistory } from "../services/user-db";
+import { getScanHistoryByJobId, updateScanHistoryStatus, upsertScanHistory } from "../services/user-db";
 import { executeSiteScanSyncProbe } from "./probes";
 import type { AuthenticatedUser } from "./user";
 import {
@@ -169,6 +169,9 @@ export async function handleScanRoute(
   if (isScanJobIdPostRoute(pathname)) {
     const id = parseScanJobId(pathname);
     if (!id) return jsonResponse(createStorageNotConfiguredResponse("job_store"), 503);
+    const ownershipError = await requirePersistedScanJobOwnership(env, authenticatedUser, id);
+    if (ownershipError) return ownershipError;
+
     if (pathname.endsWith("/report") || pathname.endsWith("/report.md")) {
       const artifactResult = await getPersistedScanJobArtifact(env, id);
       if (artifactResult.status !== 200) return jsonResponse(artifactResult.body, artifactResult.status);
@@ -346,15 +349,55 @@ function readPersistedArtifactRef(value: unknown): string | null {
   return typeof artifactRef === "string" && artifactRef.length > 0 ? artifactRef : null;
 }
 
+async function requirePersistedScanJobOwnership(
+  env: Env,
+  authenticatedUser: AuthenticatedUser | null | undefined,
+  jobId: string,
+): Promise<Response | null> {
+  if (!authenticatedUser) return null;
+  if (!env.SCAN_JOB_DB) {
+    return jsonResponse(
+      {
+        ok: false,
+        code: "not_configured",
+        message: "SCAN_JOB_DB is required for user-owned scan job access.",
+      },
+      503,
+    );
+  }
+
+  const item = await getScanHistoryByJobId(env.SCAN_JOB_DB, {
+    userId: authenticatedUser.id,
+    jobId,
+  });
+  if (item) return null;
+
+  return jsonResponse(
+    {
+      ok: false,
+      code: "not_found",
+      message: "Scan job was not found.",
+    },
+    404,
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export async function handleScanGetRoute(pathname: string, env: Env): Promise<Response | null> {
+export async function handleScanGetRoute(
+  pathname: string,
+  env: Env,
+  authenticatedUser?: AuthenticatedUser | null,
+): Promise<Response | null> {
   if (!isScanJobIdGetRoute(pathname)) return null;
 
   const id = parseScanJobId(pathname);
   if (!id) return jsonResponse(createStorageNotConfiguredResponse(pathname.endsWith("/artifact") ? "artifact_store" : "job_store"), 503);
+  const ownershipError = await requirePersistedScanJobOwnership(env, authenticatedUser, id);
+  if (ownershipError) return ownershipError;
+
   const result = pathname.endsWith("/artifact")
     ? await getPersistedScanJobArtifact(env, id)
     : await getPersistedScanJob(env, id);

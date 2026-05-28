@@ -89,7 +89,7 @@ export async function handleWorkerRequest(request: Request, env: Env): Promise<R
     if (authError) return authError;
 
     const getResponse =
-      (await handleScanGetRoute(url.pathname, env)) ??
+      (await handleScanGetRoute(url.pathname, env, authenticatedUser)) ??
       (await handleGithubGetRoute(url.pathname, env, url)) ??
       (await handlePerformanceGetRoute(url.pathname, env, url));
     if (getResponse) return getResponse;
