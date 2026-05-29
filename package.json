@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "dev:worker": "wrangler dev --local --port 8787 --var ALLOW_LOCAL_DEV_NO_AUTH:true",
+    "db:migrate:local": "wrangler d1 migrations apply db-for-site10layer --local",
+    "db:seed:local": "node tools/seed-local-dev-auth.mjs",
+    "dev:setup": "npm run db:migrate:local && npm run db:seed:local",
     "deploy:worker": "wrangler deploy",
     "probe:tls": "node tools/live-tls-probe.mjs",
     "check:browser-runtime-import": "node tools/assert-browser-runtime-import.mjs",

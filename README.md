@@ -519,6 +519,20 @@ Run the local Cloudflare Worker in a second terminal:
 npm run dev:worker
 ```
 
+Before testing login or protected user routes locally, initialize the local D1 database and demo account:
+
+```bash
+npm run dev:setup
+```
+
+This applies local D1 migrations and seeds:
+
+- Demo email: `demo@10-layer-check.test`
+- Demo password: `Demo_10Layer_Check_2026!`
+- Demo history item: `sample-overreacted`
+
+Local auth requires `JWT_SECRET` in `.dev.vars`. The local `.dev.vars` file is ignored by git and should use a local-only value, not the production secret.
+
 Do not use a bare `npx wrangler dev --local` for local product testing. The local Worker must receive `ALLOW_LOCAL_DEV_NO_AUTH=true`; `npm run dev:worker` injects it explicitly. If you run Wrangler manually, use one of:
 
 ```bash
